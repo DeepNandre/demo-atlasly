@@ -15,10 +15,26 @@ interface Message {
 interface SiteChatProps {
   siteRequestId: string;
   locationName: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export const SiteChat = ({ siteRequestId, locationName }: SiteChatProps) => {
-  const [open, setOpen] = useState(false);
+export const SiteChat = ({ 
+  siteRequestId, 
+  locationName, 
+  open: controlledOpen, 
+  onOpenChange 
+}: SiteChatProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  
+  const handleOpenChange = (newOpen: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(newOpen);
+    } else {
+      setInternalOpen(newOpen);
+    }
+  };
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -71,15 +87,17 @@ export const SiteChat = ({ siteRequestId, locationName }: SiteChatProps) => {
   };
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
-          size="icon"
-        >
-          <MessageSquare className="h-6 w-6" />
-        </Button>
-      </SheetTrigger>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      {!controlledOpen && (
+        <SheetTrigger asChild>
+          <Button
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
+            size="icon"
+          >
+            <MessageSquare className="h-6 w-6" />
+          </Button>
+        </SheetTrigger>
+      )}
       <SheetContent side="right" className="w-full sm:w-[500px] flex flex-col p-0">
         <SheetHeader className="p-6 pb-4 border-b">
           <SheetTitle>Site Assistant</SheetTitle>

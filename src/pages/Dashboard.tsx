@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, RefreshCw, Plus, ArrowLeft, Box, Trash2 } from 'lucide-react';
+import { Download, RefreshCw, Plus, ArrowLeft, Box, Trash2, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -24,6 +24,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MigrationModal } from '@/components/MigrationModal';
+import { SiteChat } from '@/components/SiteChat';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getClientId } from '@/lib/clientId';
@@ -53,6 +54,8 @@ const Dashboard = () => {
   const [showMigrationModal, setShowMigrationModal] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [chatSiteId, setChatSiteId] = useState<string | null>(null);
+  const [chatLocationName, setChatLocationName] = useState<string>('');
 
   // Check if we should show migration modal
   useEffect(() => {
@@ -334,6 +337,16 @@ const Dashboard = () => {
                             )}
                             <Button
                               size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setChatSiteId(request.id);
+                                setChatLocationName(request.location_name);
+                              }}
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
                               variant="ghost"
                               onClick={() => openDeleteDialog(request.id)}
                             >
@@ -366,6 +379,20 @@ const Dashboard = () => {
           )}
         </div>
       </main>
+      
+      {chatSiteId && (
+        <SiteChat
+          siteRequestId={chatSiteId}
+          locationName={chatLocationName}
+          open={!!chatSiteId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setChatSiteId(null);
+              setChatLocationName('');
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
