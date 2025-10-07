@@ -26,8 +26,8 @@ const Header = () => {
             </a>
           </nav>
           
-          <Button variant="hero" size="default">
-            Learn More →
+          <Button variant="hero" size="default" onClick={() => window.location.href = '/generate'}>
+            Generate Pack →
           </Button>
         </div>
       </div>

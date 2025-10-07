@@ -15,6 +15,7 @@ const Contact = () => {
           variant="secondary" 
           size="xl"
           className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+          onClick={() => window.location.href = '/generate'}
         >
           Get Started Now →
         </Button>

@@ -18,10 +18,10 @@ const Hero = () => {
             </div>
             
             <div className="flex flex-wrap gap-4">
-              <Button variant="hero" size="xl">
+              <Button variant="hero" size="xl" onClick={() => window.location.href = '/generate'}>
                 Get Started
               </Button>
-              <Button variant="outline" size="xl">
+              <Button variant="outline" size="xl" onClick={() => window.location.href = '/generate'}>
                 View Demo
               </Button>
             </div>
