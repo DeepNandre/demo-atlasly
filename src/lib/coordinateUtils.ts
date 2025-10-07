@@ -1,48 +1,55 @@
 import * as THREE from 'three';
 
 /**
- * Web Mercator projection utility for converting lat/lng to local 3D coordinates
- * Uses proper spherical earth approximation for accurate meter-based conversions
+ * Web Mercator projection utility (EPSG:3857) for converting lat/lng to local 3D coordinates
+ * Uses standard spherical Mercator math for accurate meter-based conversions
  */
 export class CoordinateProjection {
   private centerLat: number;
   private centerLng: number;
-  private centerX: number;
-  private centerY: number;
-  private metersPerDegreeLat: number;
-  private metersPerDegreeLng: number;
+  private centerMercatorX: number;
+  private centerMercatorY: number;
+  private readonly R = 6378137; // Earth radius in meters (WGS84)
 
   constructor(centerLat: number, centerLng: number) {
     this.centerLat = centerLat;
     this.centerLng = centerLng;
     
-    // Earth radius in meters
-    const R = 6378137;
+    // Convert center to Web Mercator coordinates
+    const centerMercator = this.latLngToMercator(centerLat, centerLng);
+    this.centerMercatorX = centerMercator.x;
+    this.centerMercatorY = centerMercator.y;
     
-    // Meters per degree latitude (relatively constant)
-    this.metersPerDegreeLat = (Math.PI / 180) * R;
-    
-    // Meters per degree longitude (varies by latitude)
-    this.metersPerDegreeLng = (Math.PI / 180) * R * Math.cos(centerLat * Math.PI / 180);
-    
-    // Calculate center in meters (for reference)
-    this.centerX = this.centerLng * this.metersPerDegreeLng;
-    this.centerY = this.centerLat * this.metersPerDegreeLat;
-    
-    console.log('🗺️ Projection initialized:', {
-      center: [centerLat, centerLng],
-      metersPerDegreeLat: this.metersPerDegreeLat.toFixed(2),
-      metersPerDegreeLng: this.metersPerDegreeLng.toFixed(2)
+    console.log('🗺️ Projection initialized (EPSG:3857):', {
+      centerLatLng: [centerLat.toFixed(6), centerLng.toFixed(6)],
+      centerMercator: [this.centerMercatorX.toFixed(2), this.centerMercatorY.toFixed(2)]
     });
+  }
+
+  /**
+   * Convert lat/lng to Web Mercator (EPSG:3857) coordinates
+   */
+  private latLngToMercator(lat: number, lng: number): { x: number; y: number } {
+    // Convert longitude to x (simple linear)
+    const x = this.R * (lng * Math.PI / 180);
+    
+    // Convert latitude to y (Mercator projection formula)
+    const latRad = lat * Math.PI / 180;
+    const y = this.R * Math.log(Math.tan(Math.PI / 4 + latRad / 2));
+    
+    return { x, y };
   }
 
   /**
    * Convert lat/lng to local XY coordinates (meters from center)
    */
   latLngToXY(lat: number, lng: number): { x: number; y: number } {
-    // Convert to meters relative to center
-    const x = (lng - this.centerLng) * this.metersPerDegreeLng;
-    const y = (lat - this.centerLat) * this.metersPerDegreeLat;
+    const mercator = this.latLngToMercator(lat, lng);
+    
+    // Return coordinates relative to center (local origin at 0,0)
+    const x = mercator.x - this.centerMercatorX;
+    const y = mercator.y - this.centerMercatorY;
+    
     return { x, y };
   }
 
