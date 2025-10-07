@@ -22,6 +22,7 @@ export type Database = {
           center_lng: number
           completed_at: string | null
           created_at: string | null
+          error_message: string | null
           file_url: string | null
           id: string
           include_buildings: boolean | null
@@ -31,6 +32,7 @@ export type Database = {
           include_terrain: boolean | null
           location_name: string
           preview_image_url: string | null
+          progress: number | null
           radius_meters: number | null
           status: Database["public"]["Enums"]["site_pack_status"] | null
           updated_at: string | null
@@ -43,6 +45,7 @@ export type Database = {
           center_lng: number
           completed_at?: string | null
           created_at?: string | null
+          error_message?: string | null
           file_url?: string | null
           id?: string
           include_buildings?: boolean | null
@@ -52,6 +55,7 @@ export type Database = {
           include_terrain?: boolean | null
           location_name: string
           preview_image_url?: string | null
+          progress?: number | null
           radius_meters?: number | null
           status?: Database["public"]["Enums"]["site_pack_status"] | null
           updated_at?: string | null
@@ -64,6 +68,7 @@ export type Database = {
           center_lng?: number
           completed_at?: string | null
           created_at?: string | null
+          error_message?: string | null
           file_url?: string | null
           id?: string
           include_buildings?: boolean | null
@@ -73,6 +78,7 @@ export type Database = {
           include_terrain?: boolean | null
           location_name?: string
           preview_image_url?: string | null
+          progress?: number | null
           radius_meters?: number | null
           status?: Database["public"]["Enums"]["site_pack_status"] | null
           updated_at?: string | null

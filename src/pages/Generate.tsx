@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Layers, FileCode, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import MapSelector from '@/components/MapSelector';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +20,11 @@ const Generate = () => {
     terrain: true,
     imagery: false,
   });
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState<string>('pending');
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleBoundarySelected = (data: any) => {
     setSiteData(data);
@@ -34,16 +40,10 @@ const Generate = () => {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) {
-        toast.error('Please sign in to generate site packs');
-        navigate('/auth');
-        return;
-      }
-
       const { data: request, error } = await supabase
         .from('site_requests')
         .insert({
-          user_id: user.id,
+          user_id: user?.id || null,
           location_name: siteData.locationName,
           center_lat: siteData.centerLat,
           center_lng: siteData.centerLng,
@@ -56,20 +56,69 @@ const Generate = () => {
           include_terrain: options.terrain,
           include_imagery: options.imagery,
           status: 'pending',
+          progress: 0,
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      toast.success('Site pack request created! Processing will begin shortly.');
-      navigate('/dashboard');
+      console.log('Site request created:', request);
+      setRequestId(request.id);
+
+      // Start processing
+      const response = await supabase.functions.invoke('process-site-request', {
+        body: { requestId: request.id },
+      });
+
+      if (response.error) {
+        console.error('Error starting processing:', response.error);
+        toast.error('Failed to start processing. Please try again.');
+        return;
+      }
+
+      toast.success('Processing started! Your site pack is being generated...');
     } catch (error: any) {
       console.error('Error creating site request:', error);
       toast.error(error.message || 'Failed to create site pack request');
       setStep('options');
     }
   };
+
+  // Poll for status updates
+  useEffect(() => {
+    if (!requestId || status === 'completed' || status === 'failed') {
+      return;
+    }
+
+    const pollInterval = setInterval(async () => {
+      const { data, error } = await supabase
+        .from('site_requests')
+        .select('status, progress, file_url, error_message')
+        .eq('id', requestId)
+        .single();
+
+      if (error) {
+        console.error('Error polling status:', error);
+        return;
+      }
+
+      if (data) {
+        setStatus(data.status);
+        setProgress(data.progress || 0);
+        setDownloadUrl(data.file_url);
+        setErrorMessage(data.error_message);
+
+        if (data.status === 'completed') {
+          toast.success('Your site pack is ready for download!');
+        } else if (data.status === 'failed') {
+          toast.error(data.error_message || 'Processing failed');
+        }
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [requestId, status]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -269,11 +318,36 @@ const Generate = () => {
               <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto animate-pulse">
                 <Download className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="text-3xl font-serif font-semibold">Processing Your Request</h2>
+              <h2 className="text-3xl font-serif font-semibold">
+                {status === 'completed' ? 'Complete!' : status === 'failed' ? 'Processing Failed' : 'Processing Your Request'}
+              </h2>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Your site pack is being generated. You'll be redirected to your dashboard where
-                you can track the progress and download your files when ready.
+                {status === 'completed'
+                  ? 'Your site pack is ready for download!'
+                  : status === 'failed'
+                  ? errorMessage || 'An error occurred during processing.'
+                  : "We're generating your site pack. This may take a few moments..."}
               </p>
+
+              <div className="max-w-md mx-auto space-y-2">
+                <Progress value={progress} className="h-2" />
+                <p className="text-sm text-muted-foreground">{progress}% complete</p>
+              </div>
+
+              {status === 'completed' && downloadUrl && (
+                <Button asChild size="lg" variant="hero" className="gap-2">
+                  <a href={downloadUrl} download>
+                    <Download className="w-4 h-4" />
+                    Download Site Pack
+                  </a>
+                </Button>
+              )}
+
+              {status === 'failed' && (
+                <Button onClick={() => setStep('options')} variant="outline">
+                  Back to Options
+                </Button>
+              )}
             </Card>
           )}
         </div>
