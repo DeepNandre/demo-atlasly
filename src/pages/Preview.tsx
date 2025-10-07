@@ -83,33 +83,55 @@ const Preview = () => {
       const blob = await response.blob();
       
       const zip = await JSZip.loadAsync(blob);
-      console.log('ZIP files:', Object.keys(zip.files));
+      const zipFiles = Object.keys(zip.files);
+      console.log('ZIP files found:', zipFiles);
 
-      // Extract GeoJSON files
+      // Extract GeoJSON files from geojson/ folder
       let buildings: any[] = [];
       let roads: any[] = [];
       let terrain: any[] = [];
 
-      if (request.include_buildings && zip.files['exports/buildings.geojson']) {
-        const buildingsJson = await zip.files['exports/buildings.geojson'].async('string');
+      if (request.include_buildings && zip.files['geojson/buildings.geojson']) {
+        const buildingsJson = await zip.files['geojson/buildings.geojson'].async('string');
         const buildingsData = JSON.parse(buildingsJson);
         buildings = buildingsData.features || [];
-        console.log('Loaded buildings:', buildings.length);
+        console.log('Loaded buildings:', buildings.length, 'features');
+        if (buildings.length > 0) {
+          console.log('Sample building:', buildings[0]);
+        }
+      } else {
+        console.warn('Buildings file not found or not requested');
       }
 
-      if (request.include_roads && zip.files['exports/roads.geojson']) {
-        const roadsJson = await zip.files['exports/roads.geojson'].async('string');
+      if (request.include_roads && zip.files['geojson/roads.geojson']) {
+        const roadsJson = await zip.files['geojson/roads.geojson'].async('string');
         const roadsData = JSON.parse(roadsJson);
         roads = roadsData.features || [];
-        console.log('Loaded roads:', roads.length);
+        console.log('Loaded roads:', roads.length, 'features');
+        if (roads.length > 0) {
+          console.log('Sample road:', roads[0]);
+        }
+      } else {
+        console.warn('Roads file not found or not requested');
       }
 
-      if (request.include_terrain && zip.files['exports/terrain.geojson']) {
-        const terrainJson = await zip.files['exports/terrain.geojson'].async('string');
+      if (request.include_terrain && zip.files['geojson/terrain.geojson']) {
+        const terrainJson = await zip.files['geojson/terrain.geojson'].async('string');
         const terrainData = JSON.parse(terrainJson);
         terrain = terrainData.features || [];
-        console.log('Loaded terrain points:', terrain.length);
+        console.log('Loaded terrain points:', terrain.length, 'features');
+        if (terrain.length > 0) {
+          console.log('Sample terrain point:', terrain[0]);
+        }
+      } else {
+        console.warn('Terrain file not found or not requested');
       }
+
+      console.log('Final data counts:', {
+        buildings: buildings.length,
+        roads: roads.length,
+        terrain: terrain.length
+      });
 
       setGeoData({ buildings, roads, terrain });
     } catch (error) {
