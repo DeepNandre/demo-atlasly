@@ -38,15 +38,36 @@ const Preview = () => {
     if (!id) return;
 
     try {
+      // Check authentication state
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current user:', user?.id);
+
       // Fetch site request info
       const { data: request, error: requestError } = await supabase
         .from('site_requests')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
-      if (requestError) throw requestError;
+      if (requestError) {
+        console.error('Error fetching request:', requestError);
+        throw requestError;
+      }
 
+      if (!request) {
+        console.error('Site pack not found for id:', id);
+        toast.error('Site pack not found');
+        navigate('/dashboard');
+        return;
+      }
+
+      console.log('Loaded site request:', {
+        id: request.id,
+        user_id: request.user_id,
+        client_id: request.client_id,
+        status: request.status,
+        file_url: request.file_url
+      });
       setSiteInfo(request);
 
       if (request.status !== 'completed' || !request.file_url) {
