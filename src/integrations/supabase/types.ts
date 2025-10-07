@@ -17,6 +17,7 @@ export type Database = {
       site_requests: {
         Row: {
           area_sqm: number | null
+          artifact_key: string | null
           boundary_geojson: Json
           center_lat: number
           center_lng: number
@@ -24,6 +25,7 @@ export type Database = {
           completed_at: string | null
           created_at: string | null
           error_message: string | null
+          file_count: number | null
           file_url: string | null
           id: string
           include_buildings: boolean | null
@@ -40,9 +42,12 @@ export type Database = {
           status: Database["public"]["Enums"]["site_pack_status"] | null
           updated_at: string | null
           user_id: string | null
+          zip_sha256: string | null
+          zip_size_bytes: number | null
         }
         Insert: {
           area_sqm?: number | null
+          artifact_key?: string | null
           boundary_geojson: Json
           center_lat: number
           center_lng: number
@@ -50,6 +55,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           error_message?: string | null
+          file_count?: number | null
           file_url?: string | null
           id?: string
           include_buildings?: boolean | null
@@ -66,9 +72,12 @@ export type Database = {
           status?: Database["public"]["Enums"]["site_pack_status"] | null
           updated_at?: string | null
           user_id?: string | null
+          zip_sha256?: string | null
+          zip_size_bytes?: number | null
         }
         Update: {
           area_sqm?: number | null
+          artifact_key?: string | null
           boundary_geojson?: Json
           center_lat?: number
           center_lng?: number
@@ -76,6 +85,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           error_message?: string | null
+          file_count?: number | null
           file_url?: string | null
           id?: string
           include_buildings?: boolean | null
@@ -92,6 +102,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["site_pack_status"] | null
           updated_at?: string | null
           user_id?: string | null
+          zip_sha256?: string | null
+          zip_size_bytes?: number | null
         }
         Relationships: []
       }

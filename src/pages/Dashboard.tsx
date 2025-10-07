@@ -29,6 +29,9 @@ interface SiteRequest {
   file_url: string | null;
   error_message: string | null;
   area_sqm: number;
+  zip_size_bytes: number | null;
+  zip_sha256: string | null;
+  file_count: number | null;
 }
 
 const Dashboard = () => {
@@ -140,6 +143,10 @@ const Dashboard = () => {
     });
   };
 
+  const formatArea = (areaSqm: number) => {
+    return (areaSqm / 10000).toFixed(2) + ' ha';
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <MigrationModal
@@ -232,43 +239,55 @@ const Dashboard = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          {request.status === 'completed' && (
-                            <>
-                              <Button
-                                asChild
-                                size="sm"
-                                variant="outline"
-                              >
-                                <a href={`/preview/${request.id}`}>
-                                  <Box className="w-4 h-4 mr-1" />
-                                  View 3D
-                                </a>
-                              </Button>
-                              {request.file_url && (
-                                <Button asChild size="sm" variant="default">
-                                  <a href={request.file_url} download>
-                                    <Download className="w-4 h-4 mr-1" />
-                                    Download
+                        <div className="space-y-2">
+                          <div className="flex justify-end gap-2">
+                            {request.status === 'completed' && (
+                              <>
+                                <Button
+                                  asChild
+                                  size="sm"
+                                  variant="outline"
+                                >
+                                  <a href={`/preview/${request.id}`}>
+                                    <Box className="w-4 h-4 mr-1" />
+                                    View 3D
                                   </a>
                                 </Button>
+                                {request.file_url && (
+                                  <Button asChild size="sm" variant="default">
+                                    <a href={request.file_url} download>
+                                      <Download className="w-4 h-4 mr-1" />
+                                      Download
+                                    </a>
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                            {request.status === 'failed' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRetry(request.id)}
+                                disabled={processingIds.has(request.id)}
+                              >
+                                <RefreshCw
+                                  className={`w-4 h-4 mr-1 ${
+                                    processingIds.has(request.id) ? 'animate-spin' : ''
+                                  }`}
+                                />
+                                Retry
+                              </Button>
+                            )}
+                          </div>
+                          {request.status === 'completed' && request.zip_size_bytes && (
+                            <div className="text-xs text-muted-foreground text-right">
+                              <div>{(request.zip_size_bytes / 1024 / 1024).toFixed(2)} MB · {request.file_count} files</div>
+                              {request.zip_sha256 && (
+                                <div className="font-mono text-[10px] truncate" title={request.zip_sha256}>
+                                  SHA256: {request.zip_sha256.substring(0, 16)}...
+                                </div>
                               )}
-                            </>
-                          )}
-                          {request.status === 'failed' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleRetry(request.id)}
-                              disabled={processingIds.has(request.id)}
-                            >
-                              <RefreshCw
-                                className={`w-4 h-4 mr-1 ${
-                                  processingIds.has(request.id) ? 'animate-spin' : ''
-                                }`}
-                              />
-                              Retry
-                            </Button>
+                            </div>
                           )}
                         </div>
                       </TableCell>
