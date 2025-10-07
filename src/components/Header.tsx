@@ -26,9 +26,14 @@ const Header = () => {
             </a>
           </nav>
           
-          <Button variant="hero" size="default" onClick={() => window.location.href = '/generate'}>
-            Generate Pack →
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="default" onClick={() => window.location.href = '/dashboard'}>
+              Dashboard
+            </Button>
+            <Button variant="hero" size="default" onClick={() => window.location.href = '/generate'}>
+              Generate Pack →
+            </Button>
+          </div>
         </div>
       </div>
     </header>

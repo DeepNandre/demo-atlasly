@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import MapSelector from '@/components/MapSelector';
 import { supabase } from '@/integrations/supabase/client';
+import { getClientId } from '@/lib/clientId';
 
 const Generate = () => {
   const navigate = useNavigate();
@@ -40,10 +41,14 @@ const Generate = () => {
         data: { user },
       } = await supabase.auth.getUser();
 
+      // Get or generate client ID for guest users
+      const clientId = user ? null : getClientId();
+
       const { data: request, error } = await supabase
         .from('site_requests')
         .insert({
           user_id: user?.id || null,
+          client_id: clientId,
           location_name: siteData.locationName,
           center_lat: siteData.centerLat,
           center_lng: siteData.centerLng,
@@ -335,18 +340,32 @@ const Generate = () => {
               </div>
 
               {status === 'completed' && downloadUrl && (
-                <Button asChild size="lg" variant="hero" className="gap-2">
-                  <a href={downloadUrl} download>
-                    <Download className="w-4 h-4" />
-                    Download Site Pack
-                  </a>
-                </Button>
+                <div className="flex gap-4">
+                  <Button asChild size="lg" variant="hero" className="gap-2">
+                    <a href={downloadUrl} download>
+                      <Download className="w-4 h-4" />
+                      Download Site Pack
+                    </a>
+                  </Button>
+                  <Button
+                    onClick={() => navigate('/dashboard')}
+                    size="lg"
+                    variant="outline"
+                  >
+                    Go to Dashboard
+                  </Button>
+                </div>
               )}
 
               {status === 'failed' && (
-                <Button onClick={() => setStep('options')} variant="outline">
-                  Back to Options
-                </Button>
+                <div className="flex gap-4">
+                  <Button onClick={() => setStep('options')} variant="outline">
+                    Back to Options
+                  </Button>
+                  <Button onClick={() => navigate('/dashboard')} variant="outline">
+                    View Dashboard
+                  </Button>
+                </div>
               )}
             </Card>
           )}

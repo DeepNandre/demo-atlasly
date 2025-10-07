@@ -20,6 +20,7 @@ export type Database = {
           boundary_geojson: Json
           center_lat: number
           center_lng: number
+          client_id: string | null
           completed_at: string | null
           created_at: string | null
           error_message: string | null
@@ -43,6 +44,7 @@ export type Database = {
           boundary_geojson: Json
           center_lat: number
           center_lng: number
+          client_id?: string | null
           completed_at?: string | null
           created_at?: string | null
           error_message?: string | null
@@ -66,6 +68,7 @@ export type Database = {
           boundary_geojson?: Json
           center_lat?: number
           center_lng?: number
+          client_id?: string | null
           completed_at?: string | null
           created_at?: string | null
           error_message?: string | null
