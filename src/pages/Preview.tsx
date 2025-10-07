@@ -7,6 +7,7 @@ import { LayerToggles } from '@/components/LayerToggles';
 import { Scene3D } from '@/components/Scene3D';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import JSZip from 'jszip';
 
 interface GeoJSONData {
   buildings: any[];
@@ -76,21 +77,39 @@ const Preview = () => {
         return;
       }
 
-      // For now, we'll create a simple preview from the boundary
-      // In production, you'd fetch and parse the actual GeoJSON files from the ZIP
+      // Download and parse the actual ZIP file
+      console.log('Downloading ZIP from:', request.file_url);
+      const response = await fetch(request.file_url);
+      const blob = await response.blob();
       
-      // Create sample data from request info
-      const buildings = request.include_buildings
-        ? generateSampleBuildings(request)
-        : [];
-      
-      const roads = request.include_roads
-        ? generateSampleRoads(request)
-        : [];
-      
-      const terrain = request.include_terrain
-        ? generateSampleTerrain(request)
-        : [];
+      const zip = await JSZip.loadAsync(blob);
+      console.log('ZIP files:', Object.keys(zip.files));
+
+      // Extract GeoJSON files
+      let buildings: any[] = [];
+      let roads: any[] = [];
+      let terrain: any[] = [];
+
+      if (request.include_buildings && zip.files['exports/buildings.geojson']) {
+        const buildingsJson = await zip.files['exports/buildings.geojson'].async('string');
+        const buildingsData = JSON.parse(buildingsJson);
+        buildings = buildingsData.features || [];
+        console.log('Loaded buildings:', buildings.length);
+      }
+
+      if (request.include_roads && zip.files['exports/roads.geojson']) {
+        const roadsJson = await zip.files['exports/roads.geojson'].async('string');
+        const roadsData = JSON.parse(roadsJson);
+        roads = roadsData.features || [];
+        console.log('Loaded roads:', roads.length);
+      }
+
+      if (request.include_terrain && zip.files['exports/terrain.geojson']) {
+        const terrainJson = await zip.files['exports/terrain.geojson'].async('string');
+        const terrainData = JSON.parse(terrainJson);
+        terrain = terrainData.features || [];
+        console.log('Loaded terrain points:', terrain.length);
+      }
 
       setGeoData({ buildings, roads, terrain });
     } catch (error) {
@@ -101,92 +120,6 @@ const Preview = () => {
     }
   };
 
-  const generateSampleBuildings = (request: any) => {
-    // Generate sample buildings within the AOI for demonstration
-    const features = [];
-    const { center_lat, center_lng, radius_meters } = request;
-    const radiusDeg = radius_meters / 111000;
-
-    for (let i = 0; i < 20; i++) {
-      const offsetLat = (Math.random() - 0.5) * radiusDeg;
-      const offsetLng = (Math.random() - 0.5) * radiusDeg;
-      const lat = center_lat + offsetLat;
-      const lng = center_lng + offsetLng;
-
-      const size = 0.0001 * (Math.random() * 2 + 1);
-      
-      features.push({
-        type: 'Feature',
-        properties: {
-          'building:levels': Math.floor(Math.random() * 5) + 1,
-        },
-        geometry: {
-          type: 'Polygon',
-          coordinates: [[
-            [lng - size, lat - size],
-            [lng + size, lat - size],
-            [lng + size, lat + size],
-            [lng - size, lat + size],
-            [lng - size, lat - size],
-          ]],
-        },
-      });
-    }
-
-    return features;
-  };
-
-  const generateSampleRoads = (request: any) => {
-    // Generate sample roads for demonstration
-    const features = [];
-    const { center_lat, center_lng, radius_meters } = request;
-    const radiusDeg = radius_meters / 111000;
-
-    for (let i = 0; i < 10; i++) {
-      const startLat = center_lat + (Math.random() - 0.5) * radiusDeg;
-      const startLng = center_lng + (Math.random() - 0.5) * radiusDeg;
-      const endLat = center_lat + (Math.random() - 0.5) * radiusDeg;
-      const endLng = center_lng + (Math.random() - 0.5) * radiusDeg;
-
-      features.push({
-        type: 'Feature',
-        properties: { highway: 'residential' },
-        geometry: {
-          type: 'LineString',
-          coordinates: [
-            [startLng, startLat],
-            [endLng, endLat],
-          ],
-        },
-      });
-    }
-
-    return features;
-  };
-
-  const generateSampleTerrain = (request: any) => {
-    // Generate sample terrain points
-    const features = [];
-    const { center_lat, center_lng, radius_meters } = request;
-    const radiusDeg = radius_meters / 111000;
-
-    for (let i = 0; i < 50; i++) {
-      const lat = center_lat + (Math.random() - 0.5) * radiusDeg;
-      const lng = center_lng + (Math.random() - 0.5) * radiusDeg;
-      const elevation = Math.random() * 50;
-
-      features.push({
-        type: 'Feature',
-        properties: { elevation },
-        geometry: {
-          type: 'Point',
-          coordinates: [lng, lat, elevation],
-        },
-      });
-    }
-
-    return features;
-  };
 
   const handleToggle = (layer: keyof typeof layers) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
