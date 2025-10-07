@@ -14,7 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      site_requests: {
+        Row: {
+          area_sqm: number | null
+          boundary_geojson: Json
+          center_lat: number
+          center_lng: number
+          completed_at: string | null
+          created_at: string | null
+          file_url: string | null
+          id: string
+          include_buildings: boolean | null
+          include_imagery: boolean | null
+          include_landuse: boolean | null
+          include_roads: boolean | null
+          include_terrain: boolean | null
+          location_name: string
+          preview_image_url: string | null
+          radius_meters: number | null
+          status: Database["public"]["Enums"]["site_pack_status"] | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          area_sqm?: number | null
+          boundary_geojson: Json
+          center_lat: number
+          center_lng: number
+          completed_at?: string | null
+          created_at?: string | null
+          file_url?: string | null
+          id?: string
+          include_buildings?: boolean | null
+          include_imagery?: boolean | null
+          include_landuse?: boolean | null
+          include_roads?: boolean | null
+          include_terrain?: boolean | null
+          location_name: string
+          preview_image_url?: string | null
+          radius_meters?: number | null
+          status?: Database["public"]["Enums"]["site_pack_status"] | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          area_sqm?: number | null
+          boundary_geojson?: Json
+          center_lat?: number
+          center_lng?: number
+          completed_at?: string | null
+          created_at?: string | null
+          file_url?: string | null
+          id?: string
+          include_buildings?: boolean | null
+          include_imagery?: boolean | null
+          include_landuse?: boolean | null
+          include_roads?: boolean | null
+          include_terrain?: boolean | null
+          location_name?: string
+          preview_image_url?: string | null
+          radius_meters?: number | null
+          status?: Database["public"]["Enums"]["site_pack_status"] | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +88,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      site_pack_status: "pending" | "processing" | "completed" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +215,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      site_pack_status: ["pending", "processing", "completed", "failed"],
+    },
   },
 } as const
