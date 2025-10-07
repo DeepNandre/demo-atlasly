@@ -20,6 +20,8 @@ const Generate = () => {
     landuse: true,
     terrain: true,
     imagery: false,
+    dxf: false,
+    glb: false,
   });
   const [requestId, setRequestId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -60,6 +62,8 @@ const Generate = () => {
           include_landuse: options.landuse,
           include_terrain: options.terrain,
           include_imagery: options.imagery,
+          include_dxf: options.dxf,
+          include_glb: options.glb,
           status: 'pending',
           progress: 0,
         })
@@ -293,6 +297,53 @@ const Generate = () => {
                     <p className="text-sm text-muted-foreground mt-1">
                       High-resolution aerial imagery overlay
                     </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 mt-8">
+                <h3 className="text-lg font-serif font-semibold">Export Formats</h3>
+                <p className="text-sm text-muted-foreground">
+                  Choose additional export formats (GeoJSON is always included)
+                </p>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="flex items-start gap-3 p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                    <Checkbox
+                      id="dxf"
+                      checked={options.dxf}
+                      onCheckedChange={(checked) =>
+                        setOptions({ ...options, dxf: checked as boolean })
+                      }
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="dxf" className="font-medium cursor-pointer flex items-center gap-2">
+                        <FileCode className="w-4 h-4" />
+                        DXF Export
+                      </label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        AutoCAD compatible format for CAD software
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                    <Checkbox
+                      id="glb"
+                      checked={options.glb}
+                      onCheckedChange={(checked) =>
+                        setOptions({ ...options, glb: checked as boolean })
+                      }
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="glb" className="font-medium cursor-pointer flex items-center gap-2">
+                        <Layers className="w-4 h-4" />
+                        GLB/3D Model
+                      </label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        3D model for visualization and game engines
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

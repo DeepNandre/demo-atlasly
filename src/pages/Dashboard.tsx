@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, RefreshCw, Plus, ArrowLeft } from 'lucide-react';
+import { Download, RefreshCw, Plus, ArrowLeft, Box } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -199,13 +199,27 @@ const Dashboard = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          {request.status === 'completed' && request.file_url && (
-                            <Button asChild size="sm" variant="default">
-                              <a href={request.file_url} download>
-                                <Download className="w-4 h-4 mr-1" />
-                                Download
-                              </a>
-                            </Button>
+                          {request.status === 'completed' && (
+                            <>
+                              <Button
+                                asChild
+                                size="sm"
+                                variant="outline"
+                              >
+                                <a href={`/preview/${request.id}`}>
+                                  <Box className="w-4 h-4 mr-1" />
+                                  View 3D
+                                </a>
+                              </Button>
+                              {request.file_url && (
+                                <Button asChild size="sm" variant="default">
+                                  <a href={request.file_url} download>
+                                    <Download className="w-4 h-4 mr-1" />
+                                    Download
+                                  </a>
+                                </Button>
+                              )}
+                            </>
                           )}
                           {request.status === 'failed' && (
                             <Button

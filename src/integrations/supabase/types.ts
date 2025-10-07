@@ -27,6 +27,8 @@ export type Database = {
           file_url: string | null
           id: string
           include_buildings: boolean | null
+          include_dxf: boolean | null
+          include_glb: boolean | null
           include_imagery: boolean | null
           include_landuse: boolean | null
           include_roads: boolean | null
@@ -51,6 +53,8 @@ export type Database = {
           file_url?: string | null
           id?: string
           include_buildings?: boolean | null
+          include_dxf?: boolean | null
+          include_glb?: boolean | null
           include_imagery?: boolean | null
           include_landuse?: boolean | null
           include_roads?: boolean | null
@@ -75,6 +79,8 @@ export type Database = {
           file_url?: string | null
           id?: string
           include_buildings?: boolean | null
+          include_dxf?: boolean | null
+          include_glb?: boolean | null
           include_imagery?: boolean | null
           include_landuse?: boolean | null
           include_roads?: boolean | null
