@@ -81,19 +81,15 @@ function Roads({ features, visible }: { features: any[]; visible: boolean }) {
 
   return (
     <group>
-      {lines.map((line) => line && (
-        <line key={line.key}>
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              count={line.points.length}
-              array={new Float32Array(line.points.flatMap(p => [p.x, p.y, p.z]))}
-              itemSize={3}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial color="#666666" linewidth={2} />
-        </line>
-      ))}
+      {lines.map((line) => {
+        if (!line) return null;
+        
+        const geometry = new THREE.BufferGeometry().setFromPoints(line.points);
+        
+        return (
+          <primitive key={line.key} object={new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: '#666666' }))} />
+        );
+      })}
     </group>
   );
 }
