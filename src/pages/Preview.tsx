@@ -8,6 +8,7 @@ import { Scene3D } from '@/components/Scene3D';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
+import { clipFeaturesToBoundary, validateBoundary } from '@/lib/boundaryClipping';
 
 interface GeoJSONData {
   buildings: any[];
@@ -127,11 +128,40 @@ const Preview = () => {
         console.warn('Terrain file not found or not requested');
       }
 
-      console.log('Final data counts:', {
+      console.log('Final data counts (before clipping):', {
         buildings: buildings.length,
         roads: roads.length,
         terrain: terrain.length
       });
+
+      // Calculate AOI bounds for clipping
+      const aoiBounds = {
+        minLat: request.center_lat - (request.radius_meters / 111000),
+        maxLat: request.center_lat + (request.radius_meters / 111000),
+        minLng: request.center_lng - (request.radius_meters / 111000),
+        maxLng: request.center_lng + (request.radius_meters / 111000),
+      };
+
+      console.log('🎯 AOI Bounds for clipping:', {
+        center: `(${request.center_lat.toFixed(6)}, ${request.center_lng.toFixed(6)})`,
+        radius: `${request.radius_meters}m`,
+        bounds: aoiBounds
+      });
+
+      // Clip features to boundary
+      if (validateBoundary(aoiBounds)) {
+        buildings = clipFeaturesToBoundary(buildings, aoiBounds);
+        roads = clipFeaturesToBoundary(roads, aoiBounds);
+        terrain = clipFeaturesToBoundary(terrain, aoiBounds);
+        
+        console.log('✂️ After clipping:', {
+          buildings: buildings.length,
+          roads: roads.length,
+          terrain: terrain.length
+        });
+      } else {
+        console.warn('⚠️ Invalid boundary, skipping clipping');
+      }
 
       setGeoData({ buildings, roads, terrain });
     } catch (error) {

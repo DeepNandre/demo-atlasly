@@ -176,12 +176,22 @@ function Roads({ features, visible, projection }: { features: any[]; visible: bo
 
 // Terrain component removed - now using TerrainMesh
 
-function CameraController({ bounds }: { bounds: THREE.Box3 }) {
-  const { camera } = useThree();
+function CameraController({ sceneGroup }: { sceneGroup: React.RefObject<THREE.Group> }) {
+  const { camera, controls } = useThree();
   
   useEffect(() => {
+    if (!sceneGroup.current) {
+      console.log('📷 Camera: waiting for scene group');
+      return;
+    }
+
+    // Calculate bounds from actual rendered scene group
+    const bounds = new THREE.Box3().setFromObject(sceneGroup.current);
+    
     if (bounds.isEmpty()) {
-      console.log('📷 Camera: bounds are empty, using defaults');
+      console.log('📷 Camera: bounds empty, using default position');
+      camera.position.set(200, 150, 200);
+      camera.lookAt(0, 0, 0);
       return;
     }
 
@@ -194,6 +204,7 @@ function CameraController({ bounds }: { bounds: THREE.Box3 }) {
     const maxDim = Math.max(size.x, size.y, size.z);
     const distance = Math.max(maxDim * 1.5, 100);
     
+    // Position camera at an angle
     camera.position.set(
       center.x + distance * 0.7,
       distance * 0.6,
@@ -203,14 +214,20 @@ function CameraController({ bounds }: { bounds: THREE.Box3 }) {
     camera.lookAt(center);
     camera.updateProjectionMatrix();
     
-    console.log('📷 Camera positioned:', {
+    // Update controls target if available
+    if (controls && 'target' in controls) {
+      (controls as any).target.copy(center);
+      (controls as any).update();
+    }
+    
+    console.log('📷 Camera setup from scene bounds:', {
       center: center.toArray().map(v => v.toFixed(2)),
       size: size.toArray().map(v => v.toFixed(2)),
       maxDim: maxDim.toFixed(2),
       distance: distance.toFixed(2),
-      position: camera.position.toArray().map(v => v.toFixed(2))
+      cameraPos: camera.position.toArray().map(v => v.toFixed(2))
     });
-  }, [bounds, camera]);
+  }, [sceneGroup, camera, controls]);
   
   return null;
 }
@@ -246,78 +263,23 @@ export function Scene3D({ buildings, roads, terrain, layers, aoiBounds }: Scene3
     });
   }
 
-  // Create coordinate projection using Web Mercator
+  // Create coordinate projection using Web Mercator centered on AOI
   const projection = useMemo(() => {
+    console.log('🗺️ Creating projection centered at:', { centerLat, centerLng });
     return new CoordinateProjection(centerLat, centerLng);
   }, [centerLat, centerLng]);
-
-  // Calculate bounds using Box3.setFromObject for accuracy
-  const sceneBounds = useMemo(() => {
-    const group = new THREE.Group();
-    
-    // Add sample meshes to calculate bounds
-    if (layers.buildings && buildings.length > 0) {
-      buildings.slice(0, Math.min(10, buildings.length)).forEach(feature => {
-        if (feature.geometry.type === 'Polygon') {
-          const coords = feature.geometry.coordinates[0];
-          const points = projection.polygonToVectors(coords.slice(0, -1));
-          if (points.length >= 3) {
-            const shape = new THREE.Shape(points);
-            const geometry = new THREE.ExtrudeGeometry(shape, { depth: 10, bevelEnabled: false });
-            const mesh = new THREE.Mesh(geometry);
-            group.add(mesh);
-          }
-        }
-      });
-    }
-
-    if (group.children.length === 0) {
-      console.log('⚠️ No meshes to calculate bounds, using defaults');
-      return new THREE.Box3(
-        new THREE.Vector3(-100, 0, -100),
-        new THREE.Vector3(100, 50, 100)
-      );
-    }
-
-    const bounds = new THREE.Box3().setFromObject(group);
-    console.log('📐 Scene bounds calculated from', group.children.length, 'sample meshes:', {
-      min: bounds.min.toArray().map(v => v.toFixed(2)),
-      max: bounds.max.toArray().map(v => v.toFixed(2)),
-      center: bounds.getCenter(new THREE.Vector3()).toArray().map(v => v.toFixed(2)),
-      size: bounds.getSize(new THREE.Vector3()).toArray().map(v => v.toFixed(2))
-    });
-
-    return bounds;
-  }, [buildings, roads, terrain, layers, projection]);
-
-  // Calculate camera distance based on bounds
-  const cameraDistance = useMemo(() => {
-    if (sceneBounds.isEmpty()) {
-      return 500;
-    }
-    const size = new THREE.Vector3();
-    sceneBounds.getSize(size);
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const distance = Math.max(maxDim * 2, 200);
-    console.log('📷 Camera setup:', {
-      boundsSize: size.toArray().map(v => v.toFixed(2)),
-      maxDim: maxDim.toFixed(2),
-      cameraDistance: distance.toFixed(2)
-    });
-    return distance;
-  }, [sceneBounds]);
 
   return (
     <Canvas
       camera={{
-        position: [cameraDistance * 0.7, cameraDistance * 0.5, cameraDistance * 0.7],
+        position: [300, 200, 300],
         fov: 50,
       }}
       shadows
     >
       <color attach="background" args={['#e8f4f8']} />
       
-      <CameraController bounds={sceneBounds} />
+      <CameraController sceneGroup={sceneGroupRef} />
       
       {/* Debug: Axis helper at origin */}
       <axesHelper args={[100]} />
@@ -386,7 +348,7 @@ export function Scene3D({ buildings, roads, terrain, layers, aoiBounds }: Scene3
         enableDamping
         dampingFactor={0.05}
         minDistance={50}
-        maxDistance={cameraDistance * 3}
+        maxDistance={2000}
         maxPolarAngle={Math.PI / 2.1}
       />
     </Canvas>

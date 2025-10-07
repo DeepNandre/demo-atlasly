@@ -15,14 +15,15 @@ export class CoordinateProjection {
     this.centerLat = centerLat;
     this.centerLng = centerLng;
     
-    // Convert center to Web Mercator coordinates
+    // Convert center to Web Mercator coordinates - this becomes our local origin
     const centerMercator = this.latLngToMercator(centerLat, centerLng);
     this.centerMercatorX = centerMercator.x;
     this.centerMercatorY = centerMercator.y;
     
     console.log('🗺️ Projection initialized (EPSG:3857):', {
       centerLatLng: [centerLat.toFixed(6), centerLng.toFixed(6)],
-      centerMercator: [this.centerMercatorX.toFixed(2), this.centerMercatorY.toFixed(2)]
+      centerMercator: [this.centerMercatorX.toFixed(2), this.centerMercatorY.toFixed(2)],
+      note: 'All coords will be relative to this center (local origin at 0,0)'
     });
   }
 
@@ -42,15 +43,23 @@ export class CoordinateProjection {
 
   /**
    * Convert lat/lng to local XY coordinates (meters from center)
+   * Returns coords relative to center, making center = (0, 0)
    */
   latLngToXY(lat: number, lng: number): { x: number; y: number } {
     const mercator = this.latLngToMercator(lat, lng);
     
-    // Return coordinates relative to center (local origin at 0,0)
+    // Subtract center to get local coordinates (origin at center)
     const x = mercator.x - this.centerMercatorX;
     const y = mercator.y - this.centerMercatorY;
     
     return { x, y };
+  }
+  
+  /**
+   * Get the centroid of this projection (always returns 0,0 since we center on it)
+   */
+  getCentroid(): { x: number; y: number } {
+    return { x: 0, y: 0 };
   }
 
   /**
