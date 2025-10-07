@@ -4,7 +4,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { LayerToggles } from '@/components/LayerToggles';
-import { Scene3D } from '@/components/Scene3D';
+import { DeckGLScene } from '@/components/DeckGLScene';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
@@ -213,7 +213,7 @@ const Preview = () => {
             <LayerToggles layers={layers} onToggle={handleToggle} />
           </div>
           
-          <Scene3D
+          <DeckGLScene
             buildings={geoData.buildings}
             roads={geoData.roads}
             terrain={geoData.terrain}
