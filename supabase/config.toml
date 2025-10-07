@@ -1,1 +1,10 @@
 project_id = "mugtabvbojomcgdrxfli"
+
+[functions.chat]
+verify_jwt = true
+
+[functions.migrate-guest-requests]
+verify_jwt = false
+
+[functions.process-site-request]
+verify_jwt = false

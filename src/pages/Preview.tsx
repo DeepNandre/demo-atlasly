@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { LayerToggles } from '@/components/LayerToggles';
 import { DeckGLScene } from '@/components/DeckGLScene';
+import { SiteChat } from '@/components/SiteChat';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
@@ -219,6 +220,11 @@ const Preview = () => {
             terrain={geoData.terrain}
             layers={layers}
             aoiBounds={aoiBounds}
+          />
+
+          <SiteChat
+            siteRequestId={id!}
+            locationName={siteInfo?.location_name || 'this site'}
           />
         </div>
       )}
