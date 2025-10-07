@@ -13,7 +13,9 @@ import {
 } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { StatusBadge } from '@/components/StatusBadge';
+import { MigrationModal } from '@/components/MigrationModal';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { getClientId } from '@/lib/clientId';
 import { toast } from 'sonner';
 
@@ -31,13 +33,38 @@ interface SiteRequest {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [requests, setRequests] = useState<SiteRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
+
+  // Check if we should show migration modal
+  useEffect(() => {
+    const checkForGuestRequests = async () => {
+      if (!user) return;
+
+      const clientId = localStorage.getItem('studio_site_client_id');
+      if (!clientId) return;
+
+      // Check if there are any guest requests to migrate
+      const { data, error } = await supabase
+        .from('site_requests')
+        .select('id')
+        .eq('client_id', clientId)
+        .is('user_id', null)
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        setShowMigrationModal(true);
+      }
+    };
+
+    checkForGuestRequests();
+  }, [user]);
 
   const fetchRequests = async () => {
     try {
-      const clientId = getClientId();
       const { data: { user } } = await supabase.auth.getUser();
 
       let query = supabase
@@ -49,6 +76,7 @@ const Dashboard = () => {
       if (user) {
         query = query.eq('user_id', user.id);
       } else {
+        const clientId = getClientId();
         query = query.eq('client_id', clientId);
       }
 
@@ -114,6 +142,12 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <MigrationModal
+        open={showMigrationModal}
+        onClose={() => setShowMigrationModal(false)}
+        onSuccess={fetchRequests}
+      />
+      
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate('/')} className="gap-2">
