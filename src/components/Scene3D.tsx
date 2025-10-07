@@ -77,13 +77,8 @@ function Buildings({ features, visible, projection }: { features: any[]; visible
         groupBounds.union(geometry.boundingBox);
       }
       
-      // Calculate centroid
-      const centroidX = points.reduce((sum, p) => sum + p.x, 0) / points.length;
-      const centroidY = points.reduce((sum, p) => sum + p.y, 0) / points.length;
-      
       if (index === 0) {
         console.log('🏢 First building details:', {
-          centroid: `(${centroidX.toFixed(2)}, ${centroidY.toFixed(2)})`,
           height: height.toFixed(2),
           points: points.length,
           bounds: geometry.boundingBox ? {
@@ -96,8 +91,7 @@ function Buildings({ features, visible, projection }: { features: any[]; visible
       return { 
         geometry,
         height, 
-        key: `building-${index}`, 
-        position: [centroidX, centroidY] as [number, number]
+        key: `building-${index}`
       };
     }).filter(Boolean);
     
@@ -120,7 +114,7 @@ function Buildings({ features, visible, projection }: { features: any[]; visible
         <mesh 
           key={mesh.key} 
           geometry={mesh.geometry}
-          position={[mesh.position[0], mesh.height / 2, mesh.position[1]]}
+          position={[0, mesh.height / 2, 0]}
           castShadow
           receiveShadow
         >
