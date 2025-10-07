@@ -2,26 +2,47 @@ import * as THREE from 'three';
 
 /**
  * Web Mercator projection utility for converting lat/lng to local 3D coordinates
+ * Uses proper spherical earth approximation for accurate meter-based conversions
  */
 export class CoordinateProjection {
   private centerLat: number;
   private centerLng: number;
-  private scale: number;
+  private centerX: number;
+  private centerY: number;
+  private metersPerDegreeLat: number;
+  private metersPerDegreeLng: number;
 
   constructor(centerLat: number, centerLng: number) {
     this.centerLat = centerLat;
     this.centerLng = centerLng;
-    // Scale factor: approximately 111,320 meters per degree at equator
-    // Adjust for latitude using cosine
-    this.scale = 111320 * Math.cos(centerLat * Math.PI / 180);
+    
+    // Earth radius in meters
+    const R = 6378137;
+    
+    // Meters per degree latitude (relatively constant)
+    this.metersPerDegreeLat = (Math.PI / 180) * R;
+    
+    // Meters per degree longitude (varies by latitude)
+    this.metersPerDegreeLng = (Math.PI / 180) * R * Math.cos(centerLat * Math.PI / 180);
+    
+    // Calculate center in meters (for reference)
+    this.centerX = this.centerLng * this.metersPerDegreeLng;
+    this.centerY = this.centerLat * this.metersPerDegreeLat;
+    
+    console.log('🗺️ Projection initialized:', {
+      center: [centerLat, centerLng],
+      metersPerDegreeLat: this.metersPerDegreeLat.toFixed(2),
+      metersPerDegreeLng: this.metersPerDegreeLng.toFixed(2)
+    });
   }
 
   /**
    * Convert lat/lng to local XY coordinates (meters from center)
    */
   latLngToXY(lat: number, lng: number): { x: number; y: number } {
-    const x = (lng - this.centerLng) * this.scale;
-    const y = (lat - this.centerLat) * 110540; // ~110,540 meters per degree latitude
+    // Convert to meters relative to center
+    const x = (lng - this.centerLng) * this.metersPerDegreeLng;
+    const y = (lat - this.centerLat) * this.metersPerDegreeLat;
     return { x, y };
   }
 
