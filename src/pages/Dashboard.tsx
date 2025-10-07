@@ -1,8 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, RefreshCw, Plus, ArrowLeft, Box } from 'lucide-react';
+import { Download, RefreshCw, Plus, ArrowLeft, Box, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Table,
   TableBody,
@@ -41,6 +51,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [showMigrationModal, setShowMigrationModal] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Check if we should show migration modal
   useEffect(() => {
@@ -133,6 +145,33 @@ const Dashboard = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deletingId) return;
+
+    try {
+      const { error } = await supabase
+        .from('site_requests')
+        .delete()
+        .eq('id', deletingId);
+
+      if (error) throw error;
+
+      toast.success('Site pack deleted successfully');
+      fetchRequests();
+    } catch (error) {
+      console.error('Error deleting:', error);
+      toast.error('Failed to delete site pack');
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeletingId(null);
+    }
+  };
+
+  const openDeleteDialog = (requestId: string) => {
+    setDeletingId(requestId);
+    setDeleteDialogOpen(true);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {
       month: 'short',
@@ -149,6 +188,21 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Site Pack</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this site pack? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
       <MigrationModal
         open={showMigrationModal}
         onClose={() => setShowMigrationModal(false)}
@@ -278,6 +332,13 @@ const Dashboard = () => {
                                 Retry
                               </Button>
                             )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openDeleteDialog(request.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                           {request.status === 'completed' && request.zip_size_bytes && (
                             <div className="text-xs text-muted-foreground text-right">
