@@ -22,9 +22,13 @@ export type Database = {
           center_lat: number
           center_lng: number
           client_id: string | null
+          climate_summary: Json | null
           completed_at: string | null
           created_at: string | null
           error_message: string | null
+          exports_dwg: boolean | null
+          exports_pdf: boolean | null
+          exports_skp: boolean | null
           file_count: number | null
           file_url: string | null
           id: string
@@ -52,9 +56,13 @@ export type Database = {
           center_lat: number
           center_lng: number
           client_id?: string | null
+          climate_summary?: Json | null
           completed_at?: string | null
           created_at?: string | null
           error_message?: string | null
+          exports_dwg?: boolean | null
+          exports_pdf?: boolean | null
+          exports_skp?: boolean | null
           file_count?: number | null
           file_url?: string | null
           id?: string
@@ -82,9 +90,13 @@ export type Database = {
           center_lat?: number
           center_lng?: number
           client_id?: string | null
+          climate_summary?: Json | null
           completed_at?: string | null
           created_at?: string | null
           error_message?: string | null
+          exports_dwg?: boolean | null
+          exports_pdf?: boolean | null
+          exports_skp?: boolean | null
           file_count?: number | null
           file_url?: string | null
           id?: string

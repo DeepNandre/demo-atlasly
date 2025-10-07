@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import MapSelector from '@/components/MapSelector';
+import { BoundaryEditor } from '@/components/BoundaryEditor';
 import { supabase } from '@/integrations/supabase/client';
 import { getClientId } from '@/lib/clientId';
 
@@ -14,6 +16,7 @@ const Generate = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<'location' | 'options' | 'processing'>('location');
   const [siteData, setSiteData] = useState<any>(null);
+  const [boundaryMode, setBoundaryMode] = useState<'simple' | 'advanced'>('simple');
   const [options, setOptions] = useState({
     buildings: true,
     roads: true,
@@ -22,6 +25,9 @@ const Generate = () => {
     imagery: false,
     dxf: false,
     glb: false,
+    dwg: false,
+    skp: false,
+    pdf: false,
   });
   const [requestId, setRequestId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -64,6 +70,9 @@ const Generate = () => {
           include_imagery: options.imagery,
           include_dxf: options.dxf,
           include_glb: options.glb,
+          exports_dwg: options.dwg,
+          exports_skp: options.skp,
+          exports_pdf: options.pdf,
           status: 'pending',
           progress: 0,
         })
@@ -192,7 +201,20 @@ const Generate = () => {
 
           {/* Step Content */}
           {step === 'location' && (
-            <MapSelector onBoundarySelected={handleBoundarySelected} />
+            <Card className="p-6 space-y-6">
+              <Tabs value={boundaryMode} onValueChange={(v) => setBoundaryMode(v as 'simple' | 'advanced')}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="simple">Simple Circle</TabsTrigger>
+                  <TabsTrigger value="advanced">Advanced Boundary</TabsTrigger>
+                </TabsList>
+                <TabsContent value="simple" className="mt-6">
+                  <MapSelector onBoundarySelected={handleBoundarySelected} />
+                </TabsContent>
+                <TabsContent value="advanced" className="mt-6">
+                  <BoundaryEditor onBoundaryConfirmed={handleBoundarySelected} />
+                </TabsContent>
+              </Tabs>
+            </Card>
           )}
 
           {step === 'options' && (
@@ -307,7 +329,7 @@ const Generate = () => {
                   Choose additional export formats (GeoJSON is always included)
                 </p>
 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid md:grid-cols-2 gap-4">
                   <div className="flex items-start gap-3 p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                     <Checkbox
                       id="dxf"
@@ -322,7 +344,26 @@ const Generate = () => {
                         DXF Export
                       </label>
                       <p className="text-sm text-muted-foreground mt-1">
-                        AutoCAD compatible format for CAD software
+                        AutoCAD compatible format
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                    <Checkbox
+                      id="dwg"
+                      checked={options.dwg}
+                      onCheckedChange={(checked) =>
+                        setOptions({ ...options, dwg: checked as boolean })
+                      }
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="dwg" className="font-medium cursor-pointer flex items-center gap-2">
+                        <FileCode className="w-4 h-4" />
+                        DWG Export
+                      </label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Native AutoCAD format
                       </p>
                     </div>
                   </div>
@@ -341,7 +382,45 @@ const Generate = () => {
                         GLB/3D Model
                       </label>
                       <p className="text-sm text-muted-foreground mt-1">
-                        3D model for visualization and game engines
+                        3D model for visualization
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                    <Checkbox
+                      id="skp"
+                      checked={options.skp}
+                      onCheckedChange={(checked) =>
+                        setOptions({ ...options, skp: checked as boolean })
+                      }
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="skp" className="font-medium cursor-pointer flex items-center gap-2">
+                        <Layers className="w-4 h-4" />
+                        SKP (SketchUp)
+                      </label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        SketchUp native format
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors md:col-span-2">
+                    <Checkbox
+                      id="pdf"
+                      checked={options.pdf}
+                      onCheckedChange={(checked) =>
+                        setOptions({ ...options, pdf: checked as boolean })
+                      }
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="pdf" className="font-medium cursor-pointer flex items-center gap-2">
+                        <FileCode className="w-4 h-4" />
+                        PDF 2D Plan
+                      </label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Top view plan with legend, scale, and north arrow
                       </p>
                     </div>
                   </div>
@@ -353,7 +432,8 @@ const Generate = () => {
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p>Location: {siteData?.locationName}</p>
                   <p>Area: {(siteData?.areaSqm / 10000).toFixed(2)} hectares</p>
-                  <p>Radius: {siteData?.radiusMeters}m</p>
+                  {siteData?.radiusMeters && <p>Radius: {siteData.radiusMeters}m</p>}
+                  <p>Boundary: {boundaryMode === 'simple' ? 'Circular' : 'Custom Polygon'}</p>
                 </div>
               </div>
 
