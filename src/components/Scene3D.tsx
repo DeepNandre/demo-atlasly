@@ -127,19 +127,19 @@ export function Scene3D({ buildings, roads, terrain, layers, aoiBounds }: Scene3
   const controlsRef = useRef<any>();
 
   // Calculate center point for camera positioning
-  const centerPoint = useMemo(() => {
-    if (!aoiBounds) return new THREE.Vector3(0, 0, 0);
+  const centerPoint = useMemo<[number, number, number]>(() => {
+    if (!aoiBounds) return [0, 0, 0];
     
     const centerLat = (aoiBounds.minLat + aoiBounds.maxLat) / 2;
     const centerLng = (aoiBounds.minLng + aoiBounds.maxLng) / 2;
     
-    return new THREE.Vector3(centerLng * 111000, 0, centerLat * 111000);
+    return [centerLng * 111000, 0, centerLat * 111000];
   }, [aoiBounds]);
 
   return (
     <Canvas
       camera={{
-        position: [centerPoint.x + 1000, 500, centerPoint.z + 1000],
+        position: [centerPoint[0] + 1000, 500, centerPoint[2] + 1000],
         fov: 60,
       }}
       shadows
