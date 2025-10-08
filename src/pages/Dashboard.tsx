@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Download, RefreshCw, Plus, ArrowLeft, Box, Trash2, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { FeedbackButton } from '@/components/FeedbackButton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -233,10 +234,13 @@ const Dashboard = () => {
             <ArrowLeft className="w-4 h-4" />
             Back to Home
           </Button>
-          <Button onClick={() => navigate('/generate')} className="gap-2">
-            <Plus className="w-4 h-4" />
-            New Site Pack
-          </Button>
+          <div className="flex gap-2">
+            <FeedbackButton page="dashboard" variant="outline" size="sm" />
+            <Button onClick={() => navigate('/generate')} className="gap-2">
+              <Plus className="w-4 h-4" />
+              New Site Pack
+            </Button>
+          </div>
         </div>
       </header>
 

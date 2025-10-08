@@ -14,6 +14,100 @@ export type Database = {
   }
   public: {
     Tables: {
+      feedback: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          email: string | null
+          id: string
+          message: string
+          page: string | null
+          site_request_id: string | null
+          status: string | null
+          tags: string[] | null
+          updated_at: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          message: string
+          page?: string | null
+          site_request_id?: string | null
+          status?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          message?: string
+          page?: string | null
+          site_request_id?: string | null
+          status?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_site_request_id_fkey"
+            columns: ["site_request_id"]
+            isOneToOne: false
+            referencedRelation: "site_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_logs: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          site_request_id: string
+          stage: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          site_request_id: string
+          stage: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          site_request_id?: string
+          stage?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_logs_site_request_id_fkey"
+            columns: ["site_request_id"]
+            isOneToOne: false
+            referencedRelation: "site_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site_requests: {
         Row: {
           area_sqm: number | null

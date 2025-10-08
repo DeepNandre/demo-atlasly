@@ -68,7 +68,17 @@ Deno.serve(async (req) => {
 
     // Fetch OSM data
     console.log('Fetching OSM data...');
+    const stageStart = Date.now();
+    await logJobStage(supabase, requestId, 'fetch_osm', 'started');
+    
     const osmData = await fetchOSMData(request);
+    const osmDuration = Date.now() - stageStart;
+    await logJobStage(supabase, requestId, 'fetch_osm', 'completed', osmDuration, null, {
+      buildings: osmData.buildings?.features?.length || 0,
+      roads: osmData.roads?.features?.length || 0,
+      landuse: osmData.landuse?.features?.length || 0,
+    });
+    
     await updateProgress(supabase, requestId, 30, 'processing', null);
 
     // Fetch elevation data if requested
@@ -76,16 +86,35 @@ Deno.serve(async (req) => {
     if (request.include_terrain) {
       try {
         console.log('Fetching elevation data...');
+        const elevStart = Date.now();
+        await logJobStage(supabase, requestId, 'fetch_elevation', 'started');
+        
         elevationData = await fetchElevationData(request);
+        
+        const elevDuration = Date.now() - elevStart;
+        await logJobStage(supabase, requestId, 'fetch_elevation', 'completed', elevDuration, null, {
+          points: elevationData?.features?.length || 0,
+        });
       } catch (error) {
         console.warn('Elevation fetch failed, continuing without terrain:', error);
+        await logJobStage(supabase, requestId, 'fetch_elevation', 'failed', 0, 
+          error instanceof Error ? error.message : 'Unknown error');
       }
     }
     await updateProgress(supabase, requestId, 50, 'processing', null);
 
     // Create file contents
     console.log('Creating export files...');
+    const exportStart = Date.now();
+    await logJobStage(supabase, requestId, 'create_exports', 'started');
+    
     const files = await createExportFiles(request, osmData, elevationData);
+    
+    const exportDuration = Date.now() - exportStart;
+    await logJobStage(supabase, requestId, 'create_exports', 'completed', exportDuration, null, {
+      fileCount: files.size,
+    });
+    
     await updateProgress(supabase, requestId, 70, 'processing', null);
 
     // Create and validate ZIP
@@ -195,6 +224,31 @@ async function updateProgress(
 
   if (error) {
     console.error('Failed to update progress:', error);
+  }
+}
+
+async function logJobStage(
+  supabase: any,
+  requestId: string,
+  stage: string,
+  status: 'started' | 'completed' | 'failed',
+  durationMs?: number,
+  errorMessage?: string | null,
+  metadata?: any
+) {
+  try {
+    await supabase
+      .from('job_logs')
+      .insert({
+        site_request_id: requestId,
+        stage,
+        status,
+        duration_ms: durationMs || null,
+        error_message: errorMessage || null,
+        metadata: metadata || null,
+      });
+  } catch (error) {
+    console.error('Failed to log job stage:', error);
   }
 }
 

@@ -10,6 +10,7 @@ import { DeckGLScene } from '@/components/DeckGLScene';
 import { SiteChat } from '@/components/SiteChat';
 import { ClimateViewer } from '@/components/ClimateViewer';
 import { VisualizationTab } from '@/components/VisualizationTab';
+import { FeedbackButton } from '@/components/FeedbackButton';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
@@ -238,11 +239,14 @@ const Preview = () => {
             <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
           </Button>
-          {siteInfo && (
-            <div className="text-sm text-muted-foreground">
-              {siteInfo.location_name}
-            </div>
-          )}
+          <div className="flex items-center gap-4">
+            {siteInfo && (
+              <div className="text-sm text-muted-foreground">
+                {siteInfo.location_name}
+              </div>
+            )}
+            <FeedbackButton siteRequestId={id} page="preview" variant="outline" size="sm" />
+          </div>
         </div>
       </header>
 
