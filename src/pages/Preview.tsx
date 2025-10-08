@@ -11,6 +11,7 @@ import { SiteChat } from '@/components/SiteChat';
 import { ClimateViewer } from '@/components/ClimateViewer';
 import { VisualizationTab } from '@/components/VisualizationTab';
 import { FeedbackButton } from '@/components/FeedbackButton';
+import { DesignAssistantPanel } from '@/components/DesignAssistantPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
@@ -273,6 +274,13 @@ const Preview = () => {
                 <LayerToggles layers={layers} onToggle={handleToggle} />
                 <ContextLayerToggles layers={contextLayers} onToggle={handleContextToggle} />
               </div>
+              
+              {siteInfo && (
+                <DesignAssistantPanel 
+                  siteRequestId={id!} 
+                  locationName={siteInfo.location_name}
+                />
+              )}
               
               <DeckGLScene
                 buildings={geoData.buildings}

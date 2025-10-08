@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.process-site-request]
 verify_jwt = false
+
+[functions.design-assistant]
+verify_jwt = false
