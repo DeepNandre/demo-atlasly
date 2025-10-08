@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
 
     // Fetch EPW data from Open-Meteo API (free weather data)
     // Get historical weather data for the past year
-    const weatherUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${center_lat}&longitude=${center_lng}&start_date=2024-01-01&end_date=2024-12-31&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,shortwave_radiation&timezone=auto`;
+    const weatherUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${center_lat}&longitude=${center_lng}&start_date=2024-01-01&end_date=2024-12-31&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,shortwave_radiation,precipitation&timezone=auto`;
     
     console.log('Fetching weather data from Open-Meteo...');
     const weatherResponse = await fetch(weatherUrl);
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       windSpeeds: [] as number[],
       windDirections: [] as number[],
       count: 0,
-      rainfall: 0 // Mock data - Open-Meteo archive doesn't have precipitation in free tier
+      rainfallSum: 0
     }));
 
     // Process each hour
@@ -71,6 +71,7 @@ Deno.serve(async (req) => {
       const windSpeed = hourlyData.wind_speed_10m[i];
       const windDir = hourlyData.wind_direction_10m[i];
       const solar = hourlyData.shortwave_radiation[i];
+      const precipitation = hourlyData.precipitation[i];
 
       if (temp !== null) {
         monthlyStats[month].tempSum += temp;
@@ -88,6 +89,9 @@ Deno.serve(async (req) => {
         monthlyStats[month].windSpeeds.push(windSpeed);
         monthlyStats[month].windDirections.push(windDir);
       }
+      if (precipitation !== null) {
+        monthlyStats[month].rainfallSum += precipitation;
+      }
     }
 
     // Calculate monthly averages
@@ -98,7 +102,7 @@ Deno.serve(async (req) => {
       maxTemp: stats.tempMax === -Infinity ? 0 : Math.round(stats.tempMax * 10) / 10,
       minTemp: stats.tempMin === Infinity ? 0 : Math.round(stats.tempMin * 10) / 10,
       solarIrradiance: stats.count > 0 ? Math.round(stats.solarSum / stats.count) : 0,
-      rainfall: Math.round(50 + Math.random() * 100) // Mock rainfall data
+      rainfall: Math.round(stats.rainfallSum * 10) / 10 // Actual precipitation data in mm
     }));
 
     // Calculate wind rose (16 directions)
