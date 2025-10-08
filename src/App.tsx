@@ -11,6 +11,8 @@ import Dashboard from "./pages/Dashboard";
 import Preview from "./pages/Preview";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
+import AdminMetrics from "./pages/AdminMetrics";
+import Explore from "./pages/Explore";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,9 +44,11 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            <Route path="/admin" element={<Admin />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+          <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+          <Route path="/admin/metrics" element={<ProtectedRoute><AdminMetrics /></ProtectedRoute>} />
+          <Route path="/explore" element={<Explore />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

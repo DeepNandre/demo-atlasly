@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_logs: {
+        Row: {
+          client_id: string | null
+          content: string
+          created_at: string
+          id: string
+          model: string | null
+          role: string
+          site_request_id: string
+          tokens_used: number | null
+          user_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          model?: string | null
+          role: string
+          site_request_id: string
+          tokens_used?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          model?: string | null
+          role?: string
+          site_request_id?: string
+          tokens_used?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_logs_site_request_id_fkey"
+            columns: ["site_request_id"]
+            isOneToOne: false
+            referencedRelation: "site_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           admin_notes: string | null
@@ -119,6 +163,7 @@ export type Database = {
           climate_summary: Json | null
           completed_at: string | null
           created_at: string | null
+          email_sent: boolean | null
           error_message: string | null
           exports_dwg: boolean | null
           exports_pdf: boolean | null
@@ -153,6 +198,7 @@ export type Database = {
           climate_summary?: Json | null
           completed_at?: string | null
           created_at?: string | null
+          email_sent?: boolean | null
           error_message?: string | null
           exports_dwg?: boolean | null
           exports_pdf?: boolean | null
@@ -187,6 +233,7 @@ export type Database = {
           climate_summary?: Json | null
           completed_at?: string | null
           created_at?: string | null
+          email_sent?: boolean | null
           error_message?: string | null
           exports_dwg?: boolean | null
           exports_pdf?: boolean | null
@@ -210,6 +257,77 @@ export type Database = {
           user_id?: string | null
           zip_sha256?: string | null
           zip_size_bytes?: number | null
+        }
+        Relationships: []
+      }
+      site_shares: {
+        Row: {
+          created_at: string
+          id: string
+          is_public: boolean
+          likes: number
+          share_card_url: string | null
+          site_request_id: string
+          views: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          likes?: number
+          share_card_url?: string | null
+          site_request_id: string
+          views?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          likes?: number
+          share_card_url?: string | null
+          site_request_id?: string
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_shares_site_request_id_fkey"
+            columns: ["site_request_id"]
+            isOneToOne: true
+            referencedRelation: "site_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_credits: {
+        Row: {
+          created_at: string
+          credits: number
+          credits_used: number
+          id: string
+          last_reset_at: string | null
+          stripe_customer_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits?: number
+          credits_used?: number
+          id?: string
+          last_reset_at?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          credits_used?: number
+          id?: string
+          last_reset_at?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

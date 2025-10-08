@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.design-assistant]
 verify_jwt = false
+
+[functions.design-assistant-stream]
+verify_jwt = false
+
+[functions.send-completion-email]
+verify_jwt = false
