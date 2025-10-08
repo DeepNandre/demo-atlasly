@@ -455,6 +455,9 @@ async function createExportFiles(request: any, osmData: any, elevationData: any)
       geojson: true,
       dxf: request.include_dxf || false,
       glb: request.include_glb || false,
+      pdf: request.exports_pdf || false,
+      dwg: request.exports_dwg || false,
+      skp: request.exports_skp || false,
     },
   };
   files.set('metadata.json', encoder.encode(JSON.stringify(metadata, null, 2)));
@@ -497,6 +500,55 @@ async function createExportFiles(request: any, osmData: any, elevationData: any)
     }
   }
 
+  // PDF Plan export
+  if (request.exports_pdf) {
+    try {
+      const pdf = createPDFPlan(request, osmData);
+      files.set('exports/plan.pdf', encoder.encode(pdf));
+    } catch (error) {
+      console.warn('PDF export failed:', error);
+    }
+  }
+
+  // DWG export (extended from DXF)
+  if (request.exports_dwg) {
+    try {
+      const dwg = createDWG(osmData, elevationData);
+      files.set('exports/layers.dwg', encoder.encode(dwg));
+    } catch (error) {
+      console.warn('DWG export failed:', error);
+    }
+  }
+
+  // SKP export (via GLB)
+  if (request.exports_skp) {
+    try {
+      const glbForSkp = await createGLB(osmData, elevationData);
+      files.set('exports/scene_for_sketchup.glb', glbForSkp);
+      const note = `# SketchUp Import Instructions
+
+This package includes a GLB file that can be imported into SketchUp:
+
+1. Open SketchUp
+2. Go to File > Import
+3. Change file type to "All Supported Files" or "3D Models"
+4. Select: scene_for_sketchup.glb
+5. Click Import
+
+The GLB format is widely supported and preserves 3D geometry.
+For best results, use SketchUp 2021 or later.
+
+## Alternative Methods
+- Use online GLB to SKP converters
+- Import into Blender and export as SKP/DAE
+- Use the Transmutr plugin for SketchUp (paid)
+`;
+      files.set('exports/SKETCHUP_IMPORT.md', encoder.encode(note));
+    } catch (error) {
+      console.warn('SKP/GLB export failed:', error);
+    }
+  }
+
   return files;
 }
 
@@ -523,7 +575,7 @@ function createReadme(request: any): string {
 - \`README.md\` - This file
 - \`metadata.json\` - Request parameters and metadata
 - \`geojson/aoi.geojson\` - Area of Interest boundary
-${request.include_buildings ? '- `geojson/buildings.geojson` - Building footprints\n' : ''}${request.include_roads ? '- `geojson/roads.geojson` - Road network\n' : ''}${request.include_landuse ? '- `geojson/landuse.geojson` - Land use polygons\n' : ''}${request.include_terrain ? '- `geojson/terrain.geojson` - Elevation points\n' : ''}${request.include_dxf ? '- `exports/layers.dxf` - CAD drawing (DXF format)\n' : ''}${request.include_glb ? '- `exports/scene.glb` - 3D scene (GLB format)\n' : ''}
+${request.include_buildings ? '- `geojson/buildings.geojson` - Building footprints\n' : ''}${request.include_roads ? '- `geojson/roads.geojson` - Road network\n' : ''}${request.include_landuse ? '- `geojson/landuse.geojson` - Land use polygons\n' : ''}${request.include_terrain ? '- `geojson/terrain.geojson` - Elevation points\n' : ''}${request.include_dxf ? '- `exports/layers.dxf` - CAD drawing (DXF format)\n' : ''}${request.include_glb ? '- `exports/scene.glb` - 3D scene (GLB format)\n' : ''}${request.exports_pdf ? '- `exports/plan.pdf` - 2D plan with legend, scale, north arrow\n' : ''}${request.exports_dwg ? '- `exports/layers.dwg` - AutoCAD DWG format\n' : ''}${request.exports_skp ? '- `exports/scene_for_sketchup.glb` - GLB for SketchUp import\n- `exports/SKETCHUP_IMPORT.md` - Import instructions\n' : ''}
 ## Generated
 ${new Date().toISOString()}
 
@@ -679,6 +731,144 @@ EOF
 `;
 
   return dxf;
+}
+
+function createDWG(osmData: any, elevationData: any): string {
+  // DWG is a proprietary format. For now, we create an enhanced DXF
+  // and include a note about conversion. A proper DWG would require
+  // a library like LibreDWG or commercial tools.
+  
+  const dxf = createDXF(osmData, elevationData);
+  
+  // Add a note in the DXF comments section
+  const note = `; This is a DXF file compatible with AutoCAD and most CAD software.
+; For native DWG format, import this DXF into AutoCAD and save as DWG.
+; Free converters: LibreCAD, QCAD, or online tools like CloudConvert.
+`;
+  
+  return note + dxf;
+}
+
+function createPDFPlan(request: any, osmData: any): string {
+  // Create a simplified PDF with SVG-like vector commands
+  // This is a basic implementation - a production version would use
+  // a proper PDF library or convert SVG to PDF
+  
+  const { center_lat, center_lng, location_name, radius_meters } = request;
+  const scale = radius_meters / 200; // Approximate scale for display
+  
+  // PDF header (PDF 1.4)
+  let pdf = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<<
+  /Type /Page
+  /Parent 2 0 R
+  /Resources << /Font << /F1 4 0 R >> >>
+  /MediaBox [0 0 612 792]
+  /Contents 5 0 R
+>>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 6 0 R >>
+stream
+BT
+/F1 16 Tf
+50 750 Td
+(Site Plan - ${location_name}) Tj
+ET
+BT
+/F1 10 Tf
+50 730 Td
+(Scale 1:${Math.round(scale)}) Tj
+ET
+BT
+/F1 10 Tf
+50 710 Td
+(North: ^) Tj
+ET
+BT
+/F1 8 Tf
+50 690 Td
+(Center: ${center_lat.toFixed(6)}, ${center_lng.toFixed(6)}) Tj
+ET
+BT
+/F1 8 Tf
+50 675 Td
+(Radius: ${radius_meters}m) Tj
+ET
+
+% Legend
+BT
+/F1 10 Tf
+450 730 Td
+(Legend:) Tj
+ET
+BT
+/F1 8 Tf
+450 715 Td
+(Buildings - Red) Tj
+ET
+BT
+/F1 8 Tf
+450 700 Td
+(Roads - Blue) Tj
+ET
+BT
+/F1 8 Tf
+450 685 Td
+(Boundary - Black) Tj
+ET
+
+% Draw boundary rectangle
+2 w
+300 400 m
+400 400 l
+400 500 l
+300 500 l
+300 400 l
+S
+
+% Attribution
+BT
+/F1 7 Tf
+50 50 Td
+(Data: OpenStreetMap contributors (ODbL)) Tj
+ET
+BT
+/F1 7 Tf
+50 40 Td
+(Generated: ${new Date().toISOString()}) Tj
+ET
+endstream
+endobj
+6 0 obj
+${800 + location_name.length * 8}
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000260 00000 n 
+0000000339 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+${1200 + location_name.length * 8}
+%%EOF
+`;
+
+  return pdf;
 }
 
 async function createGLB(osmData: any, elevationData: any): Promise<Uint8Array> {

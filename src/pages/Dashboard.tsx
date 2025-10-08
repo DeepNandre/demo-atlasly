@@ -43,6 +43,11 @@ interface SiteRequest {
   zip_size_bytes: number | null;
   zip_sha256: string | null;
   file_count: number | null;
+  include_dxf: boolean;
+  include_glb: boolean;
+  exports_pdf: boolean;
+  exports_dwg: boolean;
+  exports_skp: boolean;
 }
 
 const Dashboard = () => {
@@ -189,6 +194,16 @@ const Dashboard = () => {
     return (areaSqm / 10000).toFixed(2) + ' ha';
   };
 
+  const getExportFormats = (request: SiteRequest) => {
+    const formats = ['GeoJSON'];
+    if (request.include_dxf) formats.push('DXF');
+    if (request.include_glb) formats.push('GLB');
+    if (request.exports_pdf) formats.push('PDF');
+    if (request.exports_dwg) formats.push('DWG');
+    if (request.exports_skp) formats.push('SKP');
+    return formats.join(', ');
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -265,7 +280,7 @@ const Dashboard = () => {
                     <TableHead>Location</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Area</TableHead>
-                    <TableHead>Radius</TableHead>
+                    <TableHead>Exports</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Progress</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -283,7 +298,11 @@ const Dashboard = () => {
                       <TableCell>
                         {(request.area_sqm / 10000).toFixed(2)} ha
                       </TableCell>
-                      <TableCell>{request.radius_meters}m</TableCell>
+                      <TableCell className="text-sm">
+                        <div className="max-w-[200px] truncate" title={getExportFormats(request)}>
+                          {getExportFormats(request)}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <StatusBadge status={request.status} />
                       </TableCell>
