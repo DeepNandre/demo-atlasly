@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LayerToggles } from '@/components/LayerToggles';
 import { DeckGLScene } from '@/components/DeckGLScene';
 import { SiteChat } from '@/components/SiteChat';
+import { ClimateViewer } from '@/components/ClimateViewer';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
@@ -32,6 +34,7 @@ const Preview = () => {
     terrain: true,
   });
   const [siteInfo, setSiteInfo] = useState<any>(null);
+  const [computingClimate, setComputingClimate] = useState(false);
 
   useEffect(() => {
     loadPreviewData();
@@ -178,6 +181,37 @@ const Preview = () => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
   };
 
+  const handleComputeClimate = async () => {
+    if (!id) return;
+    
+    setComputingClimate(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('compute-climate', {
+        body: { siteRequestId: id }
+      });
+
+      if (error) throw error;
+
+      toast.success('Climate data computed successfully');
+      
+      // Reload site info to get updated climate_summary
+      const { data: updatedRequest } = await supabase
+        .from('site_requests')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (updatedRequest) {
+        setSiteInfo(updatedRequest);
+      }
+    } catch (error) {
+      console.error('Error computing climate:', error);
+      toast.error('Failed to compute climate data');
+    } finally {
+      setComputingClimate(false);
+    }
+  };
+
   const aoiBounds = siteInfo ? {
     minLat: siteInfo.center_lat - (siteInfo.radius_meters / 111000),
     maxLat: siteInfo.center_lat + (siteInfo.radius_meters / 111000),
@@ -209,24 +243,88 @@ const Preview = () => {
           </Card>
         </div>
       ) : (
-        <div className="relative h-[calc(100vh-80px)]">
+        <Tabs defaultValue="3d" className="h-[calc(100vh-80px)]">
           <div className="absolute top-4 left-4 z-10">
-            <LayerToggles layers={layers} onToggle={handleToggle} />
+            <TabsList>
+              <TabsTrigger value="3d">3D View</TabsTrigger>
+              <TabsTrigger value="climate">Climate</TabsTrigger>
+            </TabsList>
           </div>
-          
-          <DeckGLScene
-            buildings={geoData.buildings}
-            roads={geoData.roads}
-            terrain={geoData.terrain}
-            layers={layers}
-            aoiBounds={aoiBounds}
-          />
+
+          <TabsContent value="3d" className="h-full m-0">
+            <div className="relative h-full">
+              <div className="absolute top-16 left-4 z-10">
+                <LayerToggles layers={layers} onToggle={handleToggle} />
+              </div>
+              
+              <DeckGLScene
+                buildings={geoData.buildings}
+                roads={geoData.roads}
+                terrain={geoData.terrain}
+                layers={layers}
+                aoiBounds={aoiBounds}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="climate" className="h-full m-0">
+            <div className="container mx-auto p-6 h-full overflow-auto">
+              {!siteInfo?.climate_summary ? (
+                <Card className="p-12 text-center space-y-4">
+                  <h3 className="text-xl font-semibold">Climate Data</h3>
+                  <p className="text-muted-foreground">
+                    Compute climate analysis for this site based on historical weather data
+                  </p>
+                  <Button 
+                    onClick={handleComputeClimate} 
+                    disabled={computingClimate}
+                    size="lg"
+                  >
+                    {computingClimate ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Computing...
+                      </>
+                    ) : (
+                      'Compute Climate Data'
+                    )}
+                  </Button>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-2xl font-semibold">Climate Analysis</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Data source: {siteInfo.climate_summary.dataSource}
+                      </p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleComputeClimate}
+                      disabled={computingClimate}
+                    >
+                      {computingClimate ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Refreshing...
+                        </>
+                      ) : (
+                        'Refresh Data'
+                      )}
+                    </Button>
+                  </div>
+                  <ClimateViewer climateData={siteInfo.climate_summary} />
+                </div>
+              )}
+            </div>
+          </TabsContent>
 
           <SiteChat
             siteRequestId={id!}
             locationName={siteInfo?.location_name || 'this site'}
           />
-        </div>
+        </Tabs>
       )}
     </div>
   );
