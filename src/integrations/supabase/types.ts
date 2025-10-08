@@ -119,6 +119,44 @@ export type Database = {
         }
         Relationships: []
       }
+      visual_results: {
+        Row: {
+          created_at: string
+          id: string
+          input_url: string
+          output_url: string
+          prompt: string | null
+          site_request_id: string
+          style: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          input_url: string
+          output_url: string
+          prompt?: string | null
+          site_request_id: string
+          style: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          input_url?: string
+          output_url?: string
+          prompt?: string | null
+          site_request_id?: string
+          style?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visual_results_site_request_id_fkey"
+            columns: ["site_request_id"]
+            isOneToOne: false
+            referencedRelation: "site_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

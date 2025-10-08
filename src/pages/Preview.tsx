@@ -9,6 +9,7 @@ import { ContextLayerToggles } from '@/components/ContextLayerToggles';
 import { DeckGLScene } from '@/components/DeckGLScene';
 import { SiteChat } from '@/components/SiteChat';
 import { ClimateViewer } from '@/components/ClimateViewer';
+import { VisualizationTab } from '@/components/VisualizationTab';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
@@ -258,6 +259,7 @@ const Preview = () => {
             <TabsList>
               <TabsTrigger value="3d">3D View</TabsTrigger>
               <TabsTrigger value="climate">Climate</TabsTrigger>
+              <TabsTrigger value="visualize">Visualize</TabsTrigger>
             </TabsList>
           </div>
 
@@ -329,6 +331,12 @@ const Preview = () => {
                   <ClimateViewer climateData={siteInfo.climate_summary} />
                 </div>
               )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="visualize" className="h-full m-0">
+            <div className="container mx-auto p-6 h-full overflow-auto">
+              <VisualizationTab siteRequestId={id!} />
             </div>
           </TabsContent>
 

@@ -6,6 +6,9 @@ verify_jwt = true
 [functions.compute-climate]
 verify_jwt = false
 
+[functions.generate-visualization]
+verify_jwt = false
+
 [functions.migrate-guest-requests]
 verify_jwt = false
 
