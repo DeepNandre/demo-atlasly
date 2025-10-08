@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LayerToggles } from '@/components/LayerToggles';
+import { ContextLayerToggles } from '@/components/ContextLayerToggles';
 import { DeckGLScene } from '@/components/DeckGLScene';
 import { SiteChat } from '@/components/SiteChat';
 import { ClimateViewer } from '@/components/ClimateViewer';
@@ -32,6 +33,11 @@ const Preview = () => {
     buildings: true,
     roads: true,
     terrain: true,
+  });
+  const [contextLayers, setContextLayers] = useState({
+    aerial: false,
+    parcels: false,
+    historical: false,
   });
   const [siteInfo, setSiteInfo] = useState<any>(null);
   const [computingClimate, setComputingClimate] = useState(false);
@@ -181,6 +187,10 @@ const Preview = () => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
   };
 
+  const handleContextToggle = (layer: keyof typeof contextLayers) => {
+    setContextLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
+  };
+
   const handleComputeClimate = async () => {
     if (!id) return;
     
@@ -253,8 +263,9 @@ const Preview = () => {
 
           <TabsContent value="3d" className="h-full m-0">
             <div className="relative h-full">
-              <div className="absolute top-16 left-4 z-10">
+              <div className="absolute top-16 left-4 z-10 space-y-2">
                 <LayerToggles layers={layers} onToggle={handleToggle} />
+                <ContextLayerToggles layers={contextLayers} onToggle={handleContextToggle} />
               </div>
               
               <DeckGLScene
@@ -262,6 +273,7 @@ const Preview = () => {
                 roads={geoData.roads}
                 terrain={geoData.terrain}
                 layers={layers}
+                contextLayers={contextLayers}
                 aoiBounds={aoiBounds}
               />
             </div>

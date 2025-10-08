@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import DeckGL from '@deck.gl/react';
 import { PolygonLayer, PathLayer, ScatterplotLayer } from '@deck.gl/layers';
+import { TileLayer } from '@deck.gl/geo-layers';
+import { BitmapLayer } from '@deck.gl/layers';
 import { LinearInterpolator, FlyToInterpolator } from '@deck.gl/core';
 import type { MapViewState } from '@deck.gl/core';
 
@@ -12,6 +14,11 @@ interface DeckGLSceneProps {
     buildings: boolean;
     roads: boolean;
     terrain: boolean;
+  };
+  contextLayers?: {
+    aerial: boolean;
+    parcels: boolean;
+    historical: boolean;
   };
   aoiBounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number };
 }
@@ -39,7 +46,7 @@ function featureToPath(feature: any) {
   return feature.geometry.coordinates.map((c: number[]) => [c[0], c[1]]);
 }
 
-export function DeckGLScene({ buildings, roads, terrain, layers, aoiBounds }: DeckGLSceneProps) {
+export function DeckGLScene({ buildings, roads, terrain, layers, contextLayers, aoiBounds }: DeckGLSceneProps) {
   // Calculate initial view state from AOI bounds
   const initialViewState: MapViewState = useMemo(() => {
     if (!aoiBounds) {
@@ -161,6 +168,27 @@ export function DeckGLScene({ buildings, roads, terrain, layers, aoiBounds }: De
   const deckLayers = useMemo(() => {
     const layerList = [];
 
+    // Aerial imagery base layer (underneath everything)
+    if (contextLayers?.aerial) {
+      layerList.push(
+        new TileLayer({
+          id: 'aerial-tiles',
+          data: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          minZoom: 0,
+          maxZoom: 19,
+          tileSize: 256,
+          renderSubLayers: (props: any) => {
+            const { boundingBox } = props.tile;
+            return new BitmapLayer(props, {
+              image: props.data,
+              bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]],
+            });
+          },
+          opacity: 0.6,
+        }) as any
+      );
+    }
+
     // Buildings layer (extruded polygons)
     if (layers.buildings && buildingData.length > 0) {
       layerList.push(
@@ -242,7 +270,7 @@ export function DeckGLScene({ buildings, roads, terrain, layers, aoiBounds }: De
 
     console.log('🎨 Rendering', layerList.length, 'deck.gl layers');
     return layerList;
-  }, [layers, buildingData, roadData, terrainData, boundaryData]);
+  }, [layers, contextLayers, buildingData, roadData, terrainData, boundaryData]);
 
   return (
     <DeckGL
