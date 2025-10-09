@@ -52,10 +52,18 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log('📍 Site data:', {
+      boundary_geojson: site.boundary_geojson ? 'present' : 'missing',
+      center_lat: site.center_lat,
+      center_lng: site.center_lng,
+      radius_meters: site.radius_meters
+    });
+
     // Calculate bbox from boundary or radius
     let bbox: { west: number; south: number; east: number; north: number };
     
-    if (site.boundary_geojson) {
+    if (site.boundary_geojson?.coordinates?.[0]) {
+      console.log('Using boundary_geojson for bbox');
       const coords = site.boundary_geojson.coordinates[0];
       const lons = coords.map((c: number[]) => c[0]);
       const lats = coords.map((c: number[]) => c[1]);
@@ -67,6 +75,7 @@ Deno.serve(async (req) => {
       };
     } else {
       // Use radius to create bbox
+      console.log('Using radius for bbox');
       const radiusInDegrees = (site.radius_meters || 500) / 111320; // rough conversion
       bbox = {
         west: site.center_lng - radiusInDegrees,
@@ -78,9 +87,10 @@ Deno.serve(async (req) => {
 
     console.log('📐 Bbox calculated:', bbox);
 
-    // Determine grid resolution (aim for ~100x100 grid)
-    const nx = 100;
-    const ny = 100;
+    // Determine grid resolution - reduced to avoid timeouts
+    // 30x30 = 900 points = 9 API requests @ 100 points/request
+    const nx = 30;
+    const ny = 30;
     const dx = (bbox.east - bbox.west) / (nx - 1);
     const dy = (bbox.north - bbox.south) / (ny - 1);
 
