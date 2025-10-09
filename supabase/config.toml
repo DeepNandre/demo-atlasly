@@ -26,3 +26,12 @@ verify_jwt = false
 
 [functions.send-completion-email]
 verify_jwt = false
+
+[functions.get-elevation-grid]
+verify_jwt = false
+
+[functions.analyze-elevation]
+verify_jwt = false
+
+[functions.export-elevation]
+verify_jwt = false

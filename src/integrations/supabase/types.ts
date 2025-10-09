@@ -163,6 +163,7 @@ export type Database = {
           climate_summary: Json | null
           completed_at: string | null
           created_at: string | null
+          elevation_summary: Json | null
           email_sent: boolean | null
           error_message: string | null
           exports_dwg: boolean | null
@@ -198,6 +199,7 @@ export type Database = {
           climate_summary?: Json | null
           completed_at?: string | null
           created_at?: string | null
+          elevation_summary?: Json | null
           email_sent?: boolean | null
           error_message?: string | null
           exports_dwg?: boolean | null
@@ -233,6 +235,7 @@ export type Database = {
           climate_summary?: Json | null
           completed_at?: string | null
           created_at?: string | null
+          elevation_summary?: Json | null
           email_sent?: boolean | null
           error_message?: string | null
           exports_dwg?: boolean | null

@@ -12,6 +12,7 @@ import { ClimateViewer } from '@/components/ClimateViewer';
 import { VisualizationTab } from '@/components/VisualizationTab';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import { DesignAssistantPanel } from '@/components/DesignAssistantPanel';
+import { ElevationTab } from '@/components/ElevationTab';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
@@ -263,6 +264,7 @@ const Preview = () => {
           <div className="absolute top-4 left-4 z-10">
             <TabsList>
               <TabsTrigger value="3d">3D View</TabsTrigger>
+              <TabsTrigger value="elevation">Elevation</TabsTrigger>
               <TabsTrigger value="climate">Climate</TabsTrigger>
               <TabsTrigger value="visualize">Visualize</TabsTrigger>
             </TabsList>
@@ -290,6 +292,12 @@ const Preview = () => {
                 contextLayers={contextLayers}
                 aoiBounds={aoiBounds}
               />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="elevation" className="h-full m-0">
+            <div className="h-full overflow-auto">
+              <ElevationTab siteId={id!} />
             </div>
           </TabsContent>
 
