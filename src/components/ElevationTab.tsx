@@ -67,27 +67,22 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
   const loadElevationData = async () => {
     setLoading(true);
     try {
-      console.log('🏔️ Loading elevation data for site:', siteId);
+      console.log('🏔️ Loading high-resolution elevation data...');
       
-      // Load grid
-      const { data: gridData, error: gridError } = await supabase.functions.invoke('get-elevation-grid', {
+      // Load grid with progress indication
+      const gridPromise = supabase.functions.invoke('get-elevation-grid', {
         body: { site_id: siteId },
       });
 
-      if (gridError) {
-        console.error('Grid error:', gridError);
-        throw new Error(gridError.message || 'Failed to load elevation grid');
-      }
+      const { data: gridData, error: gridError } = await gridPromise;
+
+      if (gridError) throw new Error(gridError.message || 'Failed to load elevation grid');
+      if (!gridData) throw new Error('No elevation grid data returned');
       
-      if (!gridData) {
-        throw new Error('No elevation grid data returned');
-      }
-      
-      console.log('✅ Grid loaded:', gridData.resolution);
+      console.log('✅ Grid loaded:', gridData.resolution, '•', gridData.provider);
       setGrid(gridData);
 
-      // Analyze
-      console.log('📊 Analyzing elevation...');
+      // Analyze in parallel
       const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-elevation', {
         body: {
           site_id: siteId,
@@ -96,34 +91,29 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
         },
       });
 
-      if (analysisError) {
-        console.error('Analysis error:', analysisError);
-        throw new Error(analysisError.message || 'Failed to analyze elevation');
-      }
+      if (analysisError) throw new Error(analysisError.message || 'Failed to analyze elevation');
+      if (!analysisData) throw new Error('No analysis data returned');
       
-      if (!analysisData) {
-        throw new Error('No analysis data returned');
-      }
-      
-      console.log('✅ Analysis complete');
+      console.log('✅ Analysis complete:', analysisData.summary);
       setSummary(analysisData.summary);
       setContours(analysisData.contours);
 
-      // Save summary
-      await supabase
+      // Save summary (non-blocking)
+      supabase
         .from('site_requests')
         .update({ elevation_summary: analysisData.summary })
-        .eq('id', siteId);
+        .eq('id', siteId)
+        .then(() => console.log('✅ Summary saved'));
 
       toast({
-        title: 'Elevation data loaded',
-        description: `Real ${gridData.provider} data • ${gridData.resolution.nx}×${gridData.resolution.ny} grid`,
+        title: 'Real terrain loaded',
+        description: `${gridData.provider} • ${gridData.resolution.nx}×${gridData.resolution.ny} @ ${gridData.accuracy.nominalResolutionM}m`,
       });
     } catch (error: any) {
-      console.error('Failed to load elevation:', error);
+      console.error('❌ Elevation load failed:', error);
       toast({
-        title: 'Error loading elevation',
-        description: error.message || 'Unknown error',
+        title: 'Failed to load terrain',
+        description: error.message,
         variant: 'destructive',
       });
     } finally {
@@ -165,53 +155,80 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
     }
   };
 
-  const terrainGeometry = useMemo(() => {
+  const terrainData = useMemo(() => {
     if (!grid) return null;
 
     const { nx, ny } = grid.resolution;
     const { values } = grid;
-    const geometry = new THREE.BufferGeometry();
-
-    const vertices: number[] = [];
-    const indices: number[] = [];
-    const colors: number[] = [];
-
+    
     // Find actual min/max from data
     const validValues = values.flat().filter(v => v > 0);
     const dataMin = Math.min(...validValues);
     const dataMax = Math.max(...validValues);
     const dataRange = dataMax - dataMin;
 
-    // Create mesh with normalized coordinates
+    // Calculate slopes for better coloring
+    const slopes: number[][] = Array(ny).fill(0).map(() => Array(nx).fill(0));
+    for (let j = 1; j < ny - 1; j++) {
+      for (let i = 1; i < nx - 1; i++) {
+        const dzdx = (values[j][i + 1] - values[j][i - 1]) / 2;
+        const dzdy = (values[j + 1][i] - values[j - 1][i]) / 2;
+        slopes[j][i] = Math.sqrt(dzdx * dzdx + dzdy * dzdy);
+      }
+    }
+    
+    const maxSlope = Math.max(...slopes.flat());
+
+    const geometry = new THREE.BufferGeometry();
+    const vertices: number[] = [];
+    const indices: number[] = [];
+    const colors: number[] = [];
+
+    // Create mesh with proper scaling
     const xScale = 100 / (nx - 1);
     const zScale = 100 / (ny - 1);
 
     for (let j = 0; j < ny; j++) {
       for (let i = 0; i < nx; i++) {
         const elevation = values[j][i] || 0;
-        const x = i * xScale - 50; // Center around origin
+        const x = i * xScale - 50;
         const z = j * zScale - 50;
-        const y = elevation * exaggeration[0];
+        const y = (elevation - dataMin) * exaggeration[0]; // Normalize to start at 0
         
         vertices.push(x, y, z);
 
-        // Enhanced color gradient (green -> yellow -> brown -> white)
+        // Advanced color mapping with slope influence
         const normalized = dataRange > 0 ? (elevation - dataMin) / dataRange : 0;
+        const slope = slopes[j]?.[i] || 0;
+        const slopeNorm = maxSlope > 0 ? slope / maxSlope : 0;
+        
         const color = new THREE.Color();
         
-        if (normalized < 0.33) {
-          // Low elevation: green to yellow
-          color.setHSL(0.3 - normalized * 0.3, 0.8, 0.4);
-        } else if (normalized < 0.66) {
-          // Mid elevation: yellow to brown
-          color.setHSL(0.15 - (normalized - 0.33) * 0.15, 0.7, 0.4);
-        } else {
-          // High elevation: brown to white
-          const t = (normalized - 0.66) / 0.34;
+        // Terrain-realistic colors with slope darkening
+        if (normalized < 0.2) {
+          // Low: dark green
+          color.setHSL(0.28, 0.6 - slopeNorm * 0.2, 0.25 + normalized * 0.15);
+        } else if (normalized < 0.4) {
+          // Mid-low: green to yellow-green
+          color.setHSL(0.25 - (normalized - 0.2) * 0.15, 0.7 - slopeNorm * 0.3, 0.35 + normalized * 0.1);
+        } else if (normalized < 0.6) {
+          // Mid: yellow-brown
+          color.setHSL(0.12 - (normalized - 0.4) * 0.05, 0.5 - slopeNorm * 0.2, 0.4 + normalized * 0.05);
+        } else if (normalized < 0.8) {
+          // High: brown
+          const t = (normalized - 0.6) / 0.2;
           color.setRGB(
-            0.55 + t * 0.45,
-            0.45 + t * 0.55,
-            0.35 + t * 0.65
+            0.45 + t * 0.15 - slopeNorm * 0.15,
+            0.35 + t * 0.1 - slopeNorm * 0.15,
+            0.25 + t * 0.05 - slopeNorm * 0.15
+          );
+        } else {
+          // Very high: gray-white (rock/snow)
+          const t = (normalized - 0.8) / 0.2;
+          color.setRGB(
+            0.6 + t * 0.3,
+            0.6 + t * 0.3,
+            0.65 + t * 0.3
           );
         }
         
@@ -235,12 +252,10 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geometry.setIndex(indices);
-    geometry.computeVertexNormals(); // Smooth normals for better lighting
-    
-    // Compute bounding sphere for better camera framing
+    geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
 
-    return geometry;
+    return { geometry, dataMin, dataMax, dataRange };
   }, [grid, exaggeration]);
 
   if (loading) {
@@ -334,57 +349,73 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
       </div>
 
       {/* 3D View */}
-      <Card className="h-[500px] relative overflow-hidden">
-        <div className="absolute top-2 right-2 z-10 bg-background/80 backdrop-blur-sm rounded-lg p-2 text-xs space-y-1">
+      <Card className="h-[600px] relative overflow-hidden">
+        <div className="absolute top-2 right-2 z-10 bg-background/90 backdrop-blur-sm rounded-lg p-3 text-xs space-y-1.5 shadow-lg">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="font-medium">Live 3D Terrain</span>
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="font-semibold">High-Res Terrain</span>
           </div>
           <div className="text-muted-foreground">
-            {grid.resolution.nx}×{grid.resolution.ny} mesh
+            {grid.resolution.nx}×{grid.resolution.ny} DEM grid
           </div>
           <div className="text-muted-foreground">
-            {(grid.resolution.nx * grid.resolution.ny).toLocaleString()} vertices
+            {(grid.resolution.nx * grid.resolution.ny).toLocaleString()} data points
           </div>
+          {terrainData && (
+            <div className="text-muted-foreground pt-1 border-t border-border/50">
+              Relief: {terrainData.dataRange.toFixed(1)}m
+            </div>
+          )}
         </div>
-        <Canvas shadows camera={{ position: [50, 50, 50], fov: 50 }}>
-          <PerspectiveCamera makeDefault position={[50, 50, 50]} />
+        <Canvas shadows camera={{ position: [70, 60, 70], fov: 50 }}>
+          <PerspectiveCamera makeDefault position={[70, 60, 70]} />
           <OrbitControls 
             enableDamping 
-            dampingFactor={0.05}
-            minDistance={20}
-            maxDistance={200}
+            dampingFactor={0.08}
+            minDistance={30}
+            maxDistance={250}
+            maxPolarAngle={Math.PI / 2.1}
           />
           
-          {/* Lighting for better depth perception */}
-          <ambientLight intensity={0.4} />
+          {/* Enhanced lighting for realistic terrain */}
+          <ambientLight intensity={0.3} />
           <directionalLight 
-            position={[10, 20, 10]} 
-            intensity={1.2}
+            position={[50, 80, 30]} 
+            intensity={1.5}
             castShadow
-            shadow-mapSize-width={2048}
-            shadow-mapSize-height={2048}
+            shadow-mapSize-width={4096}
+            shadow-mapSize-height={4096}
+            shadow-camera-far={300}
+            shadow-camera-left={-100}
+            shadow-camera-right={100}
+            shadow-camera-top={100}
+            shadow-camera-bottom={-100}
+            shadow-bias={-0.0001}
           />
-          <directionalLight position={[-10, 10, -10]} intensity={0.3} />
-          <hemisphereLight args={['#87ceeb', '#654321', 0.3]} />
+          <directionalLight position={[-30, 40, -30]} intensity={0.4} color="#b8d4ff" />
+          <hemisphereLight args={['#87ceeb', '#8b7355', 0.4]} />
           
-          {/* Terrain Mesh */}
-          {terrainGeometry && (
-            <mesh geometry={terrainGeometry} castShadow receiveShadow>
+          {/* Terrain Mesh with enhanced materials */}
+          {terrainData?.geometry && (
+            <mesh geometry={terrainData.geometry} castShadow receiveShadow>
               <meshStandardMaterial 
                 vertexColors 
-                side={THREE.DoubleSide}
-                roughness={0.8}
-                metalness={0.1}
+                roughness={0.95}
+                metalness={0.05}
+                flatShading={false}
+                side={THREE.FrontSide}
               />
             </mesh>
           )}
           
-          {/* Ground plane for reference */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
-            <planeGeometry args={[200, 200]} />
-            <shadowMaterial opacity={0.2} />
+          {/* Ground plane */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
+            <planeGeometry args={[300, 300]} />
+            <shadowMaterial opacity={0.15} />
           </mesh>
+          
+          {/* Subtle fog for depth */}
+          <fog attach="fog" args={['#f0f0f0', 100, 300]} />
         </Canvas>
       </Card>
 

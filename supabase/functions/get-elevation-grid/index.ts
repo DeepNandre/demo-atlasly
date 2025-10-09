@@ -13,7 +13,7 @@ interface ElevationGrid {
   accuracy: { verticalErrorM: number; nominalResolutionM: number };
 }
 
-// OpenTopoData - SRTM 30m (reliable, free, global)
+// OpenTopoData - SRTM 30m (reliable, free, global) - OPTIMIZED
 async function fetchOpenTopoData(
   bbox: { west: number; south: number; east: number; north: number },
   nx: number,
@@ -25,53 +25,78 @@ async function fetchOpenTopoData(
   const dy = (bbox.north - bbox.south) / (ny - 1);
   
   try {
-    // Build all locations
-    const locations: string[] = [];
+    // Build all locations with indices
+    const points: { lat: number; lon: number; index: number }[] = [];
     for (let j = 0; j < ny; j++) {
       const lat = bbox.south + j * dy;
       for (let i = 0; i < nx; i++) {
         const lon = bbox.west + i * dx;
-        locations.push(`${lat.toFixed(6)},${lon.toFixed(6)}`);
+        points.push({ lat, lon, index: j * nx + i });
       }
     }
     
-    // Batch requests (100 points max per request)
-    const chunkSize = 100;
-    const allElevations: number[] = [];
+    // Process in batches with parallel requests
+    const BATCH_SIZE = 100;
+    const PARALLEL_REQUESTS = 3; // Process 3 batches simultaneously
+    const batches: typeof points[] = [];
+    
+    for (let i = 0; i < points.length; i += BATCH_SIZE) {
+      batches.push(points.slice(i, i + BATCH_SIZE));
+    }
+    
+    console.log(`📊 Processing ${points.length} points in ${batches.length} batches (${PARALLEL_REQUESTS} parallel)`);
+    
+    const allElevations: number[] = new Array(points.length).fill(0);
     let successCount = 0;
     let failCount = 0;
     
-    for (let c = 0; c < locations.length; c += chunkSize) {
-      const chunk = locations.slice(c, c + chunkSize);
-      const locString = chunk.join('|');
+    // Process batches in parallel groups
+    for (let batchIdx = 0; batchIdx < batches.length; batchIdx += PARALLEL_REQUESTS) {
+      const parallelBatches = batches.slice(batchIdx, batchIdx + PARALLEL_REQUESTS);
       
-      try {
-        const response = await fetch(
-          `https://api.opentopodata.org/v1/srtm30m?locations=${locString}`,
-          { signal: AbortSignal.timeout(15000) }
-        );
+      await Promise.all(parallelBatches.map(async (batch) => {
+        const locString = batch.map(p => `${p.lat.toFixed(6)},${p.lon.toFixed(6)}`).join('|');
         
-        if (!response.ok) {
-          console.warn(`Chunk ${c}-${c + chunk.length} failed:`, response.statusText);
-          allElevations.push(...new Array(chunk.length).fill(0));
-          failCount += chunk.length;
-        } else {
+        try {
+          const response = await fetch(
+            `https://api.opentopodata.org/v1/srtm30m?locations=${locString}`,
+            { 
+              signal: AbortSignal.timeout(15000),
+              headers: { 'Accept': 'application/json' }
+            }
+          );
+          
+          if (!response.ok) {
+            console.warn(`⚠️ Batch request failed: ${response.status}`);
+            batch.forEach(p => {
+              allElevations[p.index] = 0;
+              failCount++;
+            });
+            return;
+          }
+          
           const data = await response.json();
-          const elevations = data.results.map((r: any) => r.elevation ?? 0);
-          allElevations.push(...elevations);
-          successCount += elevations.length;
+          data.results.forEach((result: any, idx: number) => {
+            const elevation = result.elevation ?? 0;
+            allElevations[batch[idx].index] = elevation;
+            successCount++;
+          });
+        } catch (error) {
+          console.warn(`⚠️ Batch fetch error:`, error);
+          batch.forEach(p => {
+            allElevations[p.index] = 0;
+            failCount++;
+          });
         }
-        
-        // Rate limiting - be nice to the free API
-        await new Promise(resolve => setTimeout(resolve, 1100));
-      } catch (error) {
-        console.warn(`Chunk ${c} error:`, error);
-        allElevations.push(...new Array(chunk.length).fill(0));
-        failCount += chunk.length;
+      }));
+      
+      // Reduced delay between parallel groups
+      if (batchIdx + PARALLEL_REQUESTS < batches.length) {
+        await new Promise(resolve => setTimeout(resolve, 400));
       }
     }
     
-    console.log(`✅ Fetched ${successCount}/${locations.length} points (${failCount} failed)`);
+    console.log(`✅ Fetched ${successCount}/${points.length} points (${failCount} failed)`);
     
     // Reshape into 2D array
     const values: number[][] = [];
