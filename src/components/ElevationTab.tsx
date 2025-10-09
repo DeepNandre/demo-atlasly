@@ -24,6 +24,8 @@ interface ElevationGrid {
   resolution: { nx: number; ny: number };
   bbox: { west: number; south: number; east: number; north: number };
   values: number[][];
+  provider: string;
+  accuracy: { verticalErrorM: number; nominalResolutionM: number };
 }
 
 interface ElevationSummary {
@@ -111,7 +113,7 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
 
       toast({
         title: 'Elevation data loaded',
-        description: `${gridData.resolution.nx}×${gridData.resolution.ny} grid`,
+        description: `Real ${gridData.provider} data • ${gridData.resolution.nx}×${gridData.resolution.ny} grid`,
       });
     } catch (error: any) {
       console.error('Failed to load elevation:', error);
@@ -225,6 +227,30 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
 
   return (
     <div className="flex flex-col gap-4 p-4">
+      {/* Data Provider Badge */}
+      {grid.provider && (
+        <Card className="p-3 bg-primary/5 border-primary/20">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-sm font-semibold text-primary">Real Terrain Data ✓</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium">{grid.provider}</span>
+              {grid.accuracy && (
+                <>
+                  {' • '}
+                  {grid.accuracy.nominalResolutionM}m resolution
+                  {' • '}
+                  ±{grid.accuracy.verticalErrorM}m vertical accuracy
+                </>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Controls */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4">
