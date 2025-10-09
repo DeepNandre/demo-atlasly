@@ -17,10 +17,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const siteId = url.searchParams.get('site_id');
+    console.log('📥 get-elevation-grid request received');
+    const body = await req.json();
+    console.log('📦 Request body:', JSON.stringify(body));
+    
+    const { site_id: siteId } = body;
 
     if (!siteId) {
+      console.error('❌ Missing site_id in request');
       return new Response(
         JSON.stringify({ error: 'site_id parameter required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

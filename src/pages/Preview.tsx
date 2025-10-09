@@ -235,7 +235,7 @@ const Preview = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+      <header className="border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-30 shadow-sm">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate('/dashboard')} className="gap-2">
             <ArrowLeft className="w-4 h-4" />
@@ -261,8 +261,8 @@ const Preview = () => {
         </div>
       ) : (
         <Tabs defaultValue="3d" className="h-[calc(100vh-80px)]">
-          <div className="absolute top-4 left-4 z-10">
-            <TabsList>
+          <div className="absolute top-4 left-4 z-20">
+            <TabsList className="bg-card/95 backdrop-blur-sm shadow-lg">
               <TabsTrigger value="3d">3D View</TabsTrigger>
               <TabsTrigger value="elevation">Elevation</TabsTrigger>
               <TabsTrigger value="climate">Climate</TabsTrigger>

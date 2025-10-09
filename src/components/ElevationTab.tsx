@@ -61,15 +61,27 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
   const loadElevationData = async () => {
     setLoading(true);
     try {
+      console.log('🏔️ Loading elevation data for site:', siteId);
+      
       // Load grid
       const { data: gridData, error: gridError } = await supabase.functions.invoke('get-elevation-grid', {
         body: { site_id: siteId },
       });
 
-      if (gridError) throw gridError;
+      if (gridError) {
+        console.error('Grid error:', gridError);
+        throw new Error(gridError.message || 'Failed to load elevation grid');
+      }
+      
+      if (!gridData) {
+        throw new Error('No elevation grid data returned');
+      }
+      
+      console.log('✅ Grid loaded:', gridData.resolution);
       setGrid(gridData);
 
       // Analyze
+      console.log('📊 Analyzing elevation...');
       const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-elevation', {
         body: {
           site_id: siteId,
@@ -78,7 +90,16 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
         },
       });
 
-      if (analysisError) throw analysisError;
+      if (analysisError) {
+        console.error('Analysis error:', analysisError);
+        throw new Error(analysisError.message || 'Failed to analyze elevation');
+      }
+      
+      if (!analysisData) {
+        throw new Error('No analysis data returned');
+      }
+      
+      console.log('✅ Analysis complete');
       setSummary(analysisData.summary);
       setContours(analysisData.contours);
 
@@ -96,7 +117,7 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
       console.error('Failed to load elevation:', error);
       toast({
         title: 'Error loading elevation',
-        description: error.message,
+        description: error.message || 'Unknown error',
         variant: 'destructive',
       });
     } finally {
