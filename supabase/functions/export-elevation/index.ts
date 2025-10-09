@@ -40,9 +40,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate DXF
-    console.log('🔧 Generating DXF...');
-    const dxfContent = generateDXF(contours, site.boundary_geojson);
+    // Generate DXF with metadata
+    console.log('🔧 Generating DXF with real terrain data metadata...');
+    const dxfContent = generateDXF(contours, site.boundary_geojson, site.elevation_summary);
     
     // Upload DXF to storage
     const dxfFileName = `${site_id}_contours.dxf`;
@@ -108,9 +108,19 @@ Deno.serve(async (req) => {
   }
 });
 
-function generateDXF(contours: any, boundary: any): string {
-  // Simplified DXF header
-  let dxf = `0\nSECTION\n2\nHEADER\n0\nENDSEC\n`;
+function generateDXF(contours: any, boundary: any, summary?: any): string {
+  // Simplified DXF header with metadata
+  let dxf = `0\nSECTION\n2\nHEADER\n`;
+  
+  // Add metadata comments
+  if (summary) {
+    dxf += `999\nReal Terrain Data\n`;
+    dxf += `999\nProvider: ${summary.provider || 'Unknown'}\n`;
+    dxf += `999\nAccuracy: ±${summary.accuracy?.verticalErrorM || '?'}m vertical\n`;
+    dxf += `999\nElevation Range: ${summary.min_m?.toFixed(1)}m - ${summary.max_m?.toFixed(1)}m\n`;
+  }
+  
+  dxf += `0\nENDSEC\n`;
   dxf += `0\nSECTION\n2\nENTITIES\n`;
 
   // Add boundary as POLYLINE
@@ -199,12 +209,14 @@ async function generatePDF(
   svg += `  </g>
   
   <!-- Legend -->
-  <g transform="translate(50, ${height - 80})">
-    <text font-size="12" font-weight="bold">Elevation Summary</text>
-    <text y="20" font-size="10">Min: ${summary?.min_m?.toFixed(1)}m</text>
-    <text y="35" font-size="10">Max: ${summary?.max_m?.toFixed(1)}m</text>
-    <text y="50" font-size="10">Mean: ${summary?.mean_m?.toFixed(1)}m</text>
-    <text y="65" font-size="10">Avg Slope: ${summary?.slope_avg_deg?.toFixed(1)}°</text>
+  <g transform="translate(50, ${height - 120})">
+    <rect width="300" height="110" fill="#f9f9f9" stroke="#ccc"/>
+    <text x="10" y="20" font-size="12" font-weight="bold">Elevation Summary</text>
+    ${summary?.provider ? `<text x="10" y="40" font-size="9">Data: ${summary.provider} (±${summary.accuracy?.verticalErrorM || '?'}m)</text>` : ''}
+    <text x="10" y="60" font-size="10">Min: ${summary?.min_m?.toFixed(1)}m</text>
+    <text x="10" y="75" font-size="10">Max: ${summary?.max_m?.toFixed(1)}m</text>
+    <text x="10" y="90" font-size="10">Mean: ${summary?.mean_m?.toFixed(1)}m</text>
+    <text x="10" y="105" font-size="10">Avg Slope: ${summary?.slope_avg_deg?.toFixed(1)}°</text>
   </g>
 </svg>`;
 

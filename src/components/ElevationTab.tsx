@@ -32,8 +32,12 @@ interface ElevationSummary {
   min_m: number;
   max_m: number;
   mean_m: number;
+  range_m?: number;
   slope_avg_deg: number;
   aspect_histogram: Array<{ dir: string; deg: number; pct: number }>;
+  provider?: string;
+  accuracy?: { verticalErrorM: number; nominalResolutionM: number };
+  data_points?: number;
 }
 
 interface ElevationTabProps {
@@ -172,16 +176,45 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
     const indices: number[] = [];
     const colors: number[] = [];
 
-    // Create mesh
+    // Find actual min/max from data
+    const validValues = values.flat().filter(v => v > 0);
+    const dataMin = Math.min(...validValues);
+    const dataMax = Math.max(...validValues);
+    const dataRange = dataMax - dataMin;
+
+    // Create mesh with normalized coordinates
+    const xScale = 100 / (nx - 1);
+    const zScale = 100 / (ny - 1);
+
     for (let j = 0; j < ny; j++) {
       for (let i = 0; i < nx; i++) {
-        const elevation = values[j][i];
-        vertices.push(i, elevation * exaggeration[0], j);
+        const elevation = values[j][i] || 0;
+        const x = i * xScale - 50; // Center around origin
+        const z = j * zScale - 50;
+        const y = elevation * exaggeration[0];
+        
+        vertices.push(x, y, z);
 
-        // Color by elevation
-        const normalized = (elevation - (summary?.min_m ?? 0)) / ((summary?.max_m ?? 100) - (summary?.min_m ?? 0));
+        // Enhanced color gradient (green -> yellow -> brown -> white)
+        const normalized = dataRange > 0 ? (elevation - dataMin) / dataRange : 0;
         const color = new THREE.Color();
-        color.setHSL(0.6 - normalized * 0.4, 0.8, 0.5);
+        
+        if (normalized < 0.33) {
+          // Low elevation: green to yellow
+          color.setHSL(0.3 - normalized * 0.3, 0.8, 0.4);
+        } else if (normalized < 0.66) {
+          // Mid elevation: yellow to brown
+          color.setHSL(0.15 - (normalized - 0.33) * 0.15, 0.7, 0.4);
+        } else {
+          // High elevation: brown to white
+          const t = (normalized - 0.66) / 0.34;
+          color.setRGB(
+            0.55 + t * 0.45,
+            0.45 + t * 0.55,
+            0.35 + t * 0.65
+          );
+        }
+        
         colors.push(color.r, color.g, color.b);
       }
     }
@@ -202,10 +235,13 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geometry.setIndex(indices);
-    geometry.computeVertexNormals();
+    geometry.computeVertexNormals(); // Smooth normals for better lighting
+    
+    // Compute bounding sphere for better camera framing
+    geometry.computeBoundingSphere();
 
     return geometry;
-  }, [grid, exaggeration, summary]);
+  }, [grid, exaggeration]);
 
   if (loading) {
     return (
@@ -219,8 +255,17 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
         <Mountain className="w-16 h-16 text-muted-foreground" />
-        <p className="text-muted-foreground">No elevation data available</p>
-        <Button onClick={loadElevationData}>Load Elevation Data</Button>
+        <div className="text-center space-y-2">
+          <p className="text-lg font-semibold">Real Terrain Elevation Data</p>
+          <p className="text-sm text-muted-foreground max-w-md">
+            Load accurate elevation data from trusted sources (USGS 3DEP for US, SRTM30m globally).
+            View 3D terrain, analyze slopes, generate contours, and export to CAD formats.
+          </p>
+        </div>
+        <Button onClick={loadElevationData} size="lg">
+          <Mountain className="w-4 h-4 mr-2" />
+          Load Elevation Data
+        </Button>
       </div>
     );
   }
@@ -289,24 +334,63 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
       </div>
 
       {/* 3D View */}
-      <Card className="h-96">
-        <Canvas>
+      <Card className="h-[500px] relative overflow-hidden">
+        <div className="absolute top-2 right-2 z-10 bg-background/80 backdrop-blur-sm rounded-lg p-2 text-xs space-y-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="font-medium">Live 3D Terrain</span>
+          </div>
+          <div className="text-muted-foreground">
+            {grid.resolution.nx}×{grid.resolution.ny} mesh
+          </div>
+          <div className="text-muted-foreground">
+            {(grid.resolution.nx * grid.resolution.ny).toLocaleString()} vertices
+          </div>
+        </div>
+        <Canvas shadows camera={{ position: [50, 50, 50], fov: 50 }}>
           <PerspectiveCamera makeDefault position={[50, 50, 50]} />
-          <OrbitControls />
-          <ambientLight intensity={0.5} />
-          <directionalLight position={[10, 10, 5]} intensity={1} />
+          <OrbitControls 
+            enableDamping 
+            dampingFactor={0.05}
+            minDistance={20}
+            maxDistance={200}
+          />
           
+          {/* Lighting for better depth perception */}
+          <ambientLight intensity={0.4} />
+          <directionalLight 
+            position={[10, 20, 10]} 
+            intensity={1.2}
+            castShadow
+            shadow-mapSize-width={2048}
+            shadow-mapSize-height={2048}
+          />
+          <directionalLight position={[-10, 10, -10]} intensity={0.3} />
+          <hemisphereLight args={['#87ceeb', '#654321', 0.3]} />
+          
+          {/* Terrain Mesh */}
           {terrainGeometry && (
-            <mesh geometry={terrainGeometry}>
-              <meshStandardMaterial vertexColors side={THREE.DoubleSide} />
+            <mesh geometry={terrainGeometry} castShadow receiveShadow>
+              <meshStandardMaterial 
+                vertexColors 
+                side={THREE.DoubleSide}
+                roughness={0.8}
+                metalness={0.1}
+              />
             </mesh>
           )}
+          
+          {/* Ground plane for reference */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
+            <planeGeometry args={[200, 200]} />
+            <shadowMaterial opacity={0.2} />
+          </mesh>
         </Canvas>
       </Card>
 
       {/* Summary Stats */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card className="p-4">
             <p className="text-sm text-muted-foreground">Min Elevation</p>
             <p className="text-2xl font-bold">{summary.min_m.toFixed(1)}m</p>
@@ -318,6 +402,10 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
           <Card className="p-4">
             <p className="text-sm text-muted-foreground">Mean Elevation</p>
             <p className="text-2xl font-bold">{summary.mean_m.toFixed(1)}m</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-sm text-muted-foreground">Relief</p>
+            <p className="text-2xl font-bold">{summary.range_m?.toFixed(1) || (summary.max_m - summary.min_m).toFixed(1)}m</p>
           </Card>
           <Card className="p-4">
             <p className="text-sm text-muted-foreground">Avg Slope</p>

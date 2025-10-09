@@ -9,6 +9,8 @@ interface ElevationGrid {
   resolution: { nx: number; ny: number };
   bbox: { west: number; south: number; east: number; north: number };
   values: number[][];
+  provider?: string;
+  accuracy?: { verticalErrorM: number; nominalResolutionM: number };
 }
 
 Deno.serve(async (req) => {
@@ -26,18 +28,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('📊 Analyzing elevation data for site:', site_id);
+    console.log('📊 Analyzing real elevation data for site:', site_id);
+    if (grid.provider) {
+      console.log(`📡 Data source: ${grid.provider} (±${grid.accuracy?.verticalErrorM || '?'}m accuracy)`);
+    }
 
     const { values, resolution, bbox } = grid as ElevationGrid;
     const { nx, ny } = resolution;
 
-    // Calculate statistics
-    const flatValues = values.flat().filter(v => v !== null && v !== undefined);
+    // Calculate statistics (filter out invalid/zero values)
+    const flatValues = values.flat().filter(v => v !== null && v !== undefined && v !== 0);
+    
+    if (flatValues.length === 0) {
+      throw new Error('No valid elevation data found');
+    }
+    
     const min_m = Math.min(...flatValues);
     const max_m = Math.max(...flatValues);
     const mean_m = flatValues.reduce((a, b) => a + b, 0) / flatValues.length;
+    const range_m = max_m - min_m;
 
-    console.log(`📏 Elevation range: ${min_m.toFixed(1)}m - ${max_m.toFixed(1)}m (mean: ${mean_m.toFixed(1)}m)`);
+    console.log(`📏 Elevation: ${min_m.toFixed(1)}m - ${max_m.toFixed(1)}m (Δ${range_m.toFixed(1)}m, mean: ${mean_m.toFixed(1)}m)`);
 
     // Calculate slope
     const dx = (bbox.east - bbox.west) / (nx - 1);
@@ -110,8 +121,12 @@ Deno.serve(async (req) => {
         min_m,
         max_m,
         mean_m,
+        range_m,
         slope_avg_deg,
         aspect_histogram,
+        provider: grid.provider || 'Unknown',
+        accuracy: grid.accuracy,
+        data_points: flatValues.length,
       },
       contours: {
         type: 'FeatureCollection',
@@ -133,7 +148,7 @@ Deno.serve(async (req) => {
   }
 });
 
-// Simplified marching squares implementation
+// Improved marching squares implementation for better contour quality
 function marchingSquares(
   values: number[][],
   resolution: { nx: number; ny: number },
@@ -148,10 +163,13 @@ function marchingSquares(
 
   for (let j = 0; j < ny - 1; j++) {
     for (let i = 0; i < nx - 1; i++) {
-      const v00 = values[j][i];
-      const v10 = values[j][i + 1];
-      const v01 = values[j + 1][i];
-      const v11 = values[j + 1][i + 1];
+      const v00 = values[j][i] || 0;
+      const v10 = values[j][i + 1] || 0;
+      const v01 = values[j + 1][i] || 0;
+      const v11 = values[j + 1][i + 1] || 0;
+
+      // Skip if any corner is invalid
+      if (v00 === 0 || v10 === 0 || v01 === 0 || v11 === 0) continue;
 
       // Calculate case (4-bit configuration)
       let caseIndex = 0;
@@ -162,32 +180,58 @@ function marchingSquares(
 
       if (caseIndex === 0 || caseIndex === 15) continue; // All same side
 
-      // Interpolate edges
+      // Cell corners in geographic coordinates
       const x0 = bbox.west + i * dx;
       const y0 = bbox.south + j * dy;
       const x1 = x0 + dx;
       const y1 = y0 + dy;
 
-      const interpX = (v0: number, v1: number, t: number) => {
-        const alpha = (threshold - v0) / (v1 - v0);
-        return v0 + alpha * (v1 - v0);
-      };
-
-      // Simple line segments (only handling a few cases)
-      if (caseIndex === 1 || caseIndex === 14) {
-        const px = interpX(v00, v10, threshold);
-        const py = y0;
-        const qx = x0;
-        const qy = interpX(v00, v01, threshold);
-        segments.push([[px, py], [qx, qy]]);
-      } else if (caseIndex === 7 || caseIndex === 8) {
-        const px = x0;
-        const py = interpX(v00, v01, threshold);
-        const qx = interpX(v01, v11, threshold);
-        const qy = y1;
-        segments.push([[px, py], [qx, qy]]);
+      // Linear interpolation helper
+      const lerp = (a: number, b: number, t: number) => a + (t - a) / (b - a) * (b - a);
+      
+      // Edge midpoints with interpolation
+      const edges: { [key: string]: [number, number] } = {};
+      
+      // Top edge (v00 - v10)
+      if ((v00 >= threshold) !== (v10 >= threshold)) {
+        const t = (threshold - v00) / (v10 - v00);
+        edges.top = [x0 + t * dx, y0];
       }
-      // Add more cases as needed...
+      
+      // Right edge (v10 - v11)
+      if ((v10 >= threshold) !== (v11 >= threshold)) {
+        const t = (threshold - v10) / (v11 - v10);
+        edges.right = [x1, y0 + t * dy];
+      }
+      
+      // Bottom edge (v01 - v11)
+      if ((v01 >= threshold) !== (v11 >= threshold)) {
+        const t = (threshold - v01) / (v11 - v01);
+        edges.bottom = [x0 + t * dx, y1];
+      }
+      
+      // Left edge (v00 - v01)
+      if ((v00 >= threshold) !== (v01 >= threshold)) {
+        const t = (threshold - v00) / (v01 - v00);
+        edges.left = [x0, y0 + t * dy];
+      }
+
+      // Create line segments based on marching squares lookup table
+      const edgeKeys = Object.keys(edges);
+      if (edgeKeys.length === 2) {
+        const [e1, e2] = edgeKeys;
+        segments.push([edges[e1], edges[e2]]);
+      } else if (edgeKeys.length === 4) {
+        // Saddle case - use center point
+        const centerVal = (v00 + v10 + v11 + v01) / 4;
+        if (centerVal >= threshold) {
+          segments.push([edges.top, edges.right]);
+          segments.push([edges.bottom, edges.left]);
+        } else {
+          segments.push([edges.top, edges.left]);
+          segments.push([edges.right, edges.bottom]);
+        }
+      }
     }
   }
 
