@@ -260,111 +260,113 @@ const Preview = () => {
           </Card>
         </div>
       ) : (
-        <Tabs defaultValue="3d" className="h-[calc(100vh-80px)]">
-          <div className="absolute top-4 left-4 z-20">
-            <TabsList className="bg-card/95 backdrop-blur-sm shadow-lg">
-              <TabsTrigger value="3d">3D View</TabsTrigger>
-              <TabsTrigger value="elevation">Elevation</TabsTrigger>
-              <TabsTrigger value="climate">Climate</TabsTrigger>
-              <TabsTrigger value="visualize">Visualize</TabsTrigger>
-            </TabsList>
-          </div>
+        <div className="relative h-[calc(100vh-80px)]">
+          <Tabs defaultValue="3d" className="h-full">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
+              <TabsList className="bg-card/95 backdrop-blur-sm shadow-lg">
+                <TabsTrigger value="3d">3D View</TabsTrigger>
+                <TabsTrigger value="elevation">Elevation</TabsTrigger>
+                <TabsTrigger value="climate">Climate</TabsTrigger>
+                <TabsTrigger value="visualize">Visualize</TabsTrigger>
+              </TabsList>
+            </div>
 
-          <TabsContent value="3d" className="h-full m-0">
-            <div className="relative h-full">
-              <div className="absolute top-16 left-4 z-10 space-y-2">
-                <LayerToggles layers={layers} onToggle={handleToggle} />
-                <ContextLayerToggles layers={contextLayers} onToggle={handleContextToggle} />
-              </div>
-              
-              {siteInfo && (
-                <DesignAssistantPanel 
-                  siteRequestId={id!} 
-                  locationName={siteInfo.location_name}
+            <TabsContent value="3d" className="h-full m-0">
+              <div className="relative h-full">
+                <div className="absolute top-16 left-4 z-10 space-y-2">
+                  <LayerToggles layers={layers} onToggle={handleToggle} />
+                  <ContextLayerToggles layers={contextLayers} onToggle={handleContextToggle} />
+                </div>
+                
+                {siteInfo && (
+                  <DesignAssistantPanel 
+                    siteRequestId={id!} 
+                    locationName={siteInfo.location_name}
+                  />
+                )}
+                
+                <DeckGLScene
+                  buildings={geoData.buildings}
+                  roads={geoData.roads}
+                  terrain={geoData.terrain}
+                  layers={layers}
+                  contextLayers={contextLayers}
+                  aoiBounds={aoiBounds}
                 />
-              )}
-              
-              <DeckGLScene
-                buildings={geoData.buildings}
-                roads={geoData.roads}
-                terrain={geoData.terrain}
-                layers={layers}
-                contextLayers={contextLayers}
-                aoiBounds={aoiBounds}
-              />
-            </div>
-          </TabsContent>
+              </div>
+            </TabsContent>
 
-          <TabsContent value="elevation" className="h-full m-0">
-            <div className="h-full overflow-auto">
-              <ElevationTab siteId={id!} />
-            </div>
-          </TabsContent>
+            <TabsContent value="elevation" className="h-full m-0">
+              <div className="h-full overflow-auto">
+                <ElevationTab siteId={id!} />
+              </div>
+            </TabsContent>
 
-          <TabsContent value="climate" className="h-full m-0">
-            <div className="container mx-auto p-6 h-full overflow-auto">
-              {!siteInfo?.climate_summary ? (
-                <Card className="p-12 text-center space-y-4">
-                  <h3 className="text-xl font-semibold">Climate Data</h3>
-                  <p className="text-muted-foreground">
-                    Compute climate analysis for this site based on historical weather data
-                  </p>
-                  <Button 
-                    onClick={handleComputeClimate} 
-                    disabled={computingClimate}
-                    size="lg"
-                  >
-                    {computingClimate ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Computing...
-                      </>
-                    ) : (
-                      'Compute Climate Data'
-                    )}
-                  </Button>
-                </Card>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-2xl font-semibold">Climate Analysis</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Data source: {siteInfo.climate_summary.dataSource}
-                      </p>
-                    </div>
+            <TabsContent value="climate" className="h-full m-0">
+              <div className="container mx-auto p-6 h-full overflow-auto">
+                {!siteInfo?.climate_summary ? (
+                  <Card className="p-12 text-center space-y-4">
+                    <h3 className="text-xl font-semibold">Climate Data</h3>
+                    <p className="text-muted-foreground">
+                      Compute climate analysis for this site based on historical weather data
+                    </p>
                     <Button 
-                      variant="outline" 
-                      onClick={handleComputeClimate}
+                      onClick={handleComputeClimate} 
                       disabled={computingClimate}
+                      size="lg"
                     >
                       {computingClimate ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Refreshing...
+                          Computing...
                         </>
                       ) : (
-                        'Refresh Data'
+                        'Compute Climate Data'
                       )}
                     </Button>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-2xl font-semibold">Climate Analysis</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Data source: {siteInfo.climate_summary.dataSource}
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        onClick={handleComputeClimate}
+                        disabled={computingClimate}
+                      >
+                        {computingClimate ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Refreshing...
+                          </>
+                        ) : (
+                          'Refresh Data'
+                        )}
+                      </Button>
+                    </div>
+                    <ClimateViewer climateData={siteInfo.climate_summary} />
                   </div>
-                  <ClimateViewer climateData={siteInfo.climate_summary} />
-                </div>
-              )}
-            </div>
-          </TabsContent>
+                )}
+              </div>
+            </TabsContent>
 
-          <TabsContent value="visualize" className="h-full m-0">
-            <div className="container mx-auto p-6 h-full overflow-auto">
-              <VisualizationTab siteRequestId={id!} />
-            </div>
-          </TabsContent>
+            <TabsContent value="visualize" className="h-full m-0">
+              <div className="container mx-auto p-6 h-full overflow-auto">
+                <VisualizationTab siteRequestId={id!} />
+              </div>
+            </TabsContent>
 
-          <SiteChat
-            siteRequestId={id!}
-            locationName={siteInfo?.location_name || 'this site'}
-          />
-        </Tabs>
+            <SiteChat
+              siteRequestId={id!}
+              locationName={siteInfo?.location_name || 'this site'}
+            />
+          </Tabs>
+        </div>
       )}
     </div>
   );
