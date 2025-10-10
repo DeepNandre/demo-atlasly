@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -266,6 +266,7 @@ const Preview = () => {
               <TabsList className="bg-card/95 backdrop-blur-sm shadow-lg">
                 <TabsTrigger value="3d">3D View</TabsTrigger>
                 <TabsTrigger value="elevation">Elevation</TabsTrigger>
+                <TabsTrigger value="solar">Solar</TabsTrigger>
                 <TabsTrigger value="climate">Climate</TabsTrigger>
                 <TabsTrigger value="visualize">Visualize</TabsTrigger>
               </TabsList>
@@ -299,6 +300,36 @@ const Preview = () => {
             <TabsContent value="elevation" className="h-full m-0">
               <div className="h-full overflow-auto">
                 <ElevationTab siteId={id!} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="solar" className="h-full m-0">
+              <div className="container mx-auto p-6 h-full overflow-auto">
+                <div className="text-center text-muted-foreground py-12 space-y-4">
+                  <Sun className="w-16 h-16 mx-auto text-yellow-500" />
+                  <h3 className="text-2xl font-semibold">Solar & Shadow Analysis</h3>
+                  <p className="max-w-2xl mx-auto">
+                    Architect-grade shadow casting with precise sun position calculations using NREL SPA algorithms.
+                    Analyze instant shadows or cumulative sun-hours across any date and time.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto mt-8 text-left">
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="font-semibold mb-2">Instant Shadows</h4>
+                      <p className="text-sm">Cast precise shadows for any date and time with real sun position</p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="font-semibold mb-2">Sun-Hours Analysis</h4>
+                      <p className="text-sm">Cumulative daylight exposure from dawn to dusk</p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="font-semibold mb-2">Facade Exposure</h4>
+                      <p className="text-sm">N/E/S/W wall sun exposure for building massing</p>
+                    </div>
+                  </div>
+                  <p className="text-sm mt-6 text-muted-foreground">
+                    Coming in next update • Full terrain + massing integration
+                  </p>
+                </div>
               </div>
             </TabsContent>
 
