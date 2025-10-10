@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.export-elevation]
 verify_jwt = false
+
+[functions.export-solar-analysis]
+verify_jwt = false
