@@ -141,10 +141,37 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
     return geometry;
   }, [elevationGrid]);
 
-  // Calculate bounds for shadow analysis
+  // Calculate REAL bounds from elevation grid
   const bounds = useMemo(() => {
     if (!elevationGrid) return { minX: -50, maxX: 50, minY: -50, maxY: 50 };
-    return { minX: -50, maxX: 50, minY: -50, maxY: 50 };
+    
+    const { bbox } = elevationGrid;
+    const { nx, ny } = elevationGrid.resolution;
+    
+    // Convert geographic bounds to local meters (approximate)
+    // Use center of bbox as origin
+    const centerLat = (bbox.north + bbox.south) / 2;
+    const centerLng = (bbox.west + bbox.east) / 2;
+    
+    // Meters per degree at this latitude
+    const metersPerDegreeLat = 111000;
+    const metersPerDegreeLng = 111000 * Math.cos(centerLat * Math.PI / 180);
+    
+    const minX = (bbox.west - centerLng) * metersPerDegreeLng;
+    const maxX = (bbox.east - centerLng) * metersPerDegreeLng;
+    const minY = (bbox.south - centerLat) * metersPerDegreeLat;
+    const maxY = (bbox.north - centerLat) * metersPerDegreeLat;
+    
+    console.log('📐 Calculated bounds from elevation grid:', {
+      bbox,
+      localBounds: { minX: minX.toFixed(1), maxX: maxX.toFixed(1), minY: minY.toFixed(1), maxY: maxY.toFixed(1) },
+      sizeMeters: {
+        width: (maxX - minX).toFixed(1),
+        height: (maxY - minY).toFixed(1)
+      }
+    });
+    
+    return { minX, maxX, minY, maxY };
   }, [elevationGrid]);
 
   const handlePresetDate = (preset: 'summer' | 'winter' | 'spring' | 'fall') => {
@@ -170,30 +197,43 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
     setProgress(0);
 
     try {
+      console.log('🎯 Starting solar analysis:', { mode: analysisMode, resolution, bounds });
+      
       if (analysisMode === 'instant') {
         // Instant shadow analysis
+        console.log('⏱️ Running instant shadow analysis...');
+        const startTime = performance.now();
+        
         const result = computeInstantShadows(
           currentSunPos,
           terrainGeometry,
-          [], // TODO: Add buildings from Scenario Studio
+          [], // TODO: Add buildings from Scenario Studio when available
           bounds,
           resolution
         );
+        
+        const duration = ((performance.now() - startTime) / 1000).toFixed(2);
+        console.log(`✅ Shadow analysis completed in ${duration}s`);
         
         setShadowResult(result);
         
         toast({
           title: 'Shadow analysis complete',
-          description: `${result.percentShaded.toFixed(1)}% of site in shadow`,
+          description: `${result.percentShaded.toFixed(1)}% shaded • ${duration}s`,
         });
       } else {
         // Daily sun-hours analysis
+        console.log('⏱️ Running daily sun-hours analysis...');
+        const startTime = performance.now();
+        
         const sunPath = getSunPath({
           latitude: centerLat,
           longitude: centerLng,
           date: selectedDate,
           stepMinutes: 15
         });
+        
+        console.log(`☀️ Generated sun path with ${sunPath.length} positions`);
         
         if (sunPath.length === 0) {
           toast({
@@ -211,19 +251,29 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
           [],
           bounds,
           resolution,
-          (completed, total) => setProgress((completed / total) * 100)
+          (completed, total) => {
+            const pct = (completed / total) * 100;
+            setProgress(pct);
+            if (completed % 10 === 0) {
+              console.log(`📊 Progress: ${completed}/${total} (${pct.toFixed(0)}%)`);
+            }
+          }
         );
         
         setShadowResult(result);
         
         const avgHours = result.cells.reduce((sum, c) => sum + (c.sunHours || 0), 0) / result.cells.length;
+        const duration = ((performance.now() - startTime) / 1000).toFixed(1);
+        
+        console.log(`✅ Sun-hours analysis complete in ${duration}s`);
+        
         toast({
           title: 'Sun-hours analysis complete',
-          description: `Average ${avgHours.toFixed(1)} hours of direct sunlight`,
+          description: `Avg ${avgHours.toFixed(1)}h direct sun • ${duration}s`,
         });
       }
     } catch (error: any) {
-      console.error('Solar analysis error:', error);
+      console.error('❌ Solar analysis error:', error);
       toast({
         title: 'Analysis failed',
         description: error.message || 'Unknown error occurred',
@@ -233,6 +283,9 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
       setIsAnalyzing(false);
       setProgress(0);
     }
+    
+    // Log completion for debugging
+    console.log('🏁 Solar analysis workflow complete');
   };
 
   const handleExport = async () => {
