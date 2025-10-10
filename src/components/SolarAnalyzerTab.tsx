@@ -14,6 +14,7 @@ import {
   Sunrise, Sunset, CloudSun
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { SolarValidationReport } from '@/components/SolarValidationReport';
 import { 
   getSunPosition, 
   getSunPath, 
@@ -50,6 +51,11 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
   const [elevationGrid, setElevationGrid] = useState<any>(null);
   const [loadingElevation, setLoadingElevation] = useState(false);
   
+  // Building data from site pack
+  const [buildings, setBuildings] = useState<any[]>([]);
+  const [loadingBuildings, setLoadingBuildings] = useState(false);
+  const [buildingValidation, setBuildingValidation] = useState<any>(null);
+  
   // Analysis results
   const [currentSunPos, setCurrentSunPos] = useState<SunPosition | null>(null);
   const [shadowResult, setShadowResult] = useState<ShadowAnalysisResult | null>(null);
@@ -58,6 +64,11 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
   // Load elevation data on mount
   useEffect(() => {
     loadElevationData();
+  }, [siteId]);
+  
+  // Load building data from site pack
+  useEffect(() => {
+    loadBuildingData();
   }, [siteId]);
 
   // Update sun position when time/date changes
@@ -71,6 +82,65 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
     setCurrentSunPos(pos);
   }, [selectedDate, selectedTime, centerLat, centerLng]);
 
+  const loadBuildingData = async () => {
+    setLoadingBuildings(true);
+    try {
+      console.log('🏢 Loading building data from site pack...');
+      
+      // Get site request to access file URL
+      const { data: siteRequest, error: siteError } = await supabase
+        .from('site_requests')
+        .select('file_url, include_buildings')
+        .eq('id', siteId)
+        .maybeSingle();
+
+      if (siteError || !siteRequest) {
+        console.warn('Site request not found');
+        return;
+      }
+      
+      if (!siteRequest.include_buildings || !siteRequest.file_url) {
+        console.log('No building data included in site pack');
+        return;
+      }
+      
+      // Download and extract buildings from ZIP
+      const JSZip = (await import('jszip')).default;
+      const response = await fetch(siteRequest.file_url);
+      const blob = await response.blob();
+      const zip = await JSZip.loadAsync(blob);
+      
+      if (zip.files['geojson/buildings.geojson']) {
+        const buildingsJson = await zip.files['geojson/buildings.geojson'].async('string');
+        const buildingsData = JSON.parse(buildingsJson);
+        const buildingFeatures = buildingsData.features || [];
+        
+        console.log(`✅ Loaded ${buildingFeatures.length} buildings from site pack`);
+        
+        // Extract and validate building massing
+        const { extractBuildingMassing, validateBuildingData } = await import('@/lib/buildingIntegration');
+        const buildingMassing = extractBuildingMassing(buildingFeatures, centerLat, centerLng);
+        const validation = validateBuildingData(buildingMassing);
+        
+        setBuildings(buildingMassing);
+        setBuildingValidation(validation);
+        
+        console.log('🏢 Building validation:', validation);
+        
+        if (validation.warnings.length > 0) {
+          toast({
+            title: 'Building data loaded',
+            description: `${buildingMassing.length} buildings • ${validation.warnings.length} warnings`,
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error('Failed to load buildings:', error);
+    } finally {
+      setLoadingBuildings(false);
+    }
+  };
+  
   const loadElevationData = async () => {
     setLoadingElevation(true);
     try {
@@ -207,7 +277,7 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
         const result = computeInstantShadows(
           currentSunPos,
           terrainGeometry,
-          [], // TODO: Add buildings from Scenario Studio when available
+          buildings, // Real buildings from site pack
           bounds,
           resolution
         );
@@ -248,7 +318,7 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
         const result = computeSunHours(
           sunPath,
           terrainGeometry,
-          [],
+          buildings, // Real buildings from site pack
           bounds,
           resolution,
           (completed, total) => {
@@ -289,33 +359,68 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
   };
 
   const handleExport = async () => {
-    if (!shadowResult) return;
+    if (!shadowResult || !siteId) return;
     
     setExporting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('export-solar-analysis', {
-        body: {
-          site_id: siteId,
-          analysis_mode: analysisMode,
-          shadow_result: shadowResult,
-          sun_position: currentSunPos,
-          date: selectedDate.toISOString(),
-          include_pdf: true,
-          include_geotiff: true,
-        },
-      });
-
-      if (error) throw error;
-
+      console.log('📤 Starting comprehensive export...');
+      
+      // Generate all export formats
+      const pdfOptions = {
+        siteName: `Site ${siteId.substring(0, 8)}`,
+        siteLocation: { lat: centerLat, lng: centerLng },
+        analysisMode,
+        shadowResult,
+        sunPosition: currentSunPos || undefined,
+        date: selectedDate,
+        canvasElement: document.querySelector('canvas') as HTMLCanvasElement | undefined,
+        elevationSummary: elevationGrid ? {
+          provider: elevationGrid.provider,
+          accuracy: elevationGrid.accuracy
+        } : undefined
+      };
+      
+      const { generateSolarPDF, generateSolarCSV, generateGeoJSON } = await import('@/lib/pdfExport');
+      
+      // Generate PDF
+      console.log('📄 Generating PDF...');
+      const pdfBlob = await generateSolarPDF(pdfOptions);
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      
+      // Generate CSV
+      console.log('📊 Generating CSV...');
+      const csvBlob = generateSolarCSV(shadowResult);
+      const csvUrl = URL.createObjectURL(csvBlob);
+      
+      // Generate GeoJSON
+      console.log('🗺️ Generating GeoJSON...');
+      const geojson = generateGeoJSON(shadowResult, centerLat, centerLng);
+      const geojsonBlob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/json' });
+      const geojsonUrl = URL.createObjectURL(geojsonBlob);
+      
+      // Download all files
+      const downloadLink = (url: string, filename: string) => {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+      
+      const timestamp = new Date().toISOString().split('T')[0];
+      downloadLink(pdfUrl, `solar-analysis-${timestamp}.pdf`);
+      downloadLink(csvUrl, `solar-data-${timestamp}.csv`);
+      downloadLink(geojsonUrl, `solar-analysis-${timestamp}.geojson`);
+      
+      console.log('✅ All exports complete');
+      
       toast({
         title: 'Export complete',
-        description: 'Solar analysis files generated',
+        description: 'PDF, CSV, and GeoJSON files downloaded',
       });
-
-      if (data.pdf_url) window.open(data.pdf_url, '_blank');
-      if (data.geotiff_url) window.open(data.geotiff_url, '_blank');
-      if (data.geojson_url) window.open(data.geojson_url, '_blank');
     } catch (error: any) {
+      console.error('❌ Export failed:', error);
       toast({
         title: 'Export failed',
         description: error.message,
@@ -441,10 +546,26 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
               Architect-grade shadow casting with precise sun position (NREL SPA)
             </p>
           </div>
-          <Badge variant="secondary" className="text-xs">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse mr-2" />
-            Real Terrain • 1× Scale
-          </Badge>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Badge variant="secondary" className="text-xs">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse mr-2" />
+                Real Terrain • 1× Scale
+              </Badge>
+              {buildingValidation && buildingValidation.stats.total > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  🏢 {buildingValidation.stats.total} buildings loaded
+                </Badge>
+              )}
+            </div>
+            {buildingValidation?.warnings && buildingValidation.warnings.length > 0 && (
+              <div className="text-xs text-muted-foreground space-y-1 mt-2">
+                {buildingValidation.warnings.map((warning: string, idx: number) => (
+                  <div key={idx}>⚠️ {warning}</div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Analysis Mode Tabs */}
@@ -733,6 +854,14 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
       {/* Results */}
       {shadowResult && (
         <div className="space-y-4">
+          {/* Validation Report */}
+          <SolarValidationReport
+            shadowResult={shadowResult}
+            elevationAccuracy={elevationGrid?.accuracy}
+            buildingCount={buildings.length}
+            buildingWarnings={buildingValidation?.warnings}
+          />
+          
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {analysisMode === 'instant' ? (
               <>

@@ -36,6 +36,7 @@ export interface ShadowAnalysisResult {
 }
 
 export interface BuildingMassing {
+  id: string;
   footprint: [number, number][]; // Array of [x, y] in local meters
   heightMeters: number;
 }
