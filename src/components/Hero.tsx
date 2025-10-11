@@ -50,19 +50,6 @@ const Hero = () => {
                 className="w-full h-auto"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent"></div>
-              <div className="absolute bottom-6 left-6 right-6 bg-background/90 backdrop-blur-sm rounded-xl p-4 shadow-medium">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Reports → Overview</p>
-                    <p className="text-2xl font-serif font-bold mt-1">
-                      78% <span className="text-base font-normal text-muted-foreground">Efficiency Improvements</span>
-                    </p>
-                  </div>
-                  <Button variant="secondary" size="sm">
-                    All Regions (33) ▼
-                  </Button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
