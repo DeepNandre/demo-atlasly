@@ -21,9 +21,9 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    if (!GOOGLE_AI_API_KEY) {
+      throw new Error("GOOGLE_AI_API_KEY is not configured");
     }
 
     // Initialize Supabase client
@@ -101,20 +101,25 @@ Now answer the user's questions about their site using this context.`;
       { role: "user", content: user_query }
     ];
 
-    console.log('Calling Lovable AI with', messages.length, 'messages');
+    console.log('Calling Google Gemini with generateContent');
 
-    // Call Lovable AI
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Google Generative Language API (Gemini) - non-streaming generateContent
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`;
+
+    // Concatenate system prompt and user query for a single-shot request
+    const promptText = `${systemPrompt}\n\nUser: ${user_query}`;
+
+    const response = await fetch(geminiUrl, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 800
+        contents: [
+          {
+            parts: [
+              { text: promptText }
+            ]
+          }
+        ]
       }),
     });
 
@@ -140,7 +145,9 @@ Now answer the user's questions about their site using this context.`;
     }
 
     const data = await response.json();
-    const assistantMessage = data.choices[0].message.content;
+    const assistantMessage = (data.candidates?.[0]?.content?.parts || [])
+      .map((p: any) => p.text || '')
+      .join('');
 
     console.log('AI response received:', assistantMessage.substring(0, 100) + '...');
 

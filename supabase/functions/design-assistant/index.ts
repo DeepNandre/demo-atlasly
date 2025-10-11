@@ -21,9 +21,9 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    if (!GOOGLE_AI_API_KEY) {
+      throw new Error("GOOGLE_AI_API_KEY is not configured");
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -123,18 +123,22 @@ Now answer the user's design question with specific, cited recommendations.`;
       { role: "user", content: question }
     ];
 
-    console.log('Calling design assistant for site:', location.name);
+    console.log('Calling Google Gemini (generateContent) for site:', location.name);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`;
+    const promptText = `${systemPrompt}\n\nUser: ${question}`;
+
+    const response = await fetch(geminiUrl, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: messages,
-        max_tokens: 600
+        contents: [
+          {
+            parts: [
+              { text: promptText }
+            ]
+          }
+        ]
       }),
     });
 
@@ -160,7 +164,9 @@ Now answer the user's design question with specific, cited recommendations.`;
     }
 
     const data = await response.json();
-    const recommendation = data.choices[0].message.content;
+    const recommendation = (data.candidates?.[0]?.content?.parts || [])
+      .map((p: any) => p.text || '')
+      .join('');
 
     console.log('Design recommendation generated:', recommendation.substring(0, 100) + '...');
 

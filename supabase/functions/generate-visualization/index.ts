@@ -23,9 +23,9 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    if (!GOOGLE_AI_API_KEY) {
+      throw new Error("GOOGLE_AI_API_KEY not configured");
     }
 
     // Build style-specific prompt
@@ -45,60 +45,62 @@ IMPORTANT: Maintain the exact same building form, massing, and proportions from 
 
     console.log("📝 Full prompt:", fullPrompt);
 
-    // Call Lovable AI image generation
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Prepare input image (strip data URL prefix if present)
+    let base64Only = imageBase64;
+    const commaIdx = imageBase64.indexOf(',');
+    if (commaIdx !== -1) base64Only = imageBase64.slice(commaIdx + 1);
+
+    // Call Google Gemini (image-to-image via generateContent)
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`;
+    const geminiResp = await fetch(geminiUrl, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image-preview",
-        messages: [
+        contents: [
           {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: fullPrompt,
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: imageBase64,
-                },
-              },
-            ],
-          },
-        ],
-        modalities: ["image", "text"],
+            parts: [
+              { text: fullPrompt },
+              // Inline input image
+              { inline_data: { mime_type: "image/png", data: base64Only } }
+            ]
+          }
+        ]
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ AI gateway error:", response.status, errorText);
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required. Please add credits to your workspace." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      throw new Error(`AI gateway error: ${errorText}`);
+    if (!geminiResp.ok) {
+      const errorText = await geminiResp.text();
+      console.error("❌ Gemini error:", geminiResp.status, errorText);
+      return new Response(
+        JSON.stringify({ error: "Image generation failed" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const data = await response.json();
-    console.log("✅ AI response received");
+    const geminiData = await geminiResp.json();
+    console.log("✅ Gemini response received");
 
-    const generatedImageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    if (!generatedImageUrl) {
-      throw new Error("No image generated");
+    // Try to extract inline image data from candidates → content → parts → inlineData
+    let outputBase64: string | null = null;
+    const candidates = geminiData.candidates || [];
+    for (const cand of candidates) {
+      const parts = cand?.content?.parts || [];
+      for (const p of parts) {
+        // Some responses may use inlineData; others may return text only
+        if (p.inlineData?.data) {
+          outputBase64 = p.inlineData.data;
+          break;
+        }
+        if (p.inline_data?.data) {
+          outputBase64 = p.inline_data.data;
+          break;
+        }
+      }
+      if (outputBase64) break;
+    }
+
+    if (!outputBase64) {
+      throw new Error("Gemini did not return an image payload");
     }
 
     // Initialize Supabase client
@@ -106,9 +108,8 @@ IMPORTANT: Maintain the exact same building form, massing, and proportions from 
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Convert base64 to blob and upload to storage
-    const base64Data = generatedImageUrl.split(",")[1];
-    const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+    // Convert base64 to bytes and upload to storage
+    const binaryData = Uint8Array.from(atob(outputBase64), (c) => c.charCodeAt(0));
     
     const timestamp = Date.now();
     const outputPath = `${siteRequestId}/${timestamp}.png`;
