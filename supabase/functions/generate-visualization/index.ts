@@ -23,9 +23,9 @@ serve(async (req) => {
       );
     }
 
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
-    if (!GOOGLE_AI_API_KEY) {
-      throw new Error("GOOGLE_AI_API_KEY not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY not configured");
     }
 
     // Build style-specific prompt
@@ -50,57 +50,39 @@ IMPORTANT: Maintain the exact same building form, massing, and proportions from 
     const commaIdx = imageBase64.indexOf(',');
     if (commaIdx !== -1) base64Only = imageBase64.slice(commaIdx + 1);
 
-    // Call Google Gemini (image-to-image via generateContent)
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`;
-    const geminiResp = await fetch(geminiUrl, {
+    // Call OpenAI DALL-E for image generation
+    const openaiResp = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: fullPrompt },
-              // Inline input image
-              { inline_data: { mime_type: "image/png", data: base64Only } }
-            ]
-          }
-        ]
-      }),
+        model: "dall-e-3",
+        prompt: fullPrompt,
+        n: 1,
+        size: "1024x1024",
+        quality: "standard",
+        response_format: "b64_json"
+      })
     });
 
-    if (!geminiResp.ok) {
-      const errorText = await geminiResp.text();
-      console.error("❌ Gemini error:", geminiResp.status, errorText);
+    if (!openaiResp.ok) {
+      const errorText = await openaiResp.text();
+      console.error("❌ OpenAI DALL-E error:", openaiResp.status, errorText);
       return new Response(
         JSON.stringify({ error: "Image generation failed" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const geminiData = await geminiResp.json();
-    console.log("✅ Gemini response received");
+    const openaiData = await openaiResp.json();
+    console.log("✅ OpenAI DALL-E response received");
 
-    // Try to extract inline image data from candidates → content → parts → inlineData
-    let outputBase64: string | null = null;
-    const candidates = geminiData.candidates || [];
-    for (const cand of candidates) {
-      const parts = cand?.content?.parts || [];
-      for (const p of parts) {
-        // Some responses may use inlineData; others may return text only
-        if (p.inlineData?.data) {
-          outputBase64 = p.inlineData.data;
-          break;
-        }
-        if (p.inline_data?.data) {
-          outputBase64 = p.inline_data.data;
-          break;
-        }
-      }
-      if (outputBase64) break;
-    }
-
+    // Extract the base64 image data
+    const outputBase64 = openaiData.data?.[0]?.b64_json;
     if (!outputBase64) {
-      throw new Error("Gemini did not return an image payload");
+      throw new Error("OpenAI DALL-E did not return image data");
     }
 
     // Initialize Supabase client

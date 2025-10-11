@@ -1,22 +1,22 @@
-# Welcome to your Lovable project
+# Project README
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/7a30416e-8c27-4c9e-b7e8-946ecdeec787
+This project uses Vite + React + TypeScript with Tailwind and shadcn-ui.
 
 ## How can I edit this code?
 
 There are several ways of editing your application.
 
-**Use Lovable**
+Development
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/7a30416e-8c27-4c9e-b7e8-946ecdeec787) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
+- Install deps: `npm ci`
+- Dev: `npm run dev`
+- Build: `npm run build`
 
 **Use your preferred IDE**
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+If you want to work locally using your own IDE, clone this repo and push changes as usual.
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
@@ -62,12 +62,14 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/7a30416e-8c27-4c9e-b7e8-946ecdeec787) and click on Share -> Publish.
+Deploy
 
-## Can I connect a custom domain to my Lovable project?
+- Cloudflare Pages/Netlify
+  - Build command: `npm run build`
+  - Publish directory: `dist`
+
+## Custom domain
 
 Yes, you can!
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Connect via your hosting provider’s domain settings.

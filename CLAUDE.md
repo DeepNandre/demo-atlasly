@@ -4,7 +4,7 @@
 
 Site Pack Studio is a sophisticated geospatial analysis and visualization platform designed for architectural site development. It provides professional-grade tools for solar analysis, 3D terrain visualization, and comprehensive GIS data generation.
 
-**Live URL**: https://lovable.dev/projects/7a30416e-8c27-4c9e-b7e8-946ecdeec787
+**Live URL**: https://site-pack-studio.pages.dev (Cloudflare Pages deployment)
 
 ## Technology Stack
 
@@ -31,6 +31,8 @@ Site Pack Studio is a sophisticated geospatial analysis and visualization platfo
 ### Backend & Database
 - **Supabase** for authentication, database, and edge functions
 - **PostgreSQL** with PostGIS extensions
+- **OpenAI DALL-E** for AI-powered image generation
+- **Google Gemini** for text/chat AI features
 
 ### File Processing & Export
 - **jspdf** for PDF generation
@@ -196,9 +198,11 @@ Located in `supabase/functions/`:
 - `process-site-request`: Main processing orchestrator
 - `analyze-elevation`: Terrain analysis
 - `compute-climate`: Climate data processing
-- `generate-visualization`: 3D model generation
+- `generate-visualization`: AI-powered image generation (OpenAI DALL-E)
 - `export-solar-analysis`: Solar analysis exports
-- `design-assistant`: AI chat integration
+- `design-assistant`: AI chat integration (Google Gemini)
+- `design-assistant-stream`: Streaming AI chat responses
+- `chat`: General chat functionality (Google Gemini)
 
 ## Authentication & User Management
 
@@ -302,7 +306,58 @@ Based on recent commits:
 
 - **Development**: Vite dev server on localhost:8080
 - **Production**: Optimized builds with code splitting
-- **Deployment**: Lovable platform integration
+- **Deployment**: Cloudflare Pages (https://site-pack-studio.pages.dev)
 - **Environment**: Browser-based with WebGL support required
 
-This documentation provides a comprehensive understanding of the Site Pack Studio project architecture, features, and implementation details.
+## Current Deployment Status (Self-Hosted)
+
+### Infrastructure Setup ✅
+- **Frontend**: Deployed on Cloudflare Pages with SPA routing configured
+- **Backend**: Supabase project configured with full database schema
+- **Storage**: Supabase storage buckets (site-packs, visuals) with proper RLS policies
+- **Edge Functions**: All 13 functions deployed successfully
+
+### Migration Completed ✅
+- **AI Services**: Replaced Lovable AI Gateway with Google Gemini for text/chat
+- **Image Generation**: Migrated from Google Gemini to OpenAI DALL-E (latest update)
+- **Database**: Exact Lovable schema replica with RLS policies supporting both authenticated and guest users
+- **Authentication**: Full Supabase Auth integration with email confirmation
+
+### Required Environment Variables
+
+**Supabase Edge Functions**:
+```
+OPENAI_API_KEY=sk-... (for image generation)
+GOOGLE_AI_API_KEY=... (for chat/text AI)
+RESEND_API_KEY=... (for email notifications)
+```
+
+**Cloudflare Pages**:
+```
+VITE_SUPABASE_URL=https://antiqprbwglyjosoygbh.supabase.co
+VITE_SUPABASE_ANON_KEY=...
+```
+
+### Build Configuration
+- **Dependencies**: Fixed with `--legacy-peer-deps` approach
+- **Routing**: SPA routing with `_redirects` file
+- **Security**: Proper headers configuration
+- **Optimization**: Vite build optimized for deck.gl compatibility
+
+### Known Issues & Solutions
+1. **Email Redirects**: Auth confirmation emails may point to localhost - requires Supabase Auth URL configuration update to production domain
+2. **Image Generation**: Now uses OpenAI DALL-E instead of Google Gemini (which doesn't support image generation)
+
+### Testing Status
+- ✅ Frontend deployment and routing
+- ✅ Authentication flow
+- ✅ Database operations
+- ✅ Edge functions deployment
+- 🔄 End-to-end functionality (requires OpenAI API key setup)
+
+### Next Steps for Full Functionality
+1. Add `OPENAI_API_KEY` to Supabase Edge Functions environment variables
+2. Update Supabase Auth URL configuration to production domain
+3. Test complete workflow including image generation
+
+This documentation provides a comprehensive understanding of the Site Pack Studio project architecture, features, implementation details, and current deployment status.
