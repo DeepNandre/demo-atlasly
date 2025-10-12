@@ -1,3 +1,0 @@
-# Cloudflare Pages Build Configuration
-# This file tells Cloudflare to use npm instead of bun
-NPM_FLAGS="--legacy-peer-deps"

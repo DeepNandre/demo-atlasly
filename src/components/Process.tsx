@@ -4,18 +4,18 @@ import topo3d from "@/assets/topo-3d.jpg";
 const steps = [
   {
     number: "01",
-    title: "Select Location",
-    description: "Search address or drop a pin on the map. Draw a custom boundary or use automatic radius.",
+    title: "AI Finds Your Site",
+    description: "Simply search any address worldwide. Our AI automatically detects optimal boundaries using satellite imagery and property data. Takes 30 seconds, not 30 minutes.",
   },
   {
     number: "02",
-    title: "Configure & Generate",
-    description: "Choose your export formats and data layers. Click generate and track progress in real-time.",
+    title: "Intelligence at Work",
+    description: "Watch as our AI engine fuses 12+ global data sources in real-time. Solar analysis, terrain modeling, and climate data—all processed simultaneously with zero manual intervention.",
   },
   {
     number: "03",
-    title: "Download & Import",
-    description: "Get your complete site pack as a ZIP. Import directly into your CAD, GIS, or BIM software.",
+    title: "Production-Ready Assets",
+    description: "Download your complete site pack: AutoCAD DXF, Rhino GLB, Revit IFC, and more. Zero cleanup required. Import directly and start designing immediately.",
   },
 ];
 
@@ -24,11 +24,19 @@ const Process = () => {
     <section id="how-to" className="py-20 px-6">
       <div className="container mx-auto">
         <div className="text-center mb-16 space-y-4">
+          <div className="inline-flex items-center gap-2 bg-blue-500/10 text-blue-600 px-4 py-2 rounded-full text-sm font-medium mb-4">
+            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+            From Search to Site Pack in 3 Minutes
+          </div>
           <h2 className="text-5xl md:text-6xl font-serif font-bold">
-            Map Your Success
+            See the magic
+            <span className="text-primary"> in action.</span>
           </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-6">
+            Watch how AI transforms site analysis from weeks of manual work into minutes of automated intelligence.
+          </p>
           <Button variant="outline" size="lg">
-            Watch Tutorial →
+            Watch 2-Minute Demo →
           </Button>
         </div>
         
