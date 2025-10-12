@@ -8,25 +8,25 @@ import {
 
 const FAQ = () => {
   return (
-    <section id="faq" className="py-20 px-6 bg-muted/30">
-      <div className="container mx-auto max-w-3xl">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-serif font-bold">
+    <section id="faq" className="py-24 px-6 bg-background">
+      <div className="container mx-auto max-w-4xl">
+        <div className="text-center mb-16">
+          <h2 className="text-5xl md:text-6xl font-serif font-bold">
             {marketingContent.faq.title}
           </h2>
         </div>
         
-        <Accordion type="single" collapsible className="space-y-4">
+        <Accordion type="single" collapsible className="space-y-6">
           {marketingContent.faq.items.map((item, index) => (
             <AccordionItem 
               key={index} 
               value={`item-${index}`}
-              className="bg-card rounded-lg border border-border/50 px-6"
+              className="bg-card rounded-xl border border-border/50 px-8 py-2 hover:border-[hsl(var(--mint))]/30 transition-colors"
             >
-              <AccordionTrigger className="text-left font-semibold hover:no-underline">
+              <AccordionTrigger className="text-left font-bold text-lg hover:no-underline py-6">
                 {item.question}
               </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground leading-relaxed">
+              <AccordionContent className="text-muted-foreground leading-relaxed text-base pb-6">
                 {item.answer}
               </AccordionContent>
             </AccordionItem>

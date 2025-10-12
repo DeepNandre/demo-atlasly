@@ -45,6 +45,8 @@ All colors MUST be HSL.
     --olive-light: 75 30% 55%;
     --beige: 40 45% 85%;
     --beige-dark: 40 30% 75%;
+    --mint: 150 60% 45%;
+    --mint-light: 150 50% 85%;
     
     /* Shadows */
     --shadow-soft: 0 4px 20px -2px hsl(75 40% 35% / 0.08);
