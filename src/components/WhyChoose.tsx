@@ -18,9 +18,9 @@ const WhyChoose = () => {
             {marketingContent.socialProof.badges.map((badge, index) => (
               <div
                 key={index}
-                className="inline-flex items-center gap-2 bg-[hsl(var(--mint))]/10 text-[hsl(var(--mint))] px-5 py-3 rounded-full text-base font-semibold border border-[hsl(var(--mint))]/20"
+                className="inline-flex items-center gap-2 bg-primary/10 text-primary px-5 py-3 rounded-full text-base font-semibold border border-primary/20"
               >
-                <span className="w-2 h-2 bg-[hsl(var(--mint))] rounded-full animate-pulse" />
+                <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
                 {badge}
               </div>
             ))}

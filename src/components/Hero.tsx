@@ -25,8 +25,8 @@ const Hero = () => {
           <div className={`space-y-8 transform transition-all duration-300 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
             <div className="space-y-6">
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-bold leading-tight tracking-tight">
-                We built the{" "}
-                <span className="text-[hsl(var(--mint))]">world's first Built-Environment Intelligence OS</span>
+                We built the world's first{" "}
+                <span className="text-primary">Built-Environment Intelligence OS</span>
               </h1>
               <div className="space-y-4">
                 {marketingContent.hero.subheadline.split('\n\n').map((line, index) => (

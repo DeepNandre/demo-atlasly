@@ -33,7 +33,7 @@ const Process = () => {
               <div className="w-20 h-16 bg-blue-50 dark:bg-blue-950/30 rounded-lg border-2 border-blue-200 dark:border-blue-800 flex items-center justify-center text-sm font-semibold text-blue-700 dark:text-blue-300">
                 Map
               </div>
-              <div className="w-20 h-20 bg-[hsl(var(--mint))]/10 rounded-lg border-2 border-[hsl(var(--mint))]/30 flex items-center justify-center text-sm font-semibold text-[hsl(var(--mint))]">
+              <div className="w-20 h-20 bg-primary/10 rounded-lg border-2 border-primary/30 flex items-center justify-center text-sm font-semibold text-primary">
                 Terrain
               </div>
               <div className="w-20 h-18 bg-orange-50 dark:bg-orange-950/30 rounded-lg border-2 border-orange-200 dark:border-orange-800 flex items-center justify-center text-sm font-semibold text-orange-700 dark:text-orange-300">

@@ -25,10 +25,10 @@ const Showcase = () => {
             return (
               <div
                 key={index}
-                className="group bg-card rounded-2xl p-8 shadow-soft hover:shadow-medium transition-all duration-300 hover:-translate-y-2 border border-border/50 hover:border-[hsl(var(--mint))]/30"
+                className="group bg-card rounded-2xl p-8 shadow-soft hover:shadow-medium transition-all duration-300 hover:-translate-y-2 border border-border/50 hover:border-primary/30"
               >
-                <div className="w-14 h-14 bg-[hsl(var(--mint))]/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-[hsl(var(--mint))]/15 transition-colors">
-                  <IconComponent className="w-7 h-7 text-[hsl(var(--mint))] group-hover:scale-110 transition-transform" strokeWidth={1.5} />
+                <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/15 transition-colors">
+                  <IconComponent className="w-7 h-7 text-primary group-hover:scale-110 transition-transform" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-xl font-serif font-bold mb-3">
                   {card.title}
