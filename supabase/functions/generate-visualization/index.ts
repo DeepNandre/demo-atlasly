@@ -50,7 +50,59 @@ IMPORTANT: Maintain the exact same building form, massing, and proportions from 
     const commaIdx = imageBase64.indexOf(',');
     if (commaIdx !== -1) base64Only = imageBase64.slice(commaIdx + 1);
 
-    // Call OpenAI DALL-E for image generation
+    // First, use GPT-4 Vision to analyze the input image
+    console.log("👁️ Analyzing input image with GPT-4 Vision...");
+    const visionResp = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Analyze this architectural sketch/massing model and describe the building form, geometry, and composition in detail. Focus on: building shape, number of stories, roof type, proportions, and overall architectural character. Be specific and descriptive for image generation."
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/png;base64,${base64Only}`
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 300
+      })
+    });
+
+    if (!visionResp.ok) {
+      console.error("❌ Vision API error:", visionResp.status);
+      // Fallback to basic prompt if vision fails
+    }
+
+    let buildingDescription = "modern architectural building";
+    if (visionResp.ok) {
+      const visionData = await visionResp.json();
+      buildingDescription = visionData.choices?.[0]?.message?.content || buildingDescription;
+      console.log("📋 Building analysis:", buildingDescription.substring(0, 100) + "...");
+    }
+
+    // Now generate the enhanced prompt for DALL-E
+    const enhancedPrompt = `${styleDescription}. 
+
+Building description: ${buildingDescription}
+
+Create a photorealistic architectural visualization showing this exact building with professional rendering quality, realistic materials, proper lighting, and architectural details. Maintain the same building form and proportions.`;
+
+    console.log("🎨 Enhanced prompt:", enhancedPrompt.substring(0, 200) + "...");
+
+    // Call OpenAI DALL-E for image generation with enhanced prompt
     const openaiResp = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: {
@@ -59,7 +111,7 @@ IMPORTANT: Maintain the exact same building form, massing, and proportions from 
       },
       body: JSON.stringify({
         model: "dall-e-3",
-        prompt: fullPrompt,
+        prompt: enhancedPrompt,
         n: 1,
         size: "1024x1024",
         quality: "standard",

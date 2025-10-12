@@ -61,6 +61,15 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        slate: {
+          DEFAULT: "#121417",
+        },
+        mint: {
+          DEFAULT: "#B6F2CF",
+        },
+        "off-white": {
+          DEFAULT: "#F7F7F5",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

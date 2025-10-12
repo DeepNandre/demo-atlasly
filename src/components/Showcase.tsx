@@ -1,81 +1,44 @@
-import { Button } from "@/components/ui/button";
-import abstractForms from "@/assets/abstract-forms.jpg";
+import { marketingContent } from "@/lib/content";
+import { FileCheck, MapPin, Brain, TrendingUp } from "lucide-react";
 
-const benefits = [
-  {
-    category: "Data",
-    items: [
-      "OpenStreetMap layers",
-      "SRTM elevation data",
-      "Mapbox aerial imagery",
-      "Coordinate transformation",
-    ],
-  },
-  {
-    category: "Workflow",
-    items: [
-      "One-click generation",
-      "Async job processing",
-      "Real-time progress",
-      "Cloud storage",
-    ],
-  },
-  {
-    category: "Output Formats",
-    items: [
-      "DXF for CAD",
-      "GeoJSON for GIS",
-      "GLB for 3D",
-      "IFC for BIM (Pro)",
-    ],
-  },
-];
+const iconMap = {
+  "Verified Exports": FileCheck,
+  "True Terrain": MapPin,
+  "Climate Intelligence": TrendingUp,
+  "Grounded AI": Brain,
+};
 
 const Showcase = () => {
   return (
-    <section id="specifications" className="py-20 px-6">
+    <section id="value-pillars" className="py-20 px-6 bg-muted/30">
       <div className="container mx-auto">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <div className="space-y-8 order-2 lg:order-1">
-            <div className="space-y-4">
-              <h2 className="text-5xl md:text-6xl font-serif font-bold">
-                See the Big Picture
-              </h2>
-              <p className="text-lg text-muted-foreground">
-                From raw coordinates to refined 3D models, our pipeline handles 
-                every step of the architectural site preparation workflow.
-              </p>
-            </div>
+        <div className="text-center mb-16 space-y-4">
+          <h2 className="text-4xl md:text-5xl font-serif font-bold">
+            {marketingContent.valuePillars.title}
+          </h2>
+        </div>
+        
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {marketingContent.valuePillars.cards.map((card, index) => {
+            const IconComponent = iconMap[card.title as keyof typeof iconMap];
             
-            <div className="space-y-6">
-              {benefits.map((benefit, index) => (
-                <div key={index} className="border-l-2 border-primary pl-4">
-                  <h3 className="font-semibold mb-2">{benefit.category}</h3>
-                  <ul className="space-y-1">
-                    {benefit.items.map((item, i) => (
-                      <li key={i} className="text-sm text-muted-foreground">
-                        • {item}
-                      </li>
-                    ))}
-                  </ul>
+            return (
+              <div
+                key={index}
+                className="group bg-card rounded-xl p-6 shadow-soft hover:shadow-medium transition-all duration-300 hover:-translate-y-1 border border-border/50 hover:border-primary/20"
+              >
+                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary/15 transition-colors">
+                  <IconComponent className="w-6 h-6 text-primary group-hover:translate-y-[-2px] transition-transform" strokeWidth={1.5} />
                 </div>
-              ))}
-            </div>
-            
-            <Button variant="hero" size="lg">
-              Explore Features →
-            </Button>
-          </div>
-          
-          <div className="order-1 lg:order-2">
-            <div className="rounded-3xl overflow-hidden shadow-strong">
-              <img
-                src={abstractForms}
-                alt="Minimalist architectural forms in warm tones"
-                className="w-full h-auto"
-              />
-            </div>
-          </div>
+                <h3 className="text-xl font-serif font-semibold mb-3">
+                  {card.title}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  {card.description}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

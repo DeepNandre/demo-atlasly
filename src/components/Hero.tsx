@@ -1,83 +1,72 @@
 import { Button } from "@/components/ui/button";
-import heroLandscape from "@/assets/hero-landscape.jpg";
+import { marketingContent } from "@/lib/content";
+import DemoVideo from "@/components/DemoVideo";
+import MetricDots from "@/components/MetricDots";
+import { useEffect, useState } from "react";
 
 const Hero = () => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
+
   return (
     <section className="relative pt-32 pb-20 px-6 overflow-hidden">
-      <div className="container mx-auto">
+      {/* Subtle topography background */}
+      <div 
+        className="absolute inset-0 opacity-[0.04] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0idG9wbyIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiPjxwYXRoIGQ9Ik0yMCwxMDBjMjAsMCw0MCwxMCw2MCwwYzIwLTEwLDQwLDEwLDYwLDBjMjAsLTEwLDQwLDEwLDYwLDBNMCwxNDBjMjAsMCw0MCwxMCw2MCwwYzIwLC0xMCw0MCwxMCw2MCwwYzIwLC0xMCw0MCwxMCw2MCwwYzIwLC0xMCw0MCwxMCw2MCwwTTAsNjBjMjAsMCw0MCwxMCw2MCwwYzIwLC0xMCw0MCwxMCw2MCwwYzIwLC0xMCw0MCwxMCw2MCwwYzIwLC0xMCw0MCwxMCw2MCwwIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI3RvcG8pIi8+PC9zdmc+')] 
+        [animation-play-state:paused]"
+        style={{ animationPlayState: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'paused' : 'running' }}
+      />
+      
+      <div className="container mx-auto" style={{ minHeight: '600px' }}>
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
-                <span className="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
-                AI-Powered Site Analysis Revolution
-              </div>
-              <h1 className="text-6xl md:text-7xl lg:text-8xl font-serif font-bold leading-tight">
-                Site analysis in 
-                <span className="text-primary"> minutes</span>, not weeks.
+          <div className={`space-y-8 transform transition-all duration-300 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
+            <div className="space-y-6">
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-bold leading-tight tracking-tight">
+                {marketingContent.hero.headline}
               </h1>
-              <p className="text-lg text-muted-foreground max-w-lg">
-                The world's first AI-powered platform that instantly transforms any location into 
-                production-ready architectural site packs. Complete with solar analysis, 3D terrain 
-                modeling, and professional exports.
-              </p>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <span className="w-1 h-1 bg-green-500 rounded-full"></span>
-                  <span>78% faster than traditional methods</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-1 h-1 bg-green-500 rounded-full"></span>
-                  <span>NREL-standard accuracy</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap gap-4">
-              <Button variant="hero" size="xl" onClick={() => window.location.href = '/generate'}>
-                Start Building Site Packs →
-              </Button>
-              <Button variant="outline" size="xl" onClick={() => window.location.href = '/generate'}>
-                See Live Demo
-              </Button>
-            </div>
-            
-            <div className="flex items-center gap-6 pt-4">
-              <div className="flex -space-x-2">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div
-                    key={i}
-                    className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 border-2 border-background flex items-center justify-center text-xs font-bold text-primary"
-                  >
-                    {i === 1 && "🏢"}
-                    {i === 2 && "🏗️"}
-                    {i === 3 && "🏛️"}
-                    {i === 4 && "🌆"}
-                    {i === 5 && "📐"}
-                  </div>
+              <div className="space-y-4">
+                {marketingContent.hero.subheadline.split('\n\n').map((line, index) => (
+                  <p key={index} className="text-lg text-muted-foreground leading-relaxed max-w-lg">
+                    {line}
+                  </p>
                 ))}
               </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">
-                  Trusted by 1,200+ architects across 40+ countries
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  From boutique studios to Fortune 500 firms
-                </p>
-              </div>
             </div>
+            
+            <div className={`flex flex-wrap gap-4 transform transition-all duration-300 ease-out delay-100 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
+              <Button 
+                variant="hero" 
+                size="xl" 
+                className="rounded-lg"
+                onClick={() => window.location.href = '/generate'}
+              >
+                {marketingContent.hero.primaryCTA}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="xl"
+                className="rounded-lg"
+              >
+                {marketingContent.hero.secondaryCTA}
+              </Button>
+            </div>
+            
+            <MetricDots 
+              metrics={marketingContent.hero.metrics}
+              className={`pt-4 transform transition-all duration-300 ease-out delay-200 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}
+            />
           </div>
           
           <div className="relative">
-            <div className="absolute inset-0 bg-accent/30 rounded-3xl -rotate-6 transform transition-spring"></div>
-            <div className="relative rounded-3xl overflow-hidden shadow-strong">
-              <img
-                src={heroLandscape}
-                alt="3D GIS terrain visualization showing topographic data"
-                className="w-full h-auto"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent"></div>
-            </div>
+            <DemoVideo
+              src="/demo-loop.mp4"
+              poster="/demo-poster.jpg"
+              caption="SiteIQ demo showing boundary detection, data fusion, 3D terrain generation, and CAD export workflow"
+              className="shadow-2xl"
+            />
           </div>
         </div>
       </div>
