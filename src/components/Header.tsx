@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { MapPin, LogOut } from "lucide-react";
+import { Layers, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Header = () => {
@@ -15,7 +15,7 @@ const Header = () => {
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-2">
-            <MapPin className="w-6 h-6 text-primary" />
+            <Layers className="w-6 h-6 text-primary" />
             <span className="text-xl font-serif font-bold">SiteIQ</span>
           </div>
           
