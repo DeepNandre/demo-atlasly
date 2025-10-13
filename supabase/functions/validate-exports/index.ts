@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
 
     // Add validation duration
     validationResult.metrics.validation_duration_ms = Date.now() - startTime;
-    validationResult.metrics.file_size_bytes = new Blob([content]).size;
+    validationResult.metrics.file_size_bytes = new TextEncoder().encode(content).length;
 
     // Store validation results
     const { data: checkData, error: checkError } = await supabase
@@ -226,50 +226,34 @@ async function validateGLB(content: string): Promise<ValidationResult> {
   const metrics: any = {};
 
   try {
-    // GLB is binary format - check magic header
-    const buffer = new TextEncoder().encode(content);
-    const magic = new Uint32Array(buffer.slice(0, 4).buffer)[0];
+    // Basic GLB validation - check for glTF marker in content
+    const hasGltfMarker = content.includes('glTF') || content.startsWith('glTF');
     
-    if (magic !== 0x46546C67) { // "glTF" in little-endian
-      issues.push({
-        severity: 'error',
-        code: 'GLB_INVALID_MAGIC',
-        message: 'Invalid GLB file header - not a valid glTF binary',
-      });
-    }
-
-    // Check version (should be 2)
-    const version = new Uint32Array(buffer.slice(4, 8).buffer)[0];
-    metrics.gltf_version = version;
-
-    if (version !== 2) {
+    if (!hasGltfMarker) {
       issues.push({
         severity: 'warning',
-        code: 'GLB_VERSION',
-        message: `glTF version ${version} detected - version 2 recommended`,
+        code: 'GLB_NO_MARKER',
+        message: 'glTF marker not found - may not be a valid GLB file',
       });
     }
 
-    // Get file length
-    const length = new Uint32Array(buffer.slice(8, 12).buffer)[0];
-    metrics.declared_length = length;
-    metrics.actual_length = buffer.length;
+    // Basic size checks
+    const contentLength = new TextEncoder().encode(content).length;
+    metrics.file_length = contentLength;
 
-    if (length !== buffer.length) {
-      issues.push({
-        severity: 'error',
-        code: 'GLB_LENGTH_MISMATCH',
-        message: 'File length mismatch - file may be corrupted',
-        details: { declared: length, actual: buffer.length },
-      });
-    }
-
-    // Basic structure checks
-    if (buffer.length < 100) {
+    if (contentLength < 100) {
       issues.push({
         severity: 'warning',
         code: 'GLB_TOO_SMALL',
         message: 'File seems unusually small - may be placeholder or incomplete',
+      });
+    }
+
+    if (contentLength > 50_000_000) {
+      issues.push({
+        severity: 'info',
+        code: 'GLB_LARGE_FILE',
+        message: 'Large GLB file - may impact load times',
       });
     }
 

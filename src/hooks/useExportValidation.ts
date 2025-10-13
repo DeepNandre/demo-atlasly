@@ -72,14 +72,14 @@ export function useExportValidation() {
   const getValidationResults = async (siteRequestId: string) => {
     try {
       const { data, error } = await supabase
-        .from('export_quality_checks')
+        .from('export_quality_checks' as any)
         .select('*')
         .eq('site_request_id', siteRequestId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      return data;
+      return data || [];
     } catch (error: any) {
       console.error('Failed to fetch validation results:', error);
       return [];
