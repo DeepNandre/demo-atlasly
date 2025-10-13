@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.export-solar-analysis]
 verify_jwt = false
+
+[functions.validate-exports]
+verify_jwt = false
