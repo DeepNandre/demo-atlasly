@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,35 @@ import { z } from 'zod';
 
 const emailSchema = z.string().email('Invalid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+
+const SiteIQLogo = ({ className }: { className?: string }) => (
+  <div className={`flex items-center space-x-2 ${className}`}>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-current">
+      <path
+        d="M3 12L6 9L9 12L12 9L15 12L18 9L21 12"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3 16L6 13L9 16L12 13L15 16L18 13L21 16"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3 8L6 5L9 8L12 5L15 8L18 5L21 8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+    <span className="font-semibold text-lg">SiteIQ</span>
+  </div>
+);
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -82,9 +111,7 @@ const Auth = () => {
         <div className="w-full lg:w-1/2 flex flex-col">
           {/* Header */}
           <div className="p-8 flex items-center justify-between">
-            <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
-              <div className="w-8 h-8 rounded-full bg-white/30" />
-            </div>
+            <SiteIQLogo className="text-primary" />
             <div className="text-sm text-muted-foreground">
               Don't have an account?{' '}
               <button
@@ -103,11 +130,9 @@ const Auth = () => {
           {/* Form Content */}
           <div className="flex-1 flex items-center justify-center px-8 pb-12">
             <div className="w-full max-w-sm space-y-6">
-              {/* Icon */}
+              {/* Logo */}
               <div className="flex justify-center">
-                <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
-                  <User className="w-8 h-8 text-gray-500" />
-                </div>
+                <SiteIQLogo className="text-primary text-2xl" />
               </div>
 
               {/* Title */}
