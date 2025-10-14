@@ -21,9 +21,9 @@ serve(async (req) => {
       );
     }
 
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
-    if (!GOOGLE_AI_API_KEY) {
-      throw new Error("GOOGLE_AI_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -117,27 +117,35 @@ Provide evidence-based design recommendations citing specific site data. Format 
       model: 'google/gemini-2.5-flash'
     });
 
-    console.log('Streaming via Google Gemini (streamGenerateContent) for site:', location.name);
+    console.log('Streaming via Lovable AI for site:', location.name);
 
-    // Gemini streaming endpoint
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:streamGenerateContent?alt=sse&key=${GOOGLE_AI_API_KEY}`;
-    const promptText = `${systemPrompt}\n\nUser: ${question}`;
-
-    const response = await fetch(geminiUrl, {
+    // Call Lovable AI Gateway
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: promptText }
-            ]
-          }
-        ]
+        model: "google/gemini-2.5-flash",
+        messages,
+        stream: true,
       }),
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limits exceeded, please try again later." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Payment required, please add funds to your Lovable AI workspace." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
       return new Response(
@@ -153,48 +161,59 @@ Provide evidence-based design recommendations citing specific site data. Format 
       async start(controller) {
         const reader = response.body!.getReader();
         const decoder = new TextDecoder();
+        let textBuffer = "";
 
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n').filter(line => line.trim() !== '');
+            textBuffer += decoder.decode(value, { stream: true });
 
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6);
-                if (data === '[DONE]') continue;
+            // Process line-by-line
+            let newlineIndex: number;
+            while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+              let line = textBuffer.slice(0, newlineIndex);
+              textBuffer = textBuffer.slice(newlineIndex + 1);
 
-                try {
-                  // Gemini SSE emits JSON objects per line; candidate content in
-                  // { candidates: [ { content: { parts: [{ text: "..." }] } } ] }
-                  const parsed = JSON.parse(data);
-                  const parts = parsed.candidates?.[0]?.content?.parts || [];
-                  const chunk = parts.map((p: any) => p.text || '').join('');
-                  if (chunk) {
-                    fullResponse += chunk;
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: chunk })}\n\n`));
-                  }
-                } catch (e) {
-                  // Skip invalid JSON
+              if (line.endsWith("\r")) line = line.slice(0, -1);
+              if (line.startsWith(":") || line.trim() === "") continue;
+              if (!line.startsWith("data: ")) continue;
+
+              const jsonStr = line.slice(6).trim();
+              if (jsonStr === "[DONE]") {
+                continue;
+              }
+
+              try {
+                const parsed = JSON.parse(jsonStr);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  fullResponse += content;
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
                 }
+              } catch (e) {
+                // Incomplete JSON, put it back
+                textBuffer = line + "\n" + textBuffer;
+                break;
               }
             }
           }
 
           // Save assistant response to history
-          await supabase.from('ai_logs').insert({
-            site_request_id,
-            role: 'assistant',
-            content: fullResponse,
-            model: 'google/gemini-2.0-flash-exp'
-          });
+          if (fullResponse) {
+            await supabase.from('ai_logs').insert({
+              site_request_id,
+              role: 'assistant',
+              content: fullResponse,
+              model: 'google/gemini-2.5-flash'
+            });
+          }
 
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
         } catch (error) {
+          console.error('Stream error:', error);
           controller.error(error);
         }
       }
