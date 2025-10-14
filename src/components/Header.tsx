@@ -1,8 +1,10 @@
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Layers, LogOut } from "lucide-react";
+import { Layers, LogOut, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Header = () => {
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
   const handleSignOut = async () => {
@@ -37,10 +39,11 @@ const Header = () => {
           <div className="flex items-center gap-3">
             {user ? (
               <>
-                <span className="text-sm text-muted-foreground hidden md:inline">
-                  {user.email}
-                </span>
-                <Button variant="outline" size="default" onClick={() => window.location.href = '/dashboard'}>
+                <Button variant="outline" size="default" onClick={() => navigate('/ai')}>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  SiteIQ AI
+                </Button>
+                <Button variant="outline" size="default" onClick={() => navigate('/dashboard')}>
                   Dashboard
                 </Button>
                 <Button variant="ghost" size="default" onClick={handleSignOut}>
@@ -50,13 +53,13 @@ const Header = () => {
               </>
             ) : (
               <>
-                <Button variant="outline" size="default" onClick={() => window.location.href = '/dashboard'}>
+                <Button variant="outline" size="default" onClick={() => navigate('/dashboard')}>
                   Dashboard
                 </Button>
-                <Button variant="outline" size="default" onClick={() => window.location.href = '/auth'}>
+                <Button variant="outline" size="default" onClick={() => navigate('/auth')}>
                   Sign In
                 </Button>
-                <Button variant="hero" size="default" onClick={() => window.location.href = '/generate'}>
+                <Button variant="hero" size="default" onClick={() => navigate('/generate')}>
                   Generate Pack →
                 </Button>
               </>
