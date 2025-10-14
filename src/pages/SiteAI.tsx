@@ -58,28 +58,78 @@ const SiteAI = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Standard Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <div className="mr-4 flex">
-            <a className="mr-6 flex items-center space-x-2" href="/">
-              <span className="hidden font-bold sm:inline-block">SiteIQ AI</span>
-            </a>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-gray-950 dark:to-gray-900">
+      {/* Enhanced Header */}
+      <div className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60 dark:bg-gray-950/80 dark:supports-[backdrop-filter]:bg-gray-950/60">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Logo & Title */}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+                    <span className="text-white font-bold text-lg">SI</span>
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-950 animate-pulse"></div>
+                </div>
+                <div>
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-white">SiteIQ AI</h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Intelligent Site Analysis</p>
+                </div>
+              </div>
+              
+              <div className="hidden lg:block h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
+              
+              {/* Project Selector */}
+              <div className="hidden lg:flex items-center space-x-3">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Active Project</span>
+                <ProjectSelector
+                  sites={sites}
+                  selectedSite={selectedSite}
+                  onSiteSelect={setSelectedSite}
+                />
+              </div>
+            </div>
+            
+            {/* Actions */}
+            <div className="flex items-center space-x-3">
+              {selectedSite && (
+                <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 rounded-full border border-green-200 dark:border-green-800">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-xs font-medium text-green-700 dark:text-green-300 capitalize">
+                    {selectedSite.status}
+                  </span>
+                </div>
+              )}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/dashboard')}
+                className="hidden sm:flex"
+              >
+                Dashboard
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-1 items-center space-x-2">
-            <ProjectSelector
-              sites={sites}
-              selectedSite={selectedSite}
-              onSiteSelect={setSelectedSite}
-            />
+          
+          {/* Mobile Project Selector */}
+          <div className="lg:hidden mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+            <div className="flex items-center space-x-3">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Project:</span>
+              <ProjectSelector
+                sites={sites}
+                selectedSite={selectedSite}
+                onSiteSelect={setSelectedSite}
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex h-[calc(100vh-3.5rem)]">
-        {/* Chat History Sidebar */}
+      <div className="flex h-[calc(100vh-5rem)] lg:h-[calc(100vh-4.5rem)]">
+        {/* Enhanced Sidebar */}
         <ChatSidebar
           activeChatId={activeChatId}
           onChatSelect={setActiveChatId}
@@ -96,22 +146,45 @@ const SiteAI = () => {
             onChatIdChange={setActiveChatId}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-4 max-w-md">
-              <div className="w-16 h-16 mx-auto rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <span className="text-2xl font-bold text-primary">SI</span>
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-center space-y-6 max-w-lg">
+              <div className="relative mx-auto">
+                <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6 shadow-lg">
+                  <span className="text-3xl font-bold text-primary">SI</span>
+                </div>
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">AI</span>
+                </div>
               </div>
-              <h2 className="text-2xl font-semibold">Welcome to SiteIQ AI</h2>
-              <p className="text-muted-foreground">
-                Select a project to start chatting with your intelligent site analysis assistant.
-              </p>
-              <Button 
-                onClick={() => navigate('/generate')}
-                className="mt-4"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Project
-              </Button>
+              
+              <div className="space-y-3">
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome to SiteIQ AI</h2>
+                <p className="text-lg text-gray-600 dark:text-gray-300 leading-relaxed">
+                  Your intelligent site analysis assistant is ready to help. Select a project to get started with insights, recommendations, and visualizations.
+                </p>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+                <Button 
+                  onClick={() => navigate('/generate')}
+                  size="lg"
+                  className="w-full sm:w-auto shadow-lg"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create New Project
+                </Button>
+                
+                {sites.length > 0 && (
+                  <Button 
+                    variant="outline"
+                    size="lg"
+                    onClick={() => setSelectedSite(sites[0])}
+                    className="w-full sm:w-auto"
+                  >
+                    Use Existing Project
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         )}

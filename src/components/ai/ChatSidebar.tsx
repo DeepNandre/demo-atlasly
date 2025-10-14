@@ -174,84 +174,123 @@ const ChatSidebar = ({ activeChatId, onChatSelect, onNewChat, siteRequestId }: C
   const chatGroups = groupChatsByDate(filteredChats);
 
   return (
-    <div className="w-64 border-r border-border bg-background flex flex-col">
+    <div className="w-72 border-r border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl flex flex-col">
       {/* Header */}
-      <div className="p-3 border-b">
+      <div className="p-4 border-b border-gray-100 dark:border-gray-800">
         <Button
           onClick={onNewChat}
-          className="w-full gap-2"
-          size="sm"
+          className="w-full gap-2 h-11 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white shadow-lg"
+          size="default"
         >
           <Plus className="w-4 h-4" />
-          New Chat
+          New Conversation
         </Button>
         
-        <div className="relative mt-3">
-          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+        <div className="relative mt-4">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
-            placeholder="Search..."
+            placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-7 h-8 text-sm"
+            className="pl-10 h-10 bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 focus:bg-white dark:focus:bg-gray-800 transition-colors"
           />
         </div>
       </div>
 
       {/* Chat List */}
-      <ScrollArea className="flex-1 p-2">
+      <ScrollArea className="flex-1 p-3">
         {isLoading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
-            <p className="text-xs text-muted-foreground">Loading...</p>
+          <div className="text-center py-12">
+            <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3"></div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading conversations...</p>
           </div>
         ) : Object.keys(chatGroups).length === 0 ? (
-          <div className="text-center text-muted-foreground text-sm py-8">
-            <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-xs">No conversations yet</p>
+          <div className="text-center py-12">
+            <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
+              <MessageSquare className="w-8 h-8 text-gray-400" />
+            </div>
+            <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">No conversations yet</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Start a new chat to begin</p>
           </div>
         ) : (
           Object.entries(chatGroups).map(([groupName, groupChats]) => (
-            <div key={groupName} className="mb-4">
-              <h3 className="text-xs font-medium text-muted-foreground px-2 mb-2">
-                {groupName}
-              </h3>
+            <div key={groupName} className="mb-6">
+              <div className="flex items-center gap-2 px-3 py-2 mb-3">
+                <Calendar className="w-3 h-3 text-gray-400" />
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {groupName}
+                </h3>
+              </div>
               
               <div className="space-y-1">
                 {groupChats.map((chat) => (
                   <div
                     key={chat.id}
                     onClick={() => onChatSelect(chat.id)}
-                    className={`group p-2 rounded-lg cursor-pointer transition-colors ${
+                    className={`group p-3 rounded-xl cursor-pointer transition-all duration-200 ${
                       activeChatId === chat.id
-                        ? 'bg-accent text-accent-foreground'
-                        : 'hover:bg-accent/50'
+                        ? 'bg-primary/10 border border-primary/20 shadow-sm'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 border border-transparent'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1 mb-1">
-                          <span className="text-sm font-medium truncate">
+                        <div className="flex items-center gap-2 mb-2">
+                          {chat.is_pinned && <Pin className="w-3 h-3 text-primary" />}
+                          <span className="text-sm font-medium text-gray-900 dark:text-white leading-none truncate">
                             {chat.title || chat.first_message}
                           </span>
                         </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed mb-2">
+                          {chat.first_message}
+                        </p>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(chat.created_at).toLocaleDateString(undefined, {
+                          <span className="text-xs text-gray-400">
+                            {new Date(chat.last_message_at || chat.created_at).toLocaleDateString(undefined, {
                               month: 'short',
                               day: 'numeric'
                             })}
                           </span>
+                          {chat.message_count && (
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0.5 h-5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                              {chat.message_count}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
-                        onClick={(e) => handleDeleteChat(chat.id, e)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="w-3 h-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem className="gap-2">
+                            <Edit3 className="w-3 h-3" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2">
+                            <Pin className="w-3 h-3" />
+                            {chat.is_pinned ? 'Unpin' : 'Pin'}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="gap-2 text-red-600 focus:text-red-600 dark:text-red-400"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteChat(chat.id, e);
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 ))}
@@ -262,12 +301,18 @@ const ChatSidebar = ({ activeChatId, onChatSelect, onNewChat, siteRequestId }: C
       </ScrollArea>
 
       {/* Footer */}
-      <div className="p-3 border-t">
-        <div className="flex items-center gap-2 text-sm">
-          <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center">
-            <span className="text-primary font-bold text-xs">SI</span>
+      <div className="p-4 border-t border-gray-100 dark:border-gray-800">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm">
+            <span className="text-primary font-bold text-sm">SI</span>
           </div>
-          <span className="font-medium text-xs">SiteIQ AI</span>
+          <div>
+            <div className="font-semibold text-sm text-gray-900 dark:text-white">SiteIQ AI</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Intelligent Analysis</div>
+          </div>
+          <div className="ml-auto">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          </div>
         </div>
       </div>
     </div>
