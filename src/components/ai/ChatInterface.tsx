@@ -256,44 +256,46 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
       <ScrollArea className="flex-1 p-6">
         <div className="max-w-3xl mx-auto space-y-6">
           {messages.length === 0 && (
-            <div className="text-center py-12 space-y-4">
+            <div className="text-center py-20 space-y-8">
               <div className="flex justify-center">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Sparkles className="w-8 h-8 text-primary" />
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                  <Sparkles className="w-10 h-10 text-primary" />
                 </div>
               </div>
-              <h2 className="text-2xl font-semibold">Chat with SiteIQ AI</h2>
-              <p className="text-muted-foreground">
-                Ask questions about {locationName} or request visualizations
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
+              <div className="space-y-3">
+                <h2 className="text-3xl font-semibold">Chat with SiteIQ AI</h2>
+                <p className="text-muted-foreground text-lg">
+                  Ask questions about {locationName} or request visualizations
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-12 max-w-2xl mx-auto">
                 <Button
                   variant="outline"
-                  className="justify-start h-auto p-4 text-left"
+                  className="justify-start h-auto py-5 px-6 text-left hover:border-primary/50 hover:bg-primary/5 transition-all"
                   onClick={() => setInput('What are the climate conditions for this site?')}
                 >
-                  <span className="text-sm">What are the climate conditions?</span>
+                  <span className="text-sm font-medium">What are the climate conditions?</span>
                 </Button>
                 <Button
                   variant="outline"
-                  className="justify-start h-auto p-4 text-left"
+                  className="justify-start h-auto py-5 px-6 text-left hover:border-primary/50 hover:bg-primary/5 transition-all"
                   onClick={() => setInput('Generate a realistic visualization of the site')}
                 >
-                  <span className="text-sm">Generate a visualization</span>
+                  <span className="text-sm font-medium">Generate a visualization</span>
                 </Button>
                 <Button
                   variant="outline"
-                  className="justify-start h-auto p-4 text-left"
+                  className="justify-start h-auto py-5 px-6 text-left hover:border-primary/50 hover:bg-primary/5 transition-all"
                   onClick={() => setInput('What building recommendations do you have?')}
                 >
-                  <span className="text-sm">Building recommendations</span>
+                  <span className="text-sm font-medium">Building recommendations</span>
                 </Button>
                 <Button
                   variant="outline"
-                  className="justify-start h-auto p-4 text-left"
+                  className="justify-start h-auto py-5 px-6 text-left hover:border-primary/50 hover:bg-primary/5 transition-all"
                   onClick={() => setInput('Analyze the solar potential')}
                 >
-                  <span className="text-sm">Solar potential analysis</span>
+                  <span className="text-sm font-medium">Solar potential analysis</span>
                 </Button>
               </div>
             </div>
@@ -340,22 +342,22 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="border-t border-border p-4">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex gap-2">
+      <div className="border-t border-border/50 bg-card/30 backdrop-blur-sm p-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex gap-3">
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={`Ask about ${locationName} or request a visualization...`}
-              className="min-h-[60px] max-h-[200px] resize-none"
+              className="min-h-[60px] max-h-[200px] resize-none bg-background/60"
               disabled={isLoading || isGeneratingImage}
             />
             <Button
               onClick={sendMessage}
               disabled={!input.trim() || isLoading || isGeneratingImage}
               size="lg"
-              className="px-6"
+              className="px-8 h-auto"
             >
               {isLoading || isGeneratingImage ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -364,7 +366,7 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
               )}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
+          <p className="text-xs text-muted-foreground mt-3 ml-1">
             Press Enter to send, Shift+Enter for new line
           </p>
         </div>
