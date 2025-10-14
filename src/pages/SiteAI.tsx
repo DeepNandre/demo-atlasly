@@ -8,6 +8,32 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
+const SiteIQLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+    <path
+      d="M3 12L6 9L9 12L12 9L15 12L18 9L21 12"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M3 16L6 13L9 16L12 13L15 16L18 13L21 16"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M3 8L6 5L9 8L12 5L15 8L18 5L21 8"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 export interface SiteRequest {
   id: string;
   location_name: string;
@@ -61,14 +87,14 @@ const SiteAI = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-gray-950 dark:to-gray-900">
       {/* Enhanced Header */}
       <div className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60 dark:bg-gray-950/80 dark:supports-[backdrop-filter]:bg-gray-950/60">
-        <div className="px-6 py-4">
+        <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             {/* Logo & Title */}
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
                 <div className="relative">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-                    <span className="text-white font-bold text-lg">SI</span>
+                    <SiteIQLogo className="text-white" size={24} />
                   </div>
                   <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-950 animate-pulse"></div>
                 </div>
@@ -114,7 +140,7 @@ const SiteAI = () => {
           </div>
           
           {/* Mobile Project Selector */}
-          <div className="lg:hidden mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+          <div className="lg:hidden mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
             <div className="flex items-center space-x-3">
               <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Project:</span>
               <ProjectSelector
@@ -128,7 +154,7 @@ const SiteAI = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex h-[calc(100vh-5rem)] lg:h-[calc(100vh-4.5rem)]">
+      <div className="flex h-[calc(100vh-4rem)]">
         {/* Enhanced Sidebar */}
         <ChatSidebar
           activeChatId={activeChatId}
@@ -150,7 +176,7 @@ const SiteAI = () => {
             <div className="text-center space-y-6 max-w-lg">
               <div className="relative mx-auto">
                 <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6 shadow-lg">
-                  <span className="text-3xl font-bold text-primary">SI</span>
+                  <SiteIQLogo className="text-primary" size={48} />
                 </div>
                 <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                   <span className="text-white text-xs font-bold">AI</span>
