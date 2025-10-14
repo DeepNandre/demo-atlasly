@@ -58,22 +58,33 @@ const SiteAI = () => {
   };
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Chat History Sidebar */}
-      <ChatSidebar
-        activeChatId={activeChatId}
-        onChatSelect={setActiveChatId}
-        onNewChat={handleNewChat}
-        siteRequestId={selectedSite?.id}
-      />
+    <div className="min-h-screen bg-background">
+      {/* Standard Header */}
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-14 items-center">
+          <div className="mr-4 flex">
+            <a className="mr-6 flex items-center space-x-2" href="/">
+              <span className="hidden font-bold sm:inline-block">SiteIQ AI</span>
+            </a>
+          </div>
+          <div className="flex flex-1 items-center space-x-2">
+            <ProjectSelector
+              sites={sites}
+              selectedSite={selectedSite}
+              onSiteSelect={setSelectedSite}
+            />
+          </div>
+        </div>
+      </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Project Selector Header */}
-        <ProjectSelector
-          sites={sites}
-          selectedSite={selectedSite}
-          onSiteSelect={setSelectedSite}
+      {/* Main Content */}
+      <div className="flex h-[calc(100vh-3.5rem)]">
+        {/* Chat History Sidebar */}
+        <ChatSidebar
+          activeChatId={activeChatId}
+          onChatSelect={setActiveChatId}
+          onNewChat={handleNewChat}
+          siteRequestId={selectedSite?.id}
         />
 
         {/* Chat Interface */}
@@ -85,28 +96,22 @@ const SiteAI = () => {
             onChatIdChange={setActiveChatId}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <div className="text-center space-y-6 max-w-md">
-              <div className="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6">
-                <span className="text-4xl font-bold text-primary">SI</span>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-4 max-w-md">
+              <div className="w-16 h-16 mx-auto rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                <span className="text-2xl font-bold text-primary">SI</span>
               </div>
-              <div className="space-y-3">
-                <h2 className="text-3xl font-bold text-foreground">Welcome to SiteIQ AI</h2>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  Your intelligent site analysis assistant. Select a project to start exploring insights, 
-                  generate visualizations, and get expert recommendations.
-                </p>
-              </div>
-              <div className="pt-4">
-                <Button 
-                  onClick={() => navigate('/generate')}
-                  size="lg"
-                  className="gap-2 shadow-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Your First Project
-                </Button>
-              </div>
+              <h2 className="text-2xl font-semibold">Welcome to SiteIQ AI</h2>
+              <p className="text-muted-foreground">
+                Select a project to start chatting with your intelligent site analysis assistant.
+              </p>
+              <Button 
+                onClick={() => navigate('/generate')}
+                className="mt-4"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Project
+              </Button>
             </div>
           </div>
         )}
