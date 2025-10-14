@@ -4,6 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import ChatSidebar from '@/components/ai/ChatSidebar';
 import ChatInterface from '@/components/ai/ChatInterface';
 import ProjectSelector from '@/components/ai/ProjectSelector';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SiteRequest {
@@ -84,10 +86,27 @@ const SiteAI = () => {
           />
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <div className="text-center space-y-4">
-              <div className="text-6xl mb-4">🏗️</div>
-              <h2 className="text-2xl font-semibold text-foreground">Welcome to SiteIQ AI</h2>
-              <p className="text-lg">Select a project to start chatting</p>
+            <div className="text-center space-y-6 max-w-md">
+              <div className="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6">
+                <span className="text-4xl font-bold text-primary">SI</span>
+              </div>
+              <div className="space-y-3">
+                <h2 className="text-3xl font-bold text-foreground">Welcome to SiteIQ AI</h2>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  Your intelligent site analysis assistant. Select a project to start exploring insights, 
+                  generate visualizations, and get expert recommendations.
+                </p>
+              </div>
+              <div className="pt-4">
+                <Button 
+                  onClick={() => navigate('/generate')}
+                  size="lg"
+                  className="gap-2 shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Your First Project
+                </Button>
+              </div>
             </div>
           </div>
         )}

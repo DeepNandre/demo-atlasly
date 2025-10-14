@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Loader2, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Send, Loader2, Image as ImageIcon, Sparkles, Sun, BarChart3, MapPin, Zap, FileText, Download, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { ChatTemplates } from './ChatTemplates';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -26,6 +28,7 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -268,34 +271,101 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
                   Ask questions about {locationName} or request visualizations
                 </p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-12 max-w-2xl mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-12 max-w-3xl mx-auto">
                 <Button
                   variant="outline"
-                  className="justify-start h-auto py-5 px-6 text-left hover:border-primary/50 hover:bg-primary/5 transition-all"
-                  onClick={() => setInput('What are the climate conditions for this site?')}
+                  className="group justify-start h-auto py-4 px-5 text-left hover:border-primary/50 hover:bg-primary/5 transition-all border-dashed"
+                  onClick={() => setInput('What are the climate conditions for this site? Include temperature, rainfall, and wind patterns.')}
                 >
-                  <span className="text-sm font-medium">What are the climate conditions?</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">Climate Analysis</div>
+                      <div className="text-xs text-muted-foreground">Weather patterns & data</div>
+                    </div>
+                  </div>
                 </Button>
+                
                 <Button
                   variant="outline"
-                  className="justify-start h-auto py-5 px-6 text-left hover:border-primary/50 hover:bg-primary/5 transition-all"
-                  onClick={() => setInput('Generate a realistic visualization of the site')}
+                  className="group justify-start h-auto py-4 px-5 text-left hover:border-primary/50 hover:bg-primary/5 transition-all border-dashed"
+                  onClick={() => setInput('Generate a realistic architectural visualization of this site showing potential development')}
                 >
-                  <span className="text-sm font-medium">Generate a visualization</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <ImageIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">AI Visualization</div>
+                      <div className="text-xs text-muted-foreground">Render site concepts</div>
+                    </div>
+                  </div>
                 </Button>
+                
                 <Button
                   variant="outline"
-                  className="justify-start h-auto py-5 px-6 text-left hover:border-primary/50 hover:bg-primary/5 transition-all"
-                  onClick={() => setInput('What building recommendations do you have?')}
+                  className="group justify-start h-auto py-4 px-5 text-left hover:border-primary/50 hover:bg-primary/5 transition-all border-dashed"
+                  onClick={() => setInput('Provide building recommendations based on the site analysis, considering solar exposure, terrain, and local regulations.')}
                 >
-                  <span className="text-sm font-medium">Building recommendations</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <MapPin className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">Building Recommendations</div>
+                      <div className="text-xs text-muted-foreground">Site-specific guidance</div>
+                    </div>
+                  </div>
                 </Button>
+                
                 <Button
                   variant="outline"
-                  className="justify-start h-auto py-5 px-6 text-left hover:border-primary/50 hover:bg-primary/5 transition-all"
-                  onClick={() => setInput('Analyze the solar potential')}
+                  className="group justify-start h-auto py-4 px-5 text-left hover:border-primary/50 hover:bg-primary/5 transition-all border-dashed"
+                  onClick={() => setInput('Analyze the solar potential including shadow patterns, sun exposure hours, and optimal panel placement areas.')}
                 >
-                  <span className="text-sm font-medium">Solar potential analysis</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Sun className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">Solar Analysis</div>
+                      <div className="text-xs text-muted-foreground">Sun exposure & shadows</div>
+                    </div>
+                  </div>
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="group justify-start h-auto py-4 px-5 text-left hover:border-primary/50 hover:bg-primary/5 transition-all border-dashed"
+                  onClick={() => setInput('Generate a comprehensive site analysis report including elevation, terrain features, and development constraints.')}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <FileText className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">Site Report</div>
+                      <div className="text-xs text-muted-foreground">Comprehensive analysis</div>
+                    </div>
+                  </div>
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="group justify-start h-auto py-4 px-5 text-left hover:border-primary/50 hover:bg-primary/5 transition-all border-dashed"
+                  onClick={() => setInput('What are the key insights and recommendations for developing this site sustainably?')}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Zap className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">Key Insights</div>
+                      <div className="text-xs text-muted-foreground">Development strategy</div>
+                    </div>
+                  </div>
                 </Button>
               </div>
             </div>
@@ -307,30 +377,44 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
               className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {message.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-primary font-semibold text-sm">AI</span>
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
+                  <span className="text-primary font-bold text-sm">SI</span>
                 </div>
               )}
               
               <div
-                className={`max-w-[80%] rounded-lg p-4 ${
+                className={`max-w-[85%] rounded-2xl p-4 ${
                   message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-muted/70 backdrop-blur-sm border border-border/50'
                 }`}
               >
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                <div className="prose prose-sm max-w-none">
+                  <p className="whitespace-pre-wrap leading-relaxed m-0">{message.content}</p>
+                </div>
                 {message.image_url && (
-                  <img
-                    src={message.image_url}
-                    alt="Generated visualization"
-                    className="mt-3 rounded-lg max-w-full"
-                  />
+                  <div className="mt-4">
+                    <img
+                      src={message.image_url}
+                      alt="Generated visualization"
+                      className="rounded-xl max-w-full shadow-lg border border-border/20"
+                    />
+                    <div className="flex items-center gap-2 mt-3">
+                      <Badge variant="secondary" className="text-xs">
+                        <ImageIcon className="w-3 h-3 mr-1" />
+                        AI Generated
+                      </Badge>
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                        <Download className="w-3 h-3 mr-1" />
+                        Download
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
 
               {message.role === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center flex-shrink-0 border border-accent-foreground/20">
                   <span className="text-accent-foreground font-semibold text-sm">U</span>
                 </div>
               )}
@@ -344,20 +428,76 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
       {/* Input Area */}
       <div className="border-t border-border/50 bg-card/30 backdrop-blur-sm p-6">
         <div className="max-w-5xl mx-auto">
+          {/* Quick Actions */}
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-shrink-0 h-8 px-3 text-xs bg-primary/5 border-primary/30 hover:bg-primary/10"
+              onClick={() => setShowTemplates(true)}
+            >
+              <BookOpen className="w-3 h-3 mr-1" />
+              Templates
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-shrink-0 h-8 px-3 text-xs"
+              onClick={() => setInput('Generate a visualization ')}
+            >
+              <ImageIcon className="w-3 h-3 mr-1" />
+              Visualize
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-shrink-0 h-8 px-3 text-xs"
+              onClick={() => setInput('Run solar analysis ')}
+            >
+              <Sun className="w-3 h-3 mr-1" />
+              Solar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-shrink-0 h-8 px-3 text-xs"
+              onClick={() => setInput('Show climate data ')}
+            >
+              <BarChart3 className="w-3 h-3 mr-1" />
+              Climate
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-shrink-0 h-8 px-3 text-xs"
+              onClick={() => setInput('Export site analysis ')}
+            >
+              <Download className="w-3 h-3 mr-1" />
+              Export
+            </Button>
+          </div>
+          
           <div className="flex gap-3">
-            <Textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={`Ask about ${locationName} or request a visualization...`}
-              className="min-h-[60px] max-h-[200px] resize-none bg-background/60"
-              disabled={isLoading || isGeneratingImage}
-            />
+            <div className="flex-1 relative">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={`Ask SiteIQ about ${locationName} or request visualizations...`}
+                className="min-h-[60px] max-h-[200px] resize-none bg-background/60 border-border/50 pr-12"
+                disabled={isLoading || isGeneratingImage}
+              />
+              {(isLoading || isGeneratingImage) && (
+                <div className="absolute right-3 top-3">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
             <Button
               onClick={sendMessage}
               disabled={!input.trim() || isLoading || isGeneratingImage}
               size="lg"
-              className="px-8 h-auto"
+              className="px-6 h-auto min-h-[60px] shadow-sm"
             >
               {isLoading || isGeneratingImage ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -366,11 +506,25 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
               )}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground mt-3 ml-1">
-            Press Enter to send, Shift+Enter for new line
-          </p>
+          
+          <div className="flex items-center justify-between mt-3">
+            <p className="text-xs text-muted-foreground">
+              Press Enter to send • Shift+Enter for new line
+            </p>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Sparkles className="w-3 h-3" />
+              <span>Powered by SiteIQ AI</span>
+            </div>
+          </div>
         </div>
       </div>
+      
+      {/* Chat Templates Modal */}
+      <ChatTemplates
+        isVisible={showTemplates}
+        onClose={() => setShowTemplates(false)}
+        onSelectTemplate={(prompt) => setInput(prompt)}
+      />
     </div>
   );
 };
