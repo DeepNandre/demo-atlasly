@@ -288,10 +288,7 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
             <div className="text-center py-16 space-y-8">
               <div className="relative mx-auto">
                 <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shadow-lg">
-                  <Sparkles className="w-10 h-10 text-primary" />
-                </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center animate-pulse">
-                  <span className="text-white text-xs font-bold">AI</span>
+                  <SiteIQLogo className="text-primary" size={48} />
                 </div>
               </div>
               <div className="space-y-3">
