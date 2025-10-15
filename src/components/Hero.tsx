@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import heroImage from "@/assets/hero-landscape.jpg";
 
 const Hero = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -10,16 +9,8 @@ const Hero = () => {
   }, []);
 
   return (
-    <section className="relative pt-32 pb-20 px-6 overflow-hidden">
-      {/* Background image with overlay */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${heroImage})` }}
-      >
-        <div className="absolute inset-0 bg-background/60" />
-      </div>
-      
-      <div className="container mx-auto relative z-10" style={{ minHeight: '600px' }}>
+    <section className="relative pt-32 pb-20 px-6 overflow-hidden bg-background">
+      <div className="container mx-auto" style={{ minHeight: '600px' }}>
         <div className="max-w-6xl mx-auto text-center">
           <div className={`space-y-8 transform transition-all duration-300 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
             <div className="space-y-6">
