@@ -1,4 +1,8 @@
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.74.0';
+import { geojsonToDXF } from '../_shared/dxfExport.ts';
+import { createGLBFromScene } from '../_shared/glbExport.ts';
+import { createSitePlanPDF } from '../_shared/pdfExport.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -537,10 +541,11 @@ async function createExportFiles(request: any, osmData: any, elevationData: any)
   // DXF export
   if (request.include_dxf) {
     try {
-      const dxf = createDXF(osmData, elevationData);
+      const dxf = createDXF(osmData, elevationData, request);
       files.set('exports/layers.dxf', encoder.encode(dxf));
+      console.log('✅ DXF export complete');
     } catch (error) {
-      console.warn('DXF export failed:', error);
+      console.error('❌ DXF export failed:', error);
     }
   }
 
@@ -549,8 +554,9 @@ async function createExportFiles(request: any, osmData: any, elevationData: any)
     try {
       const glb = await createGLB(osmData, elevationData);
       files.set('exports/scene.glb', glb);
+      console.log(`✅ GLB export complete: ${glb.length} bytes`);
     } catch (error) {
-      console.warn('GLB export failed:', error);
+      console.error('❌ GLB export failed:', error);
     }
   }
 
@@ -567,10 +573,11 @@ async function createExportFiles(request: any, osmData: any, elevationData: any)
   // DWG export (extended from DXF)
   if (request.exports_dwg) {
     try {
-      const dwg = createDWG(osmData, elevationData);
+      const dwg = createDWG(osmData, elevationData, request);
       files.set('exports/layers.dwg', encoder.encode(dwg));
+      console.log('✅ DWG export complete');
     } catch (error) {
-      console.warn('DWG export failed:', error);
+      console.error('❌ DWG export failed:', error);
     }
   }
 
@@ -672,138 +679,87 @@ function createAOIFeature(request: any) {
   };
 }
 
-function createDXF(osmData: any, elevationData: any): string {
-  // Basic DXF header
-  let dxf = `0
-SECTION
-2
-HEADER
-9
-$ACADVER
-1
-AC1015
-9
-$INSUNITS
-70
-6
-0
-ENDSEC
-0
-SECTION
-2
-TABLES
-0
-TABLE
-2
-LAYER
-70
-5
-`;
-
-  const layers = [
-    { name: 'BUILDINGS', color: 1 },
-    { name: 'ROADS', color: 3 },
-    { name: 'LANDUSE', color: 5 },
-    { name: 'CONTOURS', color: 8 },
-    { name: 'AOI', color: 7 },
-  ];
-
-  layers.forEach(layer => {
-    dxf += `0
-LAYER
-2
-${layer.name}
-70
-0
-62
-${layer.color}
-6
-CONTINUOUS
-`;
-  });
-
-  dxf += `0
-ENDTAB
-0
-ENDSEC
-0
-SECTION
-2
-ENTITIES
-`;
-
-  // Add buildings as polylines
-  osmData.buildings?.features?.forEach((feature: any) => {
-    if (feature.geometry.type === 'Polygon') {
-      const coords = feature.geometry.coordinates[0];
-      dxf += `0
-LWPOLYLINE
-8
-BUILDINGS
-90
-${coords.length}
-70
-1
-`;
-      coords.forEach((coord: number[]) => {
-        dxf += `10
-${coord[0]}
-20
-${coord[1]}
-`;
-      });
-    }
-  });
-
-  // Add roads as polylines
-  osmData.roads?.features?.forEach((feature: any) => {
-    if (feature.geometry.type === 'LineString') {
-      const coords = feature.geometry.coordinates;
-      dxf += `0
-LWPOLYLINE
-8
-ROADS
-90
-${coords.length}
-70
-0
-`;
-      coords.forEach((coord: number[]) => {
-        dxf += `10
-${coord[0]}
-20
-${coord[1]}
-`;
-      });
-    }
-  });
-
-  dxf += `0
-ENDSEC
-0
-EOF
-`;
-
-  return dxf;
+function createDXF(osmData: any, elevationData: any, request: any): string {
+  console.log('🔧 Creating professional DXF export...');
+  
+  // Extract contours from elevation data
+  const contours: any[] = [];
+  if (elevationData?.features) {
+    // Group contour line segments by elevation
+    const contourMap = new Map<number, Array<{x: number, y: number}>>();
+    
+    elevationData.features.forEach((feature: any) => {
+      if (feature.properties?.elevation !== undefined) {
+        const elev = Math.round(feature.properties.elevation / 5) * 5; // Round to 5m intervals
+        if (!contourMap.has(elev)) {
+          contourMap.set(elev, []);
+        }
+        if (feature.geometry.type === 'LineString') {
+          feature.geometry.coordinates.forEach((coord: number[]) => {
+            contourMap.get(elev)!.push({ x: coord[0], y: coord[1] });
+          });
+        } else if (feature.geometry.type === 'Point') {
+          const [x, y] = feature.geometry.coordinates;
+          contourMap.get(elev)!.push({ x, y });
+        }
+      }
+    });
+    
+    contourMap.forEach((points, elevation) => {
+      if (points.length > 1) {
+        contours.push({ elevation, points });
+      }
+    });
+  }
+  
+  const metadata = {
+    project: request.location_name || 'Site Pack',
+    center: `${request.center_lat.toFixed(6)}, ${request.center_lng.toFixed(6)}`,
+    radius: `${request.radius_meters}m`,
+    date: new Date().toISOString().split('T')[0],
+    crs: 'EPSG:4326'
+  };
+  
+  return geojsonToDXF(osmData.buildings, osmData.roads, contours, metadata);
 }
 
-function createDWG(osmData: any, elevationData: any): string {
+function createDWG(osmData: any, elevationData: any, request: any): string {
   // DWG is a proprietary format. For now, we create an enhanced DXF
   // and include a note about conversion. A proper DWG would require
   // a library like LibreDWG or commercial tools.
   
-  const dxf = createDXF(osmData, elevationData);
+  const dxf = createDXF(osmData, elevationData, request);
   
   // Add a note in the DXF comments section
-  const note = `; This is a DXF file compatible with AutoCAD and most CAD software.
-; For native DWG format, import this DXF into AutoCAD and save as DWG.
-; Free converters: LibreCAD, QCAD, or online tools like CloudConvert.
+  const note = `; PROFESSIONAL DXF FILE - Compatible with AutoCAD, BricsCAD, DraftSight
+; For native DWG format: Import this DXF and save as DWG
+; Layers: BUILDINGS (3D), ROADS, CONTOURS (with elevation), TERRAIN
+; Units: Meters | CRS: EPSG:4326
+; Generated: ${new Date().toISOString()}
+; 
 `;
   
   return note + dxf;
 }
 
 function createPDFPlan(request: any, osmData: any): string {
+  console.log('📄 Creating professional PDF site plan...');
+  
+  return createSitePlanPDF({
+    siteName: request.location_name || 'Site Plan',
+    centerLat: request.center_lat,
+    centerLng: request.center_lng,
+    radius: request.radius_meters || 500,
+    buildings: osmData.buildings?.features || [],
+    roads: osmData.roads?.features || [],
+    boundary: request.boundary_geojson?.features?.[0]?.geometry,
+    includeScaleBar: true,
+    includeNorthArrow: true,
+    includeLegend: true
+  });
+}
+
+function createPDFPlan_OLD(request: any, osmData: any): string {
   // Create a simplified PDF with SVG-like vector commands
   // This is a basic implementation - a production version would use
   // a proper PDF library or convert SVG to PDF
@@ -926,42 +882,79 @@ ${1200 + location_name.length * 8}
 }
 
 async function createGLB(osmData: any, elevationData: any): Promise<Uint8Array> {
-  // Simplified GLB creation - returns a minimal valid GLB
-  // In production, use a proper library like gltf-transform
+  console.log('🎨 Creating professional GLB with actual 3D geometry...');
   
-  const encoder = new TextEncoder();
-  const json = {
-    asset: { version: '2.0', generator: 'site-pack-generator' },
-    scene: 0,
-    scenes: [{ nodes: [0] }],
-    nodes: [{ name: 'Root' }],
-  };
+  const buildings: any[] = [];
   
-  const jsonString = JSON.stringify(json);
-  const jsonBytes = encoder.encode(jsonString);
-  const jsonPadding = (4 - (jsonBytes.length % 4)) % 4;
+  // Process buildings
+  if (osmData.buildings?.features) {
+    osmData.buildings.features.forEach((feature: any, idx: number) => {
+      if (feature.geometry.type === 'Polygon') {
+        const coords = feature.geometry.coordinates[0];
+        const height = feature.properties?.height || 
+                      feature.properties?.levels * 3.5 || 
+                      10; // Default 10m
+        
+        buildings.push({
+          coordinates: coords,
+          height,
+          name: feature.properties?.name || `Building_${idx + 1}`
+        });
+      }
+    });
+  }
   
-  const headerSize = 12;
-  const chunkHeaderSize = 8;
-  const jsonChunkSize = chunkHeaderSize + jsonBytes.length + jsonPadding;
-  const totalSize = headerSize + jsonChunkSize;
+  // Process terrain (if available)
+  let terrain = undefined;
+  if (elevationData?.features) {
+    // Create simple terrain mesh from elevation points
+    const points: Array<{x: number, y: number, z: number}> = [];
+    
+    elevationData.features.forEach((feature: any) => {
+      if (feature.geometry.type === 'Point' && feature.geometry.coordinates[2] !== undefined) {
+        const [x, y, z] = feature.geometry.coordinates;
+        points.push({ x, y, z });
+      }
+    });
+    
+    if (points.length > 3) {
+      // Simple grid-based triangulation
+      const gridSize = Math.ceil(Math.sqrt(points.length));
+      const vertices: number[] = [];
+      const indices: number[] = [];
+      const colors: number[] = [];
+      
+      // Sort points into grid
+      points.forEach((p, i) => {
+        vertices.push(p.x, p.z, p.y); // Y-up in GLB
+        
+        // Color by elevation
+        const normalized = Math.min(Math.max(p.z / 100, 0), 1);
+        colors.push(0.3 + normalized * 0.3, 0.5 - normalized * 0.2, 0.2);
+      });
+      
+      // Create triangles (simple grid)
+      for (let i = 0; i < gridSize - 1; i++) {
+        for (let j = 0; j < gridSize - 1; j++) {
+          const idx = i * gridSize + j;
+          if (idx + gridSize + 1 < points.length) {
+            indices.push(idx, idx + 1, idx + gridSize);
+            indices.push(idx + 1, idx + gridSize + 1, idx + gridSize);
+          }
+        }
+      }
+      
+      terrain = {
+        vertices: new Float32Array(vertices),
+        indices: new Uint32Array(indices),
+        colors: new Float32Array(colors)
+      };
+    }
+  }
   
-  const buffer = new ArrayBuffer(totalSize);
-  const view = new DataView(buffer);
-  const bytes = new Uint8Array(buffer);
+  console.log(`✅ GLB: ${buildings.length} buildings, terrain: ${terrain ? 'yes' : 'no'}`);
   
-  // GLB header
-  view.setUint32(0, 0x46546C67, true); // magic: 'glTF'
-  view.setUint32(4, 2, true); // version
-  view.setUint32(8, totalSize, true); // length
-  
-  // JSON chunk
-  let offset = 12;
-  view.setUint32(offset, jsonBytes.length + jsonPadding, true); // chunkLength
-  view.setUint32(offset + 4, 0x4E4F534A, true); // chunkType: 'JSON'
-  bytes.set(jsonBytes, offset + 8);
-  
-  return new Uint8Array(buffer);
+  return createGLBFromScene({ buildings, terrain });
 }
 
 async function createValidatedZip(files: Map<string, Uint8Array>): Promise<{ 
