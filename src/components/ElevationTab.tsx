@@ -78,10 +78,11 @@ export function ElevationTab({ siteId }: ElevationTabProps) {
       
       if (siteData?.elevation_summary) {
         console.log('📦 Using cached elevation summary');
-        setSummary(siteData.elevation_summary);
+        const elevationSummary = siteData.elevation_summary as unknown as ElevationSummary;
+        setSummary(elevationSummary);
         
         // Generate mock grid for visualization
-        const mockGrid = generateMockElevationGrid(siteData.elevation_summary);
+        const mockGrid = generateMockElevationGrid(elevationSummary);
         setGrid(mockGrid);
         
         toast({

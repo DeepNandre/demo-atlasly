@@ -58,6 +58,127 @@ export type Database = {
           },
         ]
       }
+      api_keys: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          key_hash: string
+          last_used_at: string | null
+          name: string
+          rate_limit: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          key_hash: string
+          last_used_at?: string | null
+          name: string
+          rate_limit?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          key_hash?: string
+          last_used_at?: string | null
+          name?: string
+          rate_limit?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      api_requests: {
+        Row: {
+          api_key_id: string | null
+          created_at: string
+          endpoint: string
+          id: string
+          metadata: Json | null
+          response_time_ms: number | null
+          status_code: number
+        }
+        Insert: {
+          api_key_id?: string | null
+          created_at?: string
+          endpoint: string
+          id?: string
+          metadata?: Json | null
+          response_time_ms?: number | null
+          status_code: number
+        }
+        Update: {
+          api_key_id?: string | null
+          created_at?: string
+          endpoint?: string
+          id?: string
+          metadata?: Json | null
+          response_time_ms?: number | null
+          status_code?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_requests_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      export_quality_checks: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          file_size_bytes: number | null
+          file_type: string
+          id: string
+          issues: Json | null
+          metrics: Json | null
+          quality_score: number | null
+          site_request_id: string
+          status: string
+          validation_duration_ms: number | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          file_size_bytes?: number | null
+          file_type: string
+          id?: string
+          issues?: Json | null
+          metrics?: Json | null
+          quality_score?: number | null
+          site_request_id: string
+          status?: string
+          validation_duration_ms?: number | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          file_size_bytes?: number | null
+          file_type?: string
+          id?: string
+          issues?: Json | null
+          metrics?: Json | null
+          quality_score?: number | null
+          site_request_id?: string
+          status?: string
+          validation_duration_ms?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "export_quality_checks_site_request_id_fkey"
+            columns: ["site_request_id"]
+            isOneToOne: false
+            referencedRelation: "site_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           admin_notes: string | null
@@ -301,6 +422,41 @@ export type Database = {
           },
         ]
       }
+      usage_analytics: {
+        Row: {
+          created_at: string
+          feature: Database["public"]["Enums"]["feature_name"]
+          id: string
+          metadata: Json | null
+          site_request_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          feature: Database["public"]["Enums"]["feature_name"]
+          id?: string
+          metadata?: Json | null
+          site_request_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          feature?: Database["public"]["Enums"]["feature_name"]
+          id?: string
+          metadata?: Json | null
+          site_request_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_analytics_site_request_id_fkey"
+            columns: ["site_request_id"]
+            isOneToOne: false
+            referencedRelation: "site_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_credits: {
         Row: {
           created_at: string
@@ -329,6 +485,48 @@ export type Database = {
           id?: string
           last_reset_at?: string | null
           stripe_customer_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          billing_period_end: string | null
+          billing_period_start: string | null
+          created_at: string
+          features_enabled: Json | null
+          id: string
+          monthly_quota_used: number | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          tier: Database["public"]["Enums"]["subscription_tier"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billing_period_end?: string | null
+          billing_period_start?: string | null
+          created_at?: string
+          features_enabled?: Json | null
+          id?: string
+          monthly_quota_used?: number | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier?: Database["public"]["Enums"]["subscription_tier"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billing_period_end?: string | null
+          billing_period_start?: string | null
+          created_at?: string
+          features_enabled?: Json | null
+          id?: string
+          monthly_quota_used?: number | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier?: Database["public"]["Enums"]["subscription_tier"]
           updated_at?: string
           user_id?: string
         }
@@ -380,7 +578,19 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      feature_name:
+        | "site_pack_generation"
+        | "three_d_preview"
+        | "ai_chat"
+        | "visualization_generation"
+        | "export_dxf"
+        | "export_glb"
+        | "export_pdf"
+        | "solar_analysis"
+        | "climate_data"
+        | "elevation_analysis"
       site_pack_status: "pending" | "processing" | "completed" | "failed"
+      subscription_tier: "free" | "pro" | "teams" | "enterprise"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -508,7 +718,20 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      feature_name: [
+        "site_pack_generation",
+        "three_d_preview",
+        "ai_chat",
+        "visualization_generation",
+        "export_dxf",
+        "export_glb",
+        "export_pdf",
+        "solar_analysis",
+        "climate_data",
+        "elevation_analysis",
+      ],
       site_pack_status: ["pending", "processing", "completed", "failed"],
+      subscription_tier: ["free", "pro", "teams", "enterprise"],
     },
   },
 } as const
