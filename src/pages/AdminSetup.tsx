@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, CheckCircle, XCircle, Loader2 } from 'lucide-react';
@@ -11,9 +12,18 @@ import Header from '@/components/Header';
 export default function AdminSetup() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { tier } = useAdminCheck();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [alreadyHasAdmin, setAlreadyHasAdmin] = useState(false);
+
+  useEffect(() => {
+    // Only Teams and Enterprise can become admin
+    if (user && tier && tier !== 'teams' && tier !== 'enterprise') {
+      toast.error('Admin features are only available on Teams and Enterprise plans');
+      navigate('/pricing');
+    }
+  }, [user, tier, navigate]);
 
   const handleBecomeAdmin = async () => {
     if (!user) {

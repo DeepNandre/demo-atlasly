@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Eye, EyeOff, Mail, Lock, Sparkles, Zap, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -41,15 +43,23 @@ const SiteIQLogo = ({ className }: { className?: string }) => (
   </div>
 );
 
+const tierInfo = {
+  free: { name: 'Free', icon: Sparkles, description: 'Perfect for students' },
+  pro: { name: 'Pro', icon: Zap, description: 'For professionals' },
+  teams: { name: 'Teams', icon: Users, description: 'For firms' },
+};
+
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, signIn, signUp } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(searchParams.get('mode') !== 'signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+  const [selectedTier, setSelectedTier] = useState(searchParams.get('tier') || 'free');
 
   useEffect(() => {
     if (user) {
@@ -75,7 +85,7 @@ const Auth = () => {
     try {
       const { error } = isLogin
         ? await signIn(email, password)
-        : await signUp(email, password);
+        : await signUp(email, password, selectedTier);
 
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
@@ -91,7 +101,8 @@ const Auth = () => {
       }
 
       if (!isLogin) {
-        toast.success('Account created successfully! You can now sign in.');
+        const tierName = tierInfo[selectedTier as keyof typeof tierInfo]?.name || 'Free';
+        toast.success(`Account created with ${tierName} plan! You can now sign in.`);
       } else {
         toast.success('Signed in successfully!');
         navigate('/dashboard');
@@ -105,7 +116,6 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      {/* Container with rounded corners and shadow */}
       <div className="w-full max-w-6xl mx-auto my-8 bg-white rounded-3xl shadow-2xl flex overflow-hidden">
         {/* Left Side - Form */}
         <div className="w-full lg:w-1/2 flex flex-col">
@@ -113,7 +123,7 @@ const Auth = () => {
           <div className="p-8 flex items-center justify-between">
             <SiteIQLogo className="text-primary" />
             <div className="text-sm text-muted-foreground">
-              Don't have an account?{' '}
+              {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
               <button
                 onClick={() => {
                   setIsLogin(!isLogin);
@@ -130,20 +140,60 @@ const Auth = () => {
           {/* Form Content */}
           <div className="flex-1 flex items-center justify-center px-8 pb-12">
             <div className="w-full max-w-sm space-y-6">
-              {/* Logo */}
-              <div className="flex justify-center">
-                <SiteIQLogo className="text-primary text-2xl" />
-              </div>
-
               {/* Title */}
               <div className="text-center space-y-2">
                 <h1 className="text-2xl font-semibold text-foreground">
                   {isLogin ? 'Login to your account' : 'Create your account'}
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  {isLogin ? 'Enter your details to login.' : 'Enter your details to sign up.'}
+                  {isLogin ? 'Enter your details to login.' : 'Choose your plan and get started.'}
                 </p>
               </div>
+
+              {/* Plan Selection (only for signup) */}
+              {!isLogin && (
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Select Plan</Label>
+                  <RadioGroup value={selectedTier} onValueChange={setSelectedTier}>
+                    {Object.entries(tierInfo).map(([key, info]) => {
+                      const Icon = info.icon;
+                      return (
+                        <div
+                          key={key}
+                          className={`flex items-center space-x-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                            selectedTier === key
+                              ? 'border-primary bg-primary/5'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => setSelectedTier(key)}
+                        >
+                          <RadioGroupItem value={key} id={key} />
+                          <Icon className="w-4 h-4 text-primary" />
+                          <div className="flex-1">
+                            <Label htmlFor={key} className="font-medium cursor-pointer">
+                              {info.name}
+                            </Label>
+                            <p className="text-xs text-muted-foreground">{info.description}</p>
+                          </div>
+                          {key === 'pro' && (
+                            <Badge variant="secondary" className="text-xs">
+                              Popular
+                            </Badge>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </RadioGroup>
+                  <Button
+                    variant="link"
+                    className="text-xs h-auto p-0"
+                    onClick={() => navigate('/pricing')}
+                    type="button"
+                  >
+                    View all plans and features →
+                  </Button>
+                </div>
+              )}
 
               {/* Google Sign In */}
               <Button
@@ -293,14 +343,6 @@ const Auth = () => {
           
           {/* Content */}
           <div className="relative z-10 w-full p-12 flex flex-col">
-            {/* Logo */}
-            <div className="flex items-center space-x-3 mb-8">
-              <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <div className="w-8 h-8 bg-white rounded-lg" />
-              </div>
-            </div>
-
-            {/* Main Content */}
             <div className="flex-1 flex flex-col justify-center space-y-6">
               <h2 className="text-4xl font-bold text-white">SITEIQ</h2>
               <p className="text-xl text-white/90 leading-relaxed">
@@ -308,7 +350,7 @@ const Auth = () => {
                 <span className="font-semibold text-white">easier.</span>
               </p>
 
-              {/* 3D Shield/Crystal Graphics */}
+              {/* 3D Shield Graphics */}
               <div className="mt-16 relative">
                 <div className="absolute inset-0 bg-gradient-radial from-white/20 via-white/10 to-transparent blur-2xl" />
                 <svg
@@ -317,7 +359,6 @@ const Auth = () => {
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  {/* Main Shield/Crystal Shape */}
                   <path
                     d="M200 40 L280 100 L300 180 L280 240 L200 280 L120 240 L100 180 L120 100 Z"
                     stroke="white"
@@ -325,40 +366,13 @@ const Auth = () => {
                     fill="url(#shield1)"
                     opacity="0.7"
                   />
-                  <path
-                    d="M200 60 L260 110 L275 160 L260 210 L200 250 L140 210 L125 160 L140 110 Z"
-                    stroke="white"
-                    strokeWidth="1.5"
-                    fill="url(#shield2)"
-                    opacity="0.6"
-                  />
-                  <path
-                    d="M200 80 L240 120 L250 160 L240 200 L200 220 L160 200 L150 160 L160 120 Z"
-                    stroke="white"
-                    strokeWidth="1"
-                    fill="url(#shield3)"
-                    opacity="0.5"
-                  />
-                  
-                  {/* Glow effects */}
                   <circle cx="200" cy="160" r="15" fill="white" opacity="0.8">
                     <animate attributeName="opacity" values="0.8;0.4;0.8" dur="2s" repeatCount="indefinite" />
                   </circle>
-                  
                   <defs>
                     <linearGradient id="shield1" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stopColor="rgba(255, 255, 255, 0.4)" />
-                      <stop offset="50%" stopColor="rgba(255, 255, 255, 0.2)" />
                       <stop offset="100%" stopColor="rgba(255, 255, 255, 0.1)" />
-                    </linearGradient>
-                    <linearGradient id="shield2" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="rgba(255, 255, 255, 0.3)" />
-                      <stop offset="50%" stopColor="rgba(255, 255, 255, 0.15)" />
-                      <stop offset="100%" stopColor="rgba(255, 255, 255, 0.05)" />
-                    </linearGradient>
-                    <linearGradient id="shield3" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="rgba(255, 255, 255, 0.2)" />
-                      <stop offset="100%" stopColor="rgba(255, 255, 255, 0.05)" />
                     </linearGradient>
                   </defs>
                 </svg>
@@ -373,20 +387,14 @@ const Auth = () => {
                   Sign up at{' '}
                   <a href="/" className="underline hover:text-white">
                     siteiq.app
-                  </a>{' '}
-                  to start using the app.
+                  </a>
                 </p>
               </div>
               <div className="space-y-2">
                 <h3 className="text-white font-semibold">Questions?</h3>
                 <p className="text-sm text-white/80">
-                  Reach us at{' '}
                   <a href="mailto:info@siteiq.app" className="underline hover:text-white">
                     info@siteiq.app
-                  </a>{' '}
-                  or call{' '}
-                  <a href="tel:+1234567890" className="underline hover:text-white">
-                    +1 234 567 890
                   </a>
                 </p>
               </div>

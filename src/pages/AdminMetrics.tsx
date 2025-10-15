@@ -5,6 +5,7 @@ import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 import Header from '@/components/Header';
 import { 
   TrendingUp, 
@@ -54,15 +55,21 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accen
 
 export default function AdminMetrics() {
   const navigate = useNavigate();
-  const { isAdmin, loading: adminLoading } = useAdminCheck();
+  const { canAccessAdmin, loading: adminLoading, tier } = useAdminCheck();
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!adminLoading && !isAdmin) {
-      navigate('/');
+    if (!adminLoading && !canAccessAdmin) {
+      if (tier === 'free' || tier === 'pro') {
+        toast.error('Admin features are only available on Teams and Enterprise plans');
+        navigate('/pricing');
+      } else {
+        toast.error('You do not have admin access');
+        navigate('/');
+      }
     }
-  }, [isAdmin, adminLoading, navigate]);
+  }, [canAccessAdmin, adminLoading, navigate, tier]);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -157,10 +164,10 @@ export default function AdminMetrics() {
       }
     };
 
-    if (isAdmin) {
+    if (canAccessAdmin) {
       fetchMetrics();
     }
-  }, [isAdmin]);
+  }, [canAccessAdmin]);
 
   if (adminLoading || loading) {
     return (

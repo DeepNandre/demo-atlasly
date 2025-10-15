@@ -95,6 +95,80 @@ This Phase 1 implementation lays the foundation for:
 
 ---
 
+## [2025-01-15] - Tier-Based Signup & Admin Access Control
+
+### 📋 What Changed
+- Created comprehensive pricing page with all 4 tiers
+- Implemented tier selection during signup (multi-step form)
+- Gated admin features by subscription tier (Teams/Enterprise only)
+- Updated admin access checks to verify both role AND tier
+- Added "Upgrade" button for Free/Pro users instead of admin access
+
+### 📁 Files Created/Modified
+
+**New Files:**
+- `src/pages/Pricing.tsx` - Public pricing page with all tiers and FAQ
+- Updated `src/pages/Auth.tsx` - Added tier selection during signup with radio group
+- Updated `src/hooks/useAdminCheck.ts` - Now checks both admin role and subscription tier
+
+**Modified Files:**
+- `src/contexts/AuthContext.tsx` - signUp now accepts optional tier parameter
+- `src/components/Header.tsx` - Shows "Admin Metrics" OR "Upgrade" button based on tier
+- `src/pages/AdminMetrics.tsx` - Redirects to pricing if user doesn't have Teams/Enterprise tier
+- `src/pages/AdminSetup.tsx` - Blocks non-Teams/Enterprise users from becoming admin
+- `src/App.tsx` - Added `/pricing` route
+
+### 🗄️ Database Changes
+
+**Migration:** Updated `handle_new_user_subscription` trigger
+
+**Changes:**
+- Trigger now reads `subscription_tier` from user metadata during signup
+- Automatically assigns correct features based on selected tier
+- Supports all 4 tiers: free, pro, teams, enterprise
+- Features are now properly set based on tier selection
+
+**Tier Features:**
+- **Free**: 2 packs/mo, 500m radius, PDF only
+- **Pro**: 20 packs/mo, 2km radius, all formats
+- **Teams**: Unlimited packs, portfolio, API (10k calls/mo), admin access
+- **Enterprise**: Unlimited everything, custom API limits
+
+### 🎯 User Flow
+
+**Signup Flow:**
+1. User visits `/pricing` and clicks "Get Started" on any tier
+2. Redirected to `/auth?tier=pro&mode=signup` (tier pre-selected)
+3. Sees tier selection with Free/Pro/Teams options
+4. Enters email/password
+5. Account created with selected tier
+6. Subscription record automatically created with correct features
+
+**Admin Access:**
+- Free/Pro users: See "Upgrade" button, cannot access admin features
+- Teams/Enterprise users: Can use `/admin/setup` to become admin
+- First Teams/Enterprise user becomes admin → can access Admin Metrics
+
+### 🔄 Sync Instructions
+
+```bash
+# Pull latest code
+git pull origin main
+
+# Migration already applied to Lovable Cloud
+# If using local Supabase:
+supabase db push
+```
+
+### 💡 Context
+Implemented tier-based access control so admin features are properly gated for Teams/Enterprise customers only. Free and Pro users get a clear upgrade path via the pricing page, while Teams/Enterprise users can become admins and access business analytics.
+
+### ⚠️ Breaking Changes
+- Admin access now requires BOTH admin role AND teams/enterprise tier
+- Free/Pro users can no longer access admin features even if they have the role
+
+---
+
 ## [2025-01-15] - Admin Setup System
 
 ### 📋 What Changed

@@ -7,7 +7,7 @@ import { useAdminCheck } from "@/hooks/useAdminCheck";
 const Header = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { isAdmin } = useAdminCheck();
+  const { canAccessAdmin, tier } = useAdminCheck();
 
   const handleSignOut = async () => {
     await signOut();
@@ -48,9 +48,13 @@ const Header = () => {
                 <Button variant="outline" size="default" onClick={() => navigate('/dashboard')}>
                   Dashboard
                 </Button>
-                {isAdmin && (
+                {canAccessAdmin ? (
                   <Button variant="outline" size="default" onClick={() => navigate('/admin/metrics')}>
                     Admin Metrics
+                  </Button>
+                ) : (tier === 'free' || tier === 'pro') && (
+                  <Button variant="outline" size="default" onClick={() => navigate('/pricing')}>
+                    Upgrade
                   </Button>
                 )}
                 <Button variant="ghost" size="default" onClick={handleSignOut}>

@@ -13,6 +13,7 @@ import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import AdminMetrics from "./pages/AdminMetrics";
 import AdminSetup from "./pages/AdminSetup";
+import Pricing from "./pages/Pricing";
 import Explore from "./pages/Explore";
 import SiteAI from "./pages/SiteAI";
 import NotFound from "./pages/NotFound";
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/generate" element={<Generate />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route
               path="/dashboard"
               element={
