@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, RefreshCw, Plus, ArrowLeft, Box, Trash2, MessageSquare, Crown, TrendingUp } from 'lucide-react';
+import { Download, RefreshCw, Plus, ArrowLeft, Box, Trash2, MessageSquare, Crown, TrendingUp, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,8 @@ import { Progress } from '@/components/ui/progress';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MigrationModal } from '@/components/MigrationModal';
 import { SiteChat } from '@/components/SiteChat';
+import { APIKeyManager } from '@/components/APIKeyManager';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getClientId } from '@/lib/clientId';
@@ -252,7 +254,7 @@ const Dashboard = () => {
           <div className="space-y-4">
             <h1 className="text-5xl md:text-6xl font-serif font-bold">Dashboard</h1>
             <p className="text-lg text-muted-foreground">
-              Track and download your site pack requests
+              Manage your projects and API access
             </p>
           </div>
 
@@ -315,147 +317,166 @@ const Dashboard = () => {
             </div>
           )}
 
-          {loading ? (
-            <Card className="p-12 text-center">
-              <div className="animate-pulse space-y-4">
-                <div className="h-4 bg-muted rounded w-3/4 mx-auto"></div>
-                <div className="h-4 bg-muted rounded w-1/2 mx-auto"></div>
-              </div>
-            </Card>
-          ) : requests.length === 0 ? (
-            <Card className="p-12 text-center space-y-6">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                <Plus className="w-8 h-8 text-primary" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-serif font-semibold">No Site Packs Yet</h2>
-                <p className="text-muted-foreground">
-                  Create your first site pack to get started
-                </p>
-              </div>
-              <Button onClick={() => navigate('/generate')} size="lg" className="gap-2">
-                <Plus className="w-4 h-4" />
-                Create Site Pack
-              </Button>
-            </Card>
-          ) : (
-            <Card className="overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Area</TableHead>
-                    <TableHead>Exports</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Progress</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {requests.map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell className="font-medium">
-                        {request.location_name}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(request.created_at)}
-                      </TableCell>
-                      <TableCell>
-                        {(request.area_sqm / 10000).toFixed(2)} ha
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        <div className="max-w-[200px] truncate" title={getExportFormats(request)}>
-                          {getExportFormats(request)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={request.status} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Progress value={request.progress || 0} className="h-2 w-20" />
-                          <span className="text-sm text-muted-foreground">
-                            {request.progress || 0}%
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="space-y-2">
-                          <div className="flex justify-end gap-2">
-                            {request.status === 'completed' && (
-                              <>
-                                <Button
-                                  asChild
-                                  size="sm"
-                                  variant="outline"
-                                >
-                                  <a href={`/preview/${request.id}`}>
-                                    <Box className="w-4 h-4 mr-1" />
-                                    View 3D
-                                  </a>
-                                </Button>
-                                {request.file_url && (
-                                  <Button asChild size="sm" variant="default">
-                                    <a href={request.file_url} download>
-                                      <Download className="w-4 h-4 mr-1" />
-                                      Download
-                                    </a>
+          <Tabs defaultValue="projects" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="projects" className="gap-2">
+                <Box className="w-4 h-4" />
+                Projects
+              </TabsTrigger>
+              <TabsTrigger value="api" className="gap-2">
+                <Key className="w-4 h-4" />
+                API Access
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="projects" className="space-y-6">
+              {loading ? (
+                <Card className="p-12 text-center">
+                  <div className="animate-pulse space-y-4">
+                    <div className="h-4 bg-muted rounded w-3/4 mx-auto"></div>
+                    <div className="h-4 bg-muted rounded w-1/2 mx-auto"></div>
+                  </div>
+                </Card>
+              ) : requests.length === 0 ? (
+                <Card className="p-12 text-center space-y-6">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                    <Plus className="w-8 h-8 text-primary" />
+                  </div>
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-serif font-semibold">No Site Packs Yet</h2>
+                    <p className="text-muted-foreground">
+                      Create your first site pack to get started
+                    </p>
+                  </div>
+                  <Button onClick={() => navigate('/generate')} size="lg" className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Create Site Pack
+                  </Button>
+                </Card>
+              ) : (
+                <Card className="overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Area</TableHead>
+                        <TableHead>Exports</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Progress</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {requests.map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell className="font-medium">
+                            {request.location_name}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {formatDate(request.created_at)}
+                          </TableCell>
+                          <TableCell>
+                            {(request.area_sqm / 10000).toFixed(2)} ha
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            <div className="max-w-[200px] truncate" title={getExportFormats(request)}>
+                              {getExportFormats(request)}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={request.status} />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Progress value={request.progress || 0} className="h-2 w-20" />
+                              <span className="text-sm text-muted-foreground">
+                                {request.progress || 0}%
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="space-y-2">
+                              <div className="flex justify-end gap-2">
+                                {request.status === 'completed' && (
+                                  <>
+                                    <Button
+                                      asChild
+                                      size="sm"
+                                      variant="outline"
+                                    >
+                                      <a href={`/preview/${request.id}`}>
+                                        <Box className="w-4 h-4 mr-1" />
+                                        View 3D
+                                      </a>
+                                    </Button>
+                                    {request.file_url && (
+                                      <Button asChild size="sm" variant="default">
+                                        <a href={request.file_url} download>
+                                          <Download className="w-4 h-4 mr-1" />
+                                          Download
+                                        </a>
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                                {request.status === 'failed' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleRetry(request.id)}
+                                    disabled={processingIds.has(request.id)}
+                                  >
+                                    <RefreshCw
+                                      className={`w-4 h-4 mr-1 ${
+                                        processingIds.has(request.id) ? 'animate-spin' : ''
+                                      }`}
+                                    />
+                                    Retry
                                   </Button>
                                 )}
-                              </>
-                            )}
-                            {request.status === 'failed' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleRetry(request.id)}
-                                disabled={processingIds.has(request.id)}
-                              >
-                                <RefreshCw
-                                  className={`w-4 h-4 mr-1 ${
-                                    processingIds.has(request.id) ? 'animate-spin' : ''
-                                  }`}
-                                />
-                                Retry
-                              </Button>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setChatSiteId(request.id);
-                                setChatLocationName(request.location_name);
-                              }}
-                            >
-                              <MessageSquare className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => openDeleteDialog(request.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                          {request.status === 'completed' && request.zip_size_bytes && (
-                            <div className="text-xs text-muted-foreground text-right">
-                              <div>{(request.zip_size_bytes / 1024 / 1024).toFixed(2)} MB · {request.file_count} files</div>
-                              {request.zip_sha256 && (
-                                <div className="font-mono text-[10px] truncate" title={request.zip_sha256}>
-                                  SHA256: {request.zip_sha256.substring(0, 16)}...
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setChatSiteId(request.id);
+                                    setChatLocationName(request.location_name);
+                                  }}
+                                >
+                                  <MessageSquare className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => openDeleteDialog(request.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              {request.status === 'completed' && request.zip_size_bytes && (
+                                <div className="text-xs text-muted-foreground text-right">
+                                  <div>{(request.zip_size_bytes / 1024 / 1024).toFixed(2)} MB · {request.file_count} files</div>
+                                  {request.zip_sha256 && (
+                                    <div className="font-mono text-[10px] truncate" title={request.zip_sha256}>
+                                      SHA256: {request.zip_sha256.substring(0, 16)}...
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="api">
+              <APIKeyManager />
+            </TabsContent>
+          </Tabs>
 
           {requests.length > 0 && (
             <div className="text-center text-sm text-muted-foreground">
