@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.api-analyze-site]
 verify_jwt = false
 
+[functions.api-get-site-status]
+verify_jwt = false
+
 [functions.chat]
 verify_jwt = true
 

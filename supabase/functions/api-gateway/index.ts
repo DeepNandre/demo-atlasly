@@ -77,7 +77,7 @@ serve(async (req) => {
     // Route to appropriate handler
     let response: Response;
     
-    if (endpoint.startsWith('/v1/analyze-site')) {
+    if (endpoint.startsWith('/v1/analyze-site') && req.method === 'POST') {
       // Forward to analyze-site function
       const { data, error } = await supabase.functions.invoke('api-analyze-site', {
         body: await req.json(),
@@ -88,6 +88,21 @@ serve(async (req) => {
 
       if (error) throw error;
       
+      response = new Response(
+        JSON.stringify(data),
+        { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } else if (endpoint.match(/^\/v1\/site\/[a-f0-9-]+$/) && req.method === 'GET') {
+      // Get site status
+      const { data, error } = await supabase.functions.invoke('api-get-site-status', {
+        body: {},
+        headers: {
+          'x-user-id': apiKeyData.user_id,
+        }
+      });
+
+      if (error) throw error;
+
       response = new Response(
         JSON.stringify(data),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -109,7 +124,14 @@ serve(async (req) => {
       );
     } else {
       response = new Response(
-        JSON.stringify({ error: 'Endpoint not found', available_endpoints: ['/v1/analyze-site', '/v1/chat'] }),
+        JSON.stringify({ 
+          error: 'Endpoint not found', 
+          available_endpoints: [
+            'POST /v1/analyze-site',
+            'GET /v1/site/{id}',
+            'POST /v1/chat'
+          ] 
+        }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

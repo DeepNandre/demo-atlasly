@@ -47,7 +47,7 @@ const APIShowcase = () => {
           <div className="space-y-8">
             <div className="space-y-4">
               <div className="inline-block px-4 py-1.5 bg-primary-foreground/10 rounded-full border border-primary-foreground/20">
-                <span className="text-sm font-medium">Coming Soon</span>
+                <span className="text-sm font-medium">Now Available</span>
               </div>
               <h2 className="text-5xl md:text-6xl font-serif font-bold leading-tight">
                 API Platform for Developers
@@ -86,7 +86,7 @@ const APIShowcase = () => {
               className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
               onClick={() => window.location.href = '/dashboard'}
             >
-              Join API Waitlist
+              Get Started
               <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </div>
