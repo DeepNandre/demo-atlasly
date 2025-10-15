@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { DXFBuilder } from '../_shared/dxfExport.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -109,43 +110,55 @@ Deno.serve(async (req) => {
 });
 
 function generateDXF(contours: any, boundary: any, summary?: any): string {
-  // Simplified DXF header with metadata
-  let dxf = `0\nSECTION\n2\nHEADER\n`;
+  console.log('📐 Generating professional DXF with 3D contours...');
   
-  // Add metadata comments
+  const dxf = new DXFBuilder({ units: 'meters', precision: 6 });
+  
+  // Add layer
+  dxf.addLayer({ name: 'CONTOURS', color: 8 }); // Gray
+  dxf.addLayer({ name: 'BOUNDARY', color: 7 }); // White
+  
+  // Add metadata
   if (summary) {
-    dxf += `999\nReal Terrain Data\n`;
-    dxf += `999\nProvider: ${summary.provider || 'Unknown'}\n`;
-    dxf += `999\nAccuracy: ±${summary.accuracy?.verticalErrorM || '?'}m vertical\n`;
-    dxf += `999\nElevation Range: ${summary.min_m?.toFixed(1)}m - ${summary.max_m?.toFixed(1)}m\n`;
+    dxf.setMetadata('provider', summary.provider || 'Unknown');
+    dxf.setMetadata('accuracy_m', summary.accuracy?.verticalErrorM?.toString() || 'Unknown');
+    dxf.setMetadata('elevation_min_m', summary.min_m?.toFixed(1) || '?');
+    dxf.setMetadata('elevation_max_m', summary.max_m?.toFixed(1) || '?');
+    dxf.setMetadata('elevation_range_m', summary.range_m?.toFixed(1) || '?');
   }
   
-  dxf += `0\nENDSEC\n`;
-  dxf += `0\nSECTION\n2\nENTITIES\n`;
-
-  // Add boundary as POLYLINE
+  // Add boundary
   if (boundary?.coordinates?.[0]) {
-    dxf += `0\nPOLYLINE\n8\nBOUNDARY\n62\n1\n70\n1\n`;
-    boundary.coordinates[0].forEach((coord: number[]) => {
-      dxf += `0\nVERTEX\n8\nBOUNDARY\n10\n${coord[0]}\n20\n${coord[1]}\n`;
+    const coords = boundary.coordinates[0].map((c: number[]) => ({ x: c[0], y: c[1], z: 0 }));
+    dxf.addEntity({
+      type: 'LWPOLYLINE',
+      layer: 'BOUNDARY',
+      vertices: coords,
+      closed: true
     });
-    dxf += `0\nSEQEND\n`;
   }
-
-  // Add contours as LINEs
+  
+  // Add contours as 3D polylines
+  let contourCount = 0;
   contours.features?.forEach((feature: any) => {
     const elevation = feature.properties.elevation;
-    const layer = `CONTOURS_${elevation}M`;
     const coords = feature.geometry.coordinates;
-
-    for (let i = 0; i < coords.length - 1; i++) {
-      dxf += `0\nLINE\n8\n${layer}\n10\n${coords[i][0]}\n20\n${coords[i][1]}\n30\n${elevation}\n`;
-      dxf += `11\n${coords[i + 1][0]}\n21\n${coords[i + 1][1]}\n31\n${elevation}\n`;
+    
+    if (coords && coords.length > 1) {
+      const vertices = coords.map((c: number[]) => ({ x: c[0], y: c[1], z: elevation }));
+      dxf.addEntity({
+        type: 'POLYLINE',
+        layer: 'CONTOURS',
+        vertices,
+        closed: false
+      });
+      contourCount++;
     }
   });
-
-  dxf += `0\nENDSEC\n0\nEOF\n`;
-  return dxf;
+  
+  console.log(`✅ DXF generated with ${contourCount} contour lines`);
+  
+  return dxf.build();
 }
 
 async function generatePDF(

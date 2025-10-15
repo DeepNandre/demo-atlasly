@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { generateContours, simplifyContour } from '../_shared/contourGeneration.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -89,32 +90,45 @@ Deno.serve(async (req) => {
       pct: aspectBins[i] / aspects.length,
     }));
 
-    // Generate contours using marching squares
+    // Generate contours using professional marching squares algorithm
     console.log(`🗺️ Generating contours at ${contourInterval}m intervals`);
     
+    // Convert to standard grid format
+    const gridForContours = {
+      values,
+      nx,
+      ny,
+      xMin: bbox.west,
+      xMax: bbox.east,
+      yMin: bbox.south,
+      yMax: bbox.north
+    };
+    
+    const contours = generateContours(gridForContours, contourInterval, min_m, max_m);
+    
     const contourFeatures: any[] = [];
-    const minContour = Math.ceil(min_m / contourInterval) * contourInterval;
-    const maxContour = Math.floor(max_m / contourInterval) * contourInterval;
-
-    for (let elevation = minContour; elevation <= maxContour; elevation += contourInterval) {
-      const segments = marchingSquares(values, resolution, bbox, elevation);
-      
-      segments.forEach(coords => {
+    for (const contour of contours) {
+      for (const segment of contour.segments) {
+        // Simplify the contour to reduce file size
+        const simplified = simplifyContour(segment, 0.0001); // ~11m tolerance
+        
         contourFeatures.push({
           type: 'Feature',
           properties: {
-            elevation: elevation,
+            elevation: contour.elevation,
             units: 'm',
+            points: segment.length,
+            simplified: simplified.length
           },
           geometry: {
             type: 'LineString',
-            coordinates: coords,
+            coordinates: simplified.map(p => [p.x, p.y]),
           },
         });
-      });
+      }
     }
 
-    console.log(`✅ Generated ${contourFeatures.length} contour lines`);
+    console.log(`✅ Generated ${contourFeatures.length} contour lines from ${contours.length} elevations`);
 
     const result = {
       summary: {
@@ -147,93 +161,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
-// Improved marching squares implementation for better contour quality
-function marchingSquares(
-  values: number[][],
-  resolution: { nx: number; ny: number },
-  bbox: { west: number; south: number; east: number; north: number },
-  threshold: number
-): number[][][] {
-  const { nx, ny } = resolution;
-  const dx = (bbox.east - bbox.west) / (nx - 1);
-  const dy = (bbox.north - bbox.south) / (ny - 1);
-  
-  const segments: number[][][] = [];
-
-  for (let j = 0; j < ny - 1; j++) {
-    for (let i = 0; i < nx - 1; i++) {
-      const v00 = values[j][i] || 0;
-      const v10 = values[j][i + 1] || 0;
-      const v01 = values[j + 1][i] || 0;
-      const v11 = values[j + 1][i + 1] || 0;
-
-      // Skip if any corner is invalid
-      if (v00 === 0 || v10 === 0 || v01 === 0 || v11 === 0) continue;
-
-      // Calculate case (4-bit configuration)
-      let caseIndex = 0;
-      if (v00 >= threshold) caseIndex |= 1;
-      if (v10 >= threshold) caseIndex |= 2;
-      if (v11 >= threshold) caseIndex |= 4;
-      if (v01 >= threshold) caseIndex |= 8;
-
-      if (caseIndex === 0 || caseIndex === 15) continue; // All same side
-
-      // Cell corners in geographic coordinates
-      const x0 = bbox.west + i * dx;
-      const y0 = bbox.south + j * dy;
-      const x1 = x0 + dx;
-      const y1 = y0 + dy;
-
-      // Linear interpolation helper
-      const lerp = (a: number, b: number, t: number) => a + (t - a) / (b - a) * (b - a);
-      
-      // Edge midpoints with interpolation
-      const edges: { [key: string]: [number, number] } = {};
-      
-      // Top edge (v00 - v10)
-      if ((v00 >= threshold) !== (v10 >= threshold)) {
-        const t = (threshold - v00) / (v10 - v00);
-        edges.top = [x0 + t * dx, y0];
-      }
-      
-      // Right edge (v10 - v11)
-      if ((v10 >= threshold) !== (v11 >= threshold)) {
-        const t = (threshold - v10) / (v11 - v10);
-        edges.right = [x1, y0 + t * dy];
-      }
-      
-      // Bottom edge (v01 - v11)
-      if ((v01 >= threshold) !== (v11 >= threshold)) {
-        const t = (threshold - v01) / (v11 - v01);
-        edges.bottom = [x0 + t * dx, y1];
-      }
-      
-      // Left edge (v00 - v01)
-      if ((v00 >= threshold) !== (v01 >= threshold)) {
-        const t = (threshold - v00) / (v01 - v00);
-        edges.left = [x0, y0 + t * dy];
-      }
-
-      // Create line segments based on marching squares lookup table
-      const edgeKeys = Object.keys(edges);
-      if (edgeKeys.length === 2) {
-        const [e1, e2] = edgeKeys;
-        segments.push([edges[e1], edges[e2]]);
-      } else if (edgeKeys.length === 4) {
-        // Saddle case - use center point
-        const centerVal = (v00 + v10 + v11 + v01) / 4;
-        if (centerVal >= threshold) {
-          segments.push([edges.top, edges.right]);
-          segments.push([edges.bottom, edges.left]);
-        } else {
-          segments.push([edges.top, edges.left]);
-          segments.push([edges.right, edges.bottom]);
-        }
-      }
-    }
-  }
-
-  return segments;
-}
