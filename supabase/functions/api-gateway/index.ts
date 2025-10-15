@@ -93,9 +93,10 @@ serve(async (req) => {
         { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else if (endpoint.match(/^\/v1\/site\/[a-f0-9-]+$/) && req.method === 'GET') {
-      // Get site status
+      // Get site status - pass the siteRequestId in the URL
+      const siteRequestId = endpoint.split('/').pop();
       const { data, error } = await supabase.functions.invoke('api-get-site-status', {
-        body: {},
+        body: { site_request_id: siteRequestId },
         headers: {
           'x-user-id': apiKeyData.user_id,
         }

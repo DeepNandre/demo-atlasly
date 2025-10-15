@@ -58,10 +58,9 @@ export function APIKeyManager() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Generate a random API key
       const apiKey = `sk_${crypto.randomUUID().replace(/-/g, '')}`;
       
-      // Hash the key for storage
+      // Hash the key for storage using Web Crypto API
       const encoder = new TextEncoder();
       const data = encoder.encode(apiKey);
       const hashBuffer = await crypto.subtle.digest('SHA-256', data);

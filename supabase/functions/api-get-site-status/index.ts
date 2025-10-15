@@ -12,13 +12,12 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const siteRequestId = url.pathname.split('/').pop();
+    const { site_request_id } = await req.json();
     const userId = req.headers.get('x-user-id');
 
-    if (!siteRequestId) {
+    if (!site_request_id) {
       return new Response(
-        JSON.stringify({ error: 'site_request_id is required' }),
+        JSON.stringify({ error: 'site_request_id is required in request body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -32,7 +31,7 @@ serve(async (req) => {
     const { data: siteRequest, error } = await supabase
       .from('site_requests')
       .select('id, status, progress, location_name, center_lat, center_lng, radius_meters, file_url, preview_image_url, error_message, created_at, completed_at')
-      .eq('id', siteRequestId)
+      .eq('id', site_request_id)
       .eq('user_id', userId)
       .maybeSingle();
 

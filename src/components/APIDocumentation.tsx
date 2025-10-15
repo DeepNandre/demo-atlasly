@@ -185,7 +185,27 @@ export function APIDocumentation() {
 );
 
 const data = await response.json();
-console.log(data.site_request_id);`}
+console.log('Site Request ID:', data.site_request_id);
+
+// Poll for completion
+const checkStatus = async () => {
+  const statusRes = await fetch(
+    \`\${baseUrl}/functions/v1/api-gateway/v1/site/\${data.site_request_id}\`,
+    {
+      headers: { 'X-API-Key': 'sk_your_api_key' }
+    }
+  );
+  return statusRes.json();
+};
+
+// Check status every 5 seconds
+const pollInterval = setInterval(async () => {
+  const status = await checkStatus();
+  if (status.status === 'completed') {
+    console.log('Download URL:', status.file_url);
+    clearInterval(pollInterval);
+  }
+}, 5000);`}
                   </pre>
                   <Button
                     size="sm"
