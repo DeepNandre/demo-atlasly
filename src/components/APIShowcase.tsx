@@ -1,116 +1,94 @@
-import { Code, Zap, Shield, TrendingUp } from "lucide-react";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Code2, Rocket, Workflow, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const APIShowcase = () => {
   const features = [
     {
-      icon: Zap,
-      title: "Lightning Fast",
-      description: "Generate comprehensive site analysis in under 30 seconds via RESTful API"
+      icon: Code2,
+      title: "RESTful API",
+      description: "Simple HTTP requests return JSON. Authentication via API keys."
     },
     {
-      icon: Shield,
-      title: "Secure & Reliable",
-      description: "Enterprise-grade authentication with rate limiting and usage tracking"
+      icon: Workflow,
+      title: "Webhook Ready",
+      description: "Get notified when analysis completes. Perfect for async workflows."
     },
     {
-      icon: Code,
-      title: "Developer First",
-      description: "Clean REST API with comprehensive docs, code examples, and SDKs"
-    },
-    {
-      icon: TrendingUp,
-      title: "Usage-Based Pricing",
-      description: "Pay only for what you use. Scale from prototype to millions of requests"
+      icon: Rocket,
+      title: "Enterprise Scale",
+      description: "Usage-based pricing. Dedicated support and custom SLAs available."
     }
   ];
 
-  const codeExample = `const response = await fetch(
-  'https://api.siteiq.com/v1/analyze-site',
-  {
-    method: 'POST',
-    headers: {
-      'X-API-Key': 'sk_your_api_key',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      latitude: 37.7749,
-      longitude: -122.4194,
-      radius: 500
-    })
-  }
-);
-
-const { site_request_id } = await response.json();
-// Returns: terrain, solar, climate, feasibility`;
+  const codeExample = `curl -X POST https://api.siteiq.com/analyze \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "latitude": 37.7749,
+    "longitude": -122.4194,
+    "include": ["terrain", "solar", "climate"]
+  }'`;
 
   return (
-    <section className="py-24 px-6 bg-gradient-to-b from-background to-muted/20">
+    <section id="api" className="py-32 px-6 bg-primary text-primary-foreground">
       <div className="container mx-auto max-w-6xl">
-        <div className="text-center mb-16 space-y-4">
-          <Badge className="mb-4">Coming Soon</Badge>
-          <h2 className="text-5xl md:text-6xl font-serif font-bold">
-            API for Developers
-          </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Integrate geospatial intelligence into your applications. Build the next generation 
-            of construction tech, real estate platforms, and planning tools.
-          </p>
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-12 items-center mb-16">
-          <div className="space-y-6">
-            <div className="bg-card border border-border rounded-lg p-6">
-              <pre className="text-sm overflow-x-auto">
-                <code className="text-muted-foreground">{codeExample}</code>
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="space-y-12">
+            <div className="space-y-6">
+              <div className="inline-block px-4 py-1.5 bg-primary-foreground/10 rounded-full">
+                <span className="text-sm font-medium">Coming Soon</span>
+              </div>
+              <h2 className="text-5xl md:text-6xl font-serif font-bold leading-tight">
+                API Platform for Developers
+              </h2>
+              <p className="text-xl opacity-90 font-light leading-relaxed">
+                Integrate geospatial intelligence directly into your construction tech platform or workflow automation.
+              </p>
+            </div>
+            
+            <div className="space-y-8">
+              {features.map((feature, index) => {
+                const Icon = feature.icon;
+                return (
+                  <div key={index} className="flex gap-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 rounded-lg bg-primary-foreground/10 flex items-center justify-center">
+                        <Icon className="w-6 h-6" strokeWidth={1.5} />
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-serif font-semibold mb-2">
+                        {feature.title}
+                      </h3>
+                      <p className="opacity-90 font-light">
+                        {feature.description}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <Button 
+              variant="secondary" 
+              size="lg"
+              className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+              onClick={() => window.location.href = '/dashboard'}
+            >
+              Join API Waitlist
+              <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </div>
+          
+          <div className="lg:order-first">
+            <div className="bg-primary-foreground/5 backdrop-blur-sm rounded-2xl p-8 border border-primary-foreground/10">
+              <pre className="text-sm font-mono overflow-x-auto">
+                <code className="text-primary-foreground/90 whitespace-pre">
+                  {codeExample}
+                </code>
               </pre>
             </div>
-            <div className="flex gap-3">
-              <Button variant="outline" size="lg" onClick={() => window.location.href = '/dashboard'}>
-                Get API Access
-              </Button>
-              <Button variant="ghost" size="lg">
-                View Documentation →
-              </Button>
-            </div>
           </div>
-
-          <div className="grid gap-6">
-            {features.map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <Card key={index} className="border-border/50">
-                  <CardHeader>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <Icon className="w-6 h-6 text-primary" />
-                      </div>
-                      <CardTitle className="text-xl">{feature.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-base">
-                      {feature.description}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="bg-muted/50 border border-border rounded-2xl p-8 text-center">
-          <h3 className="text-2xl font-serif font-bold mb-4">
-            Become an Early Adopter
-          </h3>
-          <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-            Join our API beta program and get free credits, priority support, and influence on our roadmap.
-          </p>
-          <Button size="lg" onClick={() => window.location.href = '/dashboard'}>
-            Request API Access
-          </Button>
         </div>
       </div>
     </section>

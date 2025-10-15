@@ -1,58 +1,52 @@
-import { Zap, Database, Shield, Code } from "lucide-react";
-
-const differentiators = [
-  {
-    icon: Zap,
-    title: "10x Faster",
-    description: "What takes weeks of manual work happens in under 30 seconds. Automated data fusion from multiple geospatial sources."
-  },
-  {
-    icon: Database,
-    title: "Proprietary Dataset",
-    description: "Every analysis trains our AI. 10,000+ sites analyzed means better predictions for your next project."
-  },
-  {
-    icon: Shield,
-    title: "Predictive Intelligence",
-    description: "Feasibility scoring, cost estimates, permit probability, and climate risk projections in one platform."
-  },
-  {
-    icon: Code,
-    title: "API-First Platform",
-    description: "Integrate geospatial intelligence into your apps. Developer docs, SDKs, and usage-based pricing."
-  }
-];
+import { Target, Globe, Layers, Clock } from "lucide-react";
 
 const Differentiators = () => {
+  const differentiators = [
+    {
+      icon: Target,
+      title: "Purpose-Built",
+      description: "Designed specifically for architects and developers—not a generic mapping tool with feasibility as an afterthought."
+    },
+    {
+      icon: Globe,
+      title: "Global Coverage",
+      description: "Analyze any site worldwide with data fusion from multiple authoritative sources across all continents."
+    },
+    {
+      icon: Layers,
+      title: "Multi-Format Export",
+      description: "DXF, GeoTIFF, PDF, GLB, and more. Import directly into your CAD or BIM workflow."
+    },
+    {
+      icon: Clock,
+      title: "30-Second Analysis",
+      description: "What takes 2-4 weeks manually now happens in seconds. Focus on design, not data gathering."
+    }
+  ];
+
   return (
-    <section id="differentiators" className="py-24 px-6 bg-muted/20">
-      <div className="container mx-auto max-w-5xl">
-        <div className="text-center mb-20">
-          <h2 className="text-5xl md:text-6xl font-serif font-bold leading-tight">
-            Why SiteIQ Wins
+    <section id="differentiators" className="py-32 px-6 bg-background">
+      <div className="container mx-auto max-w-6xl">
+        <div className="text-center mb-20 space-y-6">
+          <h2 className="text-5xl md:text-6xl font-serif font-bold">
+            What Sets Us Apart
           </h2>
         </div>
         
-        <div className="grid md:grid-cols-2 gap-8">
-          {differentiators.map((point, index) => {
-            const IconComponent = point.icon;
-            
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12">
+          {differentiators.map((item, index) => {
+            const Icon = item.icon;
             return (
-              <div
-                key={index}
-                className="flex items-start gap-6 p-8 rounded-2xl bg-card border border-border/50 hover:shadow-soft transition-all duration-300"
-              >
-                <div className="w-14 h-14 bg-muted/50 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <IconComponent className="w-6 h-6 text-foreground" strokeWidth={1.5} />
+              <div key={index} className="text-center space-y-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-2">
+                  <Icon className="w-8 h-8 text-primary" strokeWidth={1.5} />
                 </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-serif font-bold">
-                    {point.title}
-                  </h3>
-                  <p className="text-muted-foreground text-lg leading-relaxed">
-                    {point.description}
-                  </p>
-                </div>
+                <h3 className="text-xl font-serif font-semibold">
+                  {item.title}
+                </h3>
+                <p className="text-muted-foreground font-light leading-relaxed">
+                  {item.description}
+                </p>
               </div>
             );
           })}
