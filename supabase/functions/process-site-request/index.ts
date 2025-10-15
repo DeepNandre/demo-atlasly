@@ -1,10 +1,11 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.74.0';
 import JSZip from 'https://esm.sh/jszip@3.10.1';
-import { geojsonToDXF } from '../_shared/dxfExport.ts';
+import { geojsonToDXF, DXFBuilder } from '../_shared/dxfExport.ts';
 import { createGLBFromScene } from '../_shared/glbExport.ts';
 import { createSitePlanPDF } from '../_shared/pdfExport.ts';
 import { createColladaFromScene } from '../_shared/colladaExport.ts';
+import { generateContours, simplifyContour, type ElevationGrid } from '../_shared/contourGeneration.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -538,6 +539,21 @@ async function createExportFiles(request: any, osmData: any, elevationData: any)
   }
   if (elevationData?.features?.length > 0) {
     files.set('geojson/terrain.geojson', encoder.encode(JSON.stringify(elevationData, null, 2)));
+    
+    // Generate contour lines from elevation data
+    try {
+      const contoursGeoJSON = generateContoursFromElevation(elevationData, request);
+      if (contoursGeoJSON) {
+        files.set('geojson/contours.geojson', encoder.encode(JSON.stringify(contoursGeoJSON, null, 2)));
+        
+        // Also generate contour DXF export
+        const contourDXF = generateContourDXF(contoursGeoJSON, request);
+        files.set('exports/contours.dxf', encoder.encode(contourDXF));
+        console.log('✅ Contours generated and exported');
+      }
+    } catch (error) {
+      console.error('❌ Contour generation failed:', error);
+    }
   }
 
   // DXF export
@@ -1002,6 +1018,136 @@ async function createGLB(osmData: any, elevationData: any): Promise<Uint8Array> 
   console.log(`✅ GLB: ${buildings.length} buildings, terrain: ${terrain ? 'yes' : 'no'}`);
   
   return createGLBFromScene({ buildings, terrain });
+}
+
+/**
+ * Generate contour lines from elevation point data
+ */
+function generateContoursFromElevation(elevationData: any, request: any): any {
+  const features = elevationData.features || [];
+  if (features.length === 0) return null;
+
+  console.log('📊 Generating contours from', features.length, 'elevation points');
+
+  // Build elevation grid
+  const lons = features.map((f: any) => f.geometry.coordinates[0]);
+  const lats = features.map((f: any) => f.geometry.coordinates[1]);
+  const elevs = features.map((f: any) => f.properties.elevation);
+
+  const minLon = Math.min(...lons);
+  const maxLon = Math.max(...lons);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minElev = Math.min(...elevs);
+  const maxElev = Math.max(...elevs);
+
+  // Create grid from point data
+  const gridSize = 21; // 21x21 grid
+  const grid: number[][] = Array(gridSize).fill(0).map(() => Array(gridSize).fill(NaN));
+
+  features.forEach((f: any) => {
+    const lon = f.geometry.coordinates[0];
+    const lat = f.geometry.coordinates[1];
+    const elev = f.properties.elevation;
+
+    const i = Math.floor((lon - minLon) / (maxLon - minLon) * (gridSize - 1));
+    const j = Math.floor((lat - minLat) / (maxLat - minLat) * (gridSize - 1));
+
+    if (i >= 0 && i < gridSize && j >= 0 && j < gridSize) {
+      grid[j][i] = elev;
+    }
+  });
+
+  // Fill gaps with interpolation
+  for (let j = 0; j < gridSize; j++) {
+    for (let i = 0; i < gridSize; i++) {
+      if (isNaN(grid[j][i])) {
+        const neighbors: number[] = [];
+        if (i > 0 && !isNaN(grid[j][i - 1])) neighbors.push(grid[j][i - 1]);
+        if (i < gridSize - 1 && !isNaN(grid[j][i + 1])) neighbors.push(grid[j][i + 1]);
+        if (j > 0 && !isNaN(grid[j - 1][i])) neighbors.push(grid[j - 1][i]);
+        if (j < gridSize - 1 && !isNaN(grid[j + 1][i])) neighbors.push(grid[j + 1][i]);
+
+        if (neighbors.length > 0) {
+          grid[j][i] = neighbors.reduce((a, b) => a + b) / neighbors.length;
+        }
+      }
+    }
+  }
+
+  const elevationGrid: ElevationGrid = {
+    values: grid,
+    nx: gridSize,
+    ny: gridSize,
+    xMin: minLon,
+    xMax: maxLon,
+    yMin: minLat,
+    yMax: maxLat
+  };
+
+  // Determine contour interval based on elevation range
+  const range = maxElev - minElev;
+  const interval = range < 20 ? 1 : range < 50 ? 2 : range < 100 ? 5 : 10;
+
+  console.log(`📐 Elevation range: ${minElev.toFixed(1)}m - ${maxElev.toFixed(1)}m, interval: ${interval}m`);
+
+  // Generate contours
+  const contours = generateContours(elevationGrid, interval, minElev, maxElev);
+
+  // Convert to GeoJSON
+  const contourFeatures = contours.flatMap(contour => {
+    return contour.segments.map(segment => {
+      const simplified = simplifyContour(segment, 0.0001);
+      return {
+        type: 'Feature',
+        properties: {
+          elevation: contour.elevation,
+          label: `${contour.elevation}m`
+        },
+        geometry: {
+          type: 'LineString',
+          coordinates: simplified.map(p => [p.x, p.y, contour.elevation])
+        }
+      };
+    });
+  });
+
+  return {
+    type: 'FeatureCollection',
+    features: contourFeatures
+  };
+}
+
+/**
+ * Generate DXF file for contours
+ */
+function generateContourDXF(contoursGeoJSON: any, request: any): string {
+  const dxf = new DXFBuilder({ units: 'meters', precision: 6 });
+
+  dxf.addLayer({ name: 'CONTOURS', color: 8 });
+  dxf.addLayer({ name: 'BOUNDARY', color: 7 });
+
+  // Add contour lines
+  let contourCount = 0;
+  contoursGeoJSON.features?.forEach((feature: any) => {
+    const elevation = feature.properties.elevation;
+    const coords = feature.geometry.coordinates;
+
+    if (coords && coords.length > 1) {
+      const vertices = coords.map((c: number[]) => ({ x: c[0], y: c[1], z: elevation || 0 }));
+      dxf.addEntity({
+        type: 'POLYLINE',
+        layer: 'CONTOURS',
+        vertices,
+        closed: false
+      });
+      contourCount++;
+    }
+  });
+
+  console.log(`✅ Contour DXF generated with ${contourCount} lines`);
+
+  return dxf.build();
 }
 
 async function createValidatedZip(files: Map<string, Uint8Array>): Promise<{ 
