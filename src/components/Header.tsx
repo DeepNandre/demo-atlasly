@@ -2,10 +2,12 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Layers, LogOut, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminCheck } from "@/hooks/useAdminCheck";
 
 const Header = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { isAdmin } = useAdminCheck();
 
   const handleSignOut = async () => {
     await signOut();
@@ -46,6 +48,11 @@ const Header = () => {
                 <Button variant="outline" size="default" onClick={() => navigate('/dashboard')}>
                   Dashboard
                 </Button>
+                {isAdmin && (
+                  <Button variant="outline" size="default" onClick={() => navigate('/admin/metrics')}>
+                    Admin Metrics
+                  </Button>
+                )}
                 <Button variant="ghost" size="default" onClick={handleSignOut}>
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign Out
