@@ -1,37 +1,44 @@
-import abstractImage from "@/assets/abstract-forms.jpg";
-import topoImage from "@/assets/topo-3d.jpg";
-import terrainImage from "@/assets/terrain-feature.jpg";
+import { marketingContent } from "@/lib/content";
+import { FileCheck, MapPin, Brain, TrendingUp } from "lucide-react";
+
+const iconMap = {
+  "Verified Exports": FileCheck,
+  "True Terrain": MapPin,
+  "Climate Intelligence": TrendingUp,
+  "Grounded AI": Brain,
+};
 
 const Showcase = () => {
-  const showcaseImages = [
-    { src: abstractImage, alt: "3D terrain visualization with topographic data" },
-    { src: topoImage, alt: "High-resolution elevation model with contour lines" },
-    { src: terrainImage, alt: "Multi-angle site analysis rendering" }
-  ];
-
   return (
-    <section id="showcase" className="py-32 px-6 bg-muted/20">
-      <div className="container mx-auto max-w-7xl">
-        <div className="text-center mb-20 space-y-6">
+    <section id="value-pillars" className="py-24 px-6 bg-background">
+      <div className="container mx-auto max-w-6xl">
+        <div className="text-center mb-20">
           <h2 className="text-5xl md:text-6xl font-serif font-bold">
-            Real Projects
+            {marketingContent.valuePillars.title}
           </h2>
-          <p className="text-xl text-muted-foreground font-light max-w-3xl mx-auto">
-            Site packs generated for projects worldwide—from urban infill to rural development.
-          </p>
         </div>
         
-        <div className="grid md:grid-cols-3 gap-8">
-          {showcaseImages.map((image, index) => (
-            <div key={index} className="relative aspect-[4/3] rounded-xl overflow-hidden group">
-              <img 
-                src={image.src} 
-                alt={image.alt}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-          ))}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {marketingContent.valuePillars.cards.map((card, index) => {
+            const IconComponent = iconMap[card.title as keyof typeof iconMap];
+            
+            return (
+              <div
+                key={index}
+                className="group bg-card rounded-2xl p-8 shadow-soft hover:shadow-medium transition-all duration-300 hover:-translate-y-2 border border-border/50 hover:border-primary/30"
+              >
+                <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/15 transition-colors">
+                  <IconComponent className="w-7 h-7 text-primary group-hover:scale-110 transition-transform" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-xl font-serif font-bold mb-3">
+                  {card.title}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed text-base">
+                  {card.description}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
