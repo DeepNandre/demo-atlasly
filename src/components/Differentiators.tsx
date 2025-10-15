@@ -1,12 +1,27 @@
-import { marketingContent } from "@/lib/content";
-import { ExternalLink, Target, Download, TrendingUp } from "lucide-react";
+import { Zap, Database, Shield, Code } from "lucide-react";
 
-const iconMap = {
-  "Open lineage": ExternalLink,
-  "Accuracy first": Target,
-  "Export fidelity": Download,
-  "Scales with you": TrendingUp,
-};
+const differentiators = [
+  {
+    icon: Zap,
+    title: "10x Faster",
+    description: "What takes weeks of manual work happens in under 30 seconds. Automated data fusion from multiple geospatial sources."
+  },
+  {
+    icon: Database,
+    title: "Proprietary Dataset",
+    description: "Every analysis trains our AI. 10,000+ sites analyzed means better predictions for your next project."
+  },
+  {
+    icon: Shield,
+    title: "Predictive Intelligence",
+    description: "Feasibility scoring, cost estimates, permit probability, and climate risk projections in one platform."
+  },
+  {
+    icon: Code,
+    title: "API-First Platform",
+    description: "Integrate geospatial intelligence into your apps. Developer docs, SDKs, and usage-based pricing."
+  }
+];
 
 const Differentiators = () => {
   return (
@@ -14,13 +29,13 @@ const Differentiators = () => {
       <div className="container mx-auto max-w-5xl">
         <div className="text-center mb-20">
           <h2 className="text-5xl md:text-6xl font-serif font-bold leading-tight">
-            {marketingContent.differentiators.title}
+            Why SiteIQ Wins
           </h2>
         </div>
         
         <div className="grid md:grid-cols-2 gap-8">
-          {marketingContent.differentiators.points.map((point, index) => {
-            const IconComponent = iconMap[point.title as keyof typeof iconMap];
+          {differentiators.map((point, index) => {
+            const IconComponent = point.icon;
             
             return (
               <div

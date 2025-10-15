@@ -1,7 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { marketingContent } from "@/lib/content";
 import DemoVideo from "@/components/DemoVideo";
-import MetricDots from "@/components/MetricDots";
 import { useEffect, useState } from "react";
 
 const Hero = () => {
@@ -25,15 +23,16 @@ const Hero = () => {
           <div className={`space-y-8 transform transition-all duration-300 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
             <div className="space-y-6">
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-bold leading-tight tracking-tight">
-                We built the world's first{" "}
-                <span className="text-primary">Built-Environment Intelligence OS</span>
+                Geospatial Intelligence API{" "}
+                <span className="text-primary">for the Built Environment</span>
               </h1>
               <div className="space-y-4">
-                {marketingContent.hero.subheadline.split('\n\n').map((line, index) => (
-                  <p key={index} className="text-xl text-muted-foreground leading-relaxed max-w-lg">
-                    {line}
-                  </p>
-                ))}
+                <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
+                  Turn any location into actionable site analysis. Terrain, solar, climate, and feasibility data in minutes, not weeks.
+                </p>
+                <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
+                  Built for architects, developers, and construction tech companies who need fast, accurate geospatial intelligence.
+                </p>
               </div>
             </div>
             
@@ -44,21 +43,34 @@ const Hero = () => {
                 className="rounded-lg"
                 onClick={() => window.location.href = '/generate'}
               >
-                {marketingContent.hero.primaryCTA}
+                Try Free Site Pack
               </Button>
               <Button 
                 variant="outline" 
                 size="xl"
                 className="rounded-lg"
+                onClick={() => window.location.href = '/dashboard'}
               >
-                {marketingContent.hero.secondaryCTA}
+                Get API Access →
               </Button>
             </div>
             
-            <MetricDots 
-              metrics={marketingContent.hero.metrics}
-              className={`pt-4 transform transition-all duration-300 ease-out delay-200 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}
-            />
+            <div className={`pt-4 transform transition-all duration-300 ease-out delay-200 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
+              <div className="flex flex-wrap gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-primary rounded-full" />
+                  <span className="text-muted-foreground">30-second site analysis</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-primary rounded-full" />
+                  <span className="text-muted-foreground">AI-powered insights</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-primary rounded-full" />
+                  <span className="text-muted-foreground">RESTful API</span>
+                </div>
+              </div>
+            </div>
           </div>
           
           <div className="relative">

@@ -2,9 +2,9 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Features from "@/components/Features";
 import Showcase from "@/components/Showcase";
-import Process from "@/components/Process";
+import NewFeatures from "@/components/NewFeatures";
+import APIShowcase from "@/components/APIShowcase";
 import Differentiators from "@/components/Differentiators";
-import WhyChoose from "@/components/WhyChoose";
 import FAQ from "@/components/FAQ";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
@@ -15,10 +15,10 @@ const Index = () => {
       <Header />
       <Hero />
       <Features />
+      <NewFeatures />
       <Showcase />
-      <Process />
+      <APIShowcase />
       <Differentiators />
-      <WhyChoose />
       <FAQ />
       <Contact />
       <Footer />
