@@ -542,9 +542,10 @@ async function createExportFiles(request: any, osmData: any, elevationData: any)
   // DXF export
   if (request.include_dxf) {
     try {
-      const dxf = createDXF(osmData, elevationData, request);
-      files.set('exports/layers.dxf', encoder.encode(dxf));
-      console.log('✅ DXF export complete');
+      const dxfContent = createDXF(osmData, elevationData, request);
+      const dxfBytes = encoder.encode(dxfContent);
+      files.set('exports/layers.dxf', dxfBytes);
+      console.log(`✅ DXF export complete: ${dxfBytes.length} bytes`);
     } catch (error) {
       console.error('❌ DXF export failed:', error);
     }
@@ -564,19 +565,26 @@ async function createExportFiles(request: any, osmData: any, elevationData: any)
   // PDF Plan export
   if (request.exports_pdf) {
     try {
-      const pdf = createPDFPlan(request, osmData);
-      files.set('exports/plan.pdf', encoder.encode(pdf));
+      const pdfString = createPDFPlan(request, osmData);
+      // PDF is binary data represented as string, use binary encoding
+      const pdfBytes = new Uint8Array(pdfString.length);
+      for (let i = 0; i < pdfString.length; i++) {
+        pdfBytes[i] = pdfString.charCodeAt(i) & 0xFF;
+      }
+      files.set('exports/plan.pdf', pdfBytes);
+      console.log(`✅ PDF export complete: ${pdfBytes.length} bytes`);
     } catch (error) {
-      console.warn('PDF export failed:', error);
+      console.error('❌ PDF export failed:', error);
     }
   }
 
-  // DWG export (extended from DXF)
+  // DWG export (DXF with DWG extension for compatibility)
   if (request.exports_dwg) {
     try {
-      const dwg = createDWG(osmData, elevationData, request);
-      files.set('exports/layers.dwg', encoder.encode(dwg));
-      console.log('✅ DWG export complete');
+      const dwgContent = createDWG(osmData, elevationData, request);
+      const dwgBytes = encoder.encode(dwgContent);
+      files.set('exports/layers.dwg', dwgBytes);
+      console.log(`✅ DWG export complete: ${dwgBytes.length} bytes`);
     } catch (error) {
       console.error('❌ DWG export failed:', error);
     }
