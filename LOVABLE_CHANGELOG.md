@@ -95,6 +95,68 @@ This Phase 1 implementation lays the foundation for:
 
 ---
 
+## [2025-01-15] - Admin Setup System
+
+### 📋 What Changed
+- Added admin setup functionality to create the first admin account
+- Created dedicated admin setup page with one-click admin promotion
+
+### 📁 Files Created/Modified
+
+**New Files:**
+- `src/pages/AdminSetup.tsx` - Self-service admin setup page
+
+**Modified Files:**
+- `src/App.tsx` - Added `/admin/setup` route
+
+### 🗄️ Database Changes
+
+**Migration:** Created admin promotion functions
+
+**Functions Created:**
+1. **`become_first_admin()`** - Allows the first user to promote themselves to admin
+   - Returns `true` if successful (no admins existed)
+   - Returns `false` if an admin already exists
+   - Security definer ensures it runs with elevated privileges
+
+2. **`promote_to_admin(target_user_id)`** - Allows existing admins to promote other users
+   - Requires caller to be an admin
+   - Takes target user ID as parameter
+
+### 🎯 How to Become Admin
+
+**Option 1: Use the Admin Setup Page (Recommended)**
+1. Sign up or sign in to your account
+2. Navigate to `/admin/setup` in your browser
+3. Click "Become Admin" button
+4. You'll be automatically promoted if no admin exists yet
+
+**Option 2: Call the Function Directly (Advanced)**
+```javascript
+// From browser console or your code
+const { data } = await supabase.rpc('become_first_admin');
+console.log(data); // true if successful, false if admin already exists
+```
+
+### 🔄 Sync Instructions
+
+```bash
+# Pull latest code
+git pull origin main
+
+# Migration already applied to Lovable Cloud
+# If using local Supabase:
+supabase db push
+```
+
+### 💡 Context
+Users need a way to create the first admin account. This system allows the first user to self-promote to admin, after which existing admins can promote others using the `promote_to_admin(user_id)` function.
+
+### ⚠️ Breaking Changes
+None
+
+---
+
 ## [2025-01-15] - Enhanced Admin Metrics Dashboard
 
 ### 📋 What Changed

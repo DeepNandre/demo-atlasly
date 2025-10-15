@@ -596,6 +596,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      become_first_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -605,6 +609,10 @@ export type Database = {
       }
       is_admin: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      promote_to_admin: {
+        Args: { target_user_id: string }
         Returns: boolean
       }
     }

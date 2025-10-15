@@ -12,6 +12,7 @@ import Preview from "./pages/Preview";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import AdminMetrics from "./pages/AdminMetrics";
+import AdminSetup from "./pages/AdminSetup";
 import Explore from "./pages/Explore";
 import SiteAI from "./pages/SiteAI";
 import NotFound from "./pages/NotFound";
@@ -47,6 +48,7 @@ const App = () => (
             />
           <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
           <Route path="/admin/metrics" element={<ProtectedRoute><AdminMetrics /></ProtectedRoute>} />
+          <Route path="/admin/setup" element={<ProtectedRoute><AdminSetup /></ProtectedRoute>} />
           <Route path="/explore" element={<Explore />} />
           <Route path="/ai" element={<ProtectedRoute><SiteAI /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
