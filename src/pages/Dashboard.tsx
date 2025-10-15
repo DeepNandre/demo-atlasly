@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, RefreshCw, Plus, ArrowLeft, Box, Trash2, MessageSquare } from 'lucide-react';
+import { Download, RefreshCw, Plus, ArrowLeft, Box, Trash2, MessageSquare, Crown, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import {
   AlertDialog,
@@ -29,6 +30,7 @@ import { SiteChat } from '@/components/SiteChat';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getClientId } from '@/lib/clientId';
+import { useSubscription } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
 
 interface SiteRequest {
@@ -54,6 +56,7 @@ interface SiteRequest {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { subscription, sitesThisMonth, getRemainingQuota, getTierDisplayName, getTierColor } = useSubscription();
   const [requests, setRequests] = useState<SiteRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
@@ -252,6 +255,65 @@ const Dashboard = () => {
               Track and download your site pack requests
             </p>
           </div>
+
+          {/* Subscription Info */}
+          {user && subscription && (
+            <div className="grid md:grid-cols-3 gap-4">
+              <Card className="p-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-muted-foreground">Current Plan</h3>
+                  <Crown className={`w-4 h-4 ${getTierColor(subscription.tier)}`} />
+                </div>
+                <div className="space-y-1">
+                  <p className={`text-2xl font-bold ${getTierColor(subscription.tier)}`}>
+                    {getTierDisplayName(subscription.tier)}
+                  </p>
+                  {subscription.tier === 'free' && (
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="h-auto p-0 text-primary"
+                      onClick={() => toast.info('Upgrade coming soon!')}
+                    >
+                      Upgrade to Pro →
+                    </Button>
+                  )}
+                </div>
+              </Card>
+
+              <Card className="p-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-muted-foreground">Monthly Usage</h3>
+                  <TrendingUp className="w-4 h-4 text-primary" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-2xl font-bold">
+                    {sitesThisMonth} / {subscription.features_enabled.max_site_packs_per_month}
+                  </p>
+                  <Progress 
+                    value={(sitesThisMonth / subscription.features_enabled.max_site_packs_per_month) * 100} 
+                    className="h-2"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {getRemainingQuota()} site packs remaining
+                  </p>
+                </div>
+              </Card>
+
+              <Card className="p-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-muted-foreground">Total Projects</h3>
+                  <Box className="w-4 h-4 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold">{requests.length}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {requests.filter(r => r.status === 'completed').length} completed
+                  </p>
+                </div>
+              </Card>
+            </div>
+          )}
 
           {loading ? (
             <Card className="p-12 text-center">

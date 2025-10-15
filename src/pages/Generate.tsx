@@ -1,19 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Layers, FileCode, Database } from 'lucide-react';
+import { ArrowLeft, Download, Layers, FileCode, Database, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import MapSelector from '@/components/MapSelector';
 import { BoundaryEditor } from '@/components/BoundaryEditor';
 import { supabase } from '@/integrations/supabase/client';
 import { getClientId } from '@/lib/clientId';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useUsageTracking } from '@/hooks/useUsageTracking';
 
 const Generate = () => {
   const navigate = useNavigate();
+  const { subscription, canCreateSite, getRemainingQuota, getTierDisplayName } = useSubscription();
+  const { trackFeatureUsage } = useUsageTracking();
   const [step, setStep] = useState<'location' | 'options' | 'processing'>('location');
   const [siteData, setSiteData] = useState<any>(null);
   const [boundaryMode, setBoundaryMode] = useState<'simple' | 'advanced'>('simple');
@@ -42,13 +47,19 @@ const Generate = () => {
   };
 
   const handleGenerate = async () => {
+    // Check subscription limits
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user && subscription && !canCreateSite()) {
+      toast.error(`You've reached your monthly limit of ${subscription.features_enabled.max_site_packs_per_month} site packs. Upgrade to create more!`);
+      return;
+    }
+
     setStep('processing');
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
       // Get or generate client ID for guest users
       const clientId = user ? null : getClientId();
 
@@ -83,6 +94,13 @@ const Generate = () => {
 
       console.log('Site request created:', request);
       setRequestId(request.id);
+
+      // Track usage
+      await trackFeatureUsage('site_pack_generation', request.id, {
+        location: siteData.locationName,
+        area_sqm: siteData.areaSqm,
+        options: options,
+      });
 
       // Start processing
       const response = await supabase.functions.invoke('process-site-request', {
@@ -198,6 +216,16 @@ const Generate = () => {
               <span className="font-medium">Generate</span>
             </div>
           </div>
+
+          {/* Quota Warning */}
+          {subscription && getRemainingQuota() <= 2 && getRemainingQuota() > 0 && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                You have {getRemainingQuota()} site pack{getRemainingQuota() !== 1 ? 's' : ''} remaining this month on your {getTierDisplayName(subscription.tier)} plan.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Step Content */}
           {step === 'location' && (
