@@ -4,8 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import ChatSidebar from '@/components/ai/ChatSidebar';
 import ChatInterface from '@/components/ai/ChatInterface';
 import ProjectSelector from '@/components/ai/ProjectSelector';
+import { SiteAnalysisPanel } from '@/components/SiteAnalysisPanel';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const SiteIQLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
@@ -47,6 +48,7 @@ const SiteAI = () => {
   const [selectedSite, setSelectedSite] = useState<SiteRequest | null>(null);
   const [sites, setSites] = useState<SiteRequest[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [showAnalysis, setShowAnalysis] = useState(true);
 
   useEffect(() => {
     if (!user) {
@@ -128,6 +130,18 @@ const SiteAI = () => {
                 </div>
               )}
               
+              {selectedSite && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAnalysis(!showAnalysis)}
+                  className="hidden md:flex"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  {showAnalysis ? 'Hide' : 'Show'} Analysis
+                </Button>
+              )}
+              
               <Button
                 variant="outline"
                 size="sm"
@@ -163,15 +177,26 @@ const SiteAI = () => {
           siteRequestId={selectedSite?.id}
         />
 
-        {/* Chat Interface */}
-        {selectedSite ? (
-          <ChatInterface
-            siteRequestId={selectedSite.id}
-            locationName={selectedSite.location_name}
-            chatId={activeChatId}
-            onChatIdChange={setActiveChatId}
-          />
-        ) : (
+        {/* Main Content Area */}
+        <div className="flex-1 flex">
+          {/* Chat Interface */}
+          {selectedSite ? (
+            <>
+              <ChatInterface
+                siteRequestId={selectedSite.id}
+                locationName={selectedSite.location_name}
+                chatId={activeChatId}
+                onChatIdChange={setActiveChatId}
+              />
+              
+              {/* Analysis Panel */}
+              {showAnalysis && (
+                <div className="w-80 border-l bg-muted/30">
+                  <SiteAnalysisPanel siteRequestId={selectedSite.id} />
+                </div>
+              )}
+            </>
+          ) : (
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="text-center space-y-6 max-w-lg">
               <div className="relative mx-auto">
@@ -213,7 +238,8 @@ const SiteAI = () => {
               </div>
             </div>
           </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

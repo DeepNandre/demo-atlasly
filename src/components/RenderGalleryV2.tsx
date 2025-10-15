@@ -2,9 +2,12 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Download, Share2, Sparkles, Loader2, Heart } from "lucide-react";
+import { Download, Share2, Sparkles, Loader2, Heart, Camera, Clock } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useMultiAngleRendering } from "@/hooks/useMultiAngleRendering";
 
 interface RenderGalleryV2Props {
   siteRequestId: string;
@@ -30,6 +33,13 @@ export function RenderGalleryV2({ siteRequestId }: RenderGalleryV2Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [siteData, setSiteData] = useState<any>(null);
+  const { 
+    generateMultiAngleRenders, 
+    isGenerating: isMultiGenerating, 
+    progress,
+    availableAngles,
+    availableStyles 
+  } = useMultiAngleRendering();
 
   useEffect(() => {
     loadData();
@@ -98,6 +108,22 @@ export function RenderGalleryV2({ siteRequestId }: RenderGalleryV2Props) {
     }
   };
 
+  const generateAdvancedRenders = async () => {
+    if (!siteData?.preview_image_url) {
+      toast.error("No preview image available for this site");
+      return;
+    }
+
+    await generateMultiAngleRenders(
+      siteRequestId,
+      siteData.preview_image_url,
+      availableAngles.slice(0, 3), // Use first 3 angles
+      availableStyles.slice(0, 2)  // Use first 2 styles
+    );
+    
+    await loadData();
+  };
+
   const handleDownload = (url: string, id: string) => {
     const link = document.createElement("a");
     link.href = url;
@@ -144,28 +170,93 @@ export function RenderGalleryV2({ siteRequestId }: RenderGalleryV2Props) {
                 AI Render Gallery
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                Auto-generate 3 styled renders from your site preview
+                Generate professional architectural visualizations
               </p>
             </div>
-            <Button
-              onClick={generateAutoRenders}
-              disabled={isGenerating || !siteData?.preview_image_url}
-              size="lg"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate 3 Renders
-                </>
-              )}
-            </Button>
           </div>
         </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="quick" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="quick">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Quick (3 renders)
+              </TabsTrigger>
+              <TabsTrigger value="advanced">
+                <Camera className="w-4 h-4 mr-2" />
+                Multi-Angle (6 renders)
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="quick" className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Generate 3 styled renders with different atmospheres
+              </p>
+              <Button
+                onClick={generateAutoRenders}
+                disabled={isGenerating || isMultiGenerating || !siteData?.preview_image_url}
+                size="lg"
+                className="w-full"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate Quick Renders
+                  </>
+                )}
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="advanced" className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Generate multiple camera angles with different times of day
+                </p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Camera className="w-3 h-3" />
+                  <span>3 Angles (Aerial, Street, Isometric)</span>
+                  <span>×</span>
+                  <Clock className="w-3 h-3" />
+                  <span>2 Times (Day, Golden Hour)</span>
+                </div>
+              </div>
+              
+              {isMultiGenerating && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Progress:</span>
+                    <span>{progress.current} of {progress.total}</span>
+                  </div>
+                  <Progress value={(progress.current / progress.total) * 100} />
+                </div>
+              )}
+
+              <Button
+                onClick={generateAdvancedRenders}
+                disabled={isGenerating || isMultiGenerating || !siteData?.preview_image_url}
+                size="lg"
+                className="w-full"
+              >
+                {isMultiGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating {progress.current}/{progress.total}...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="w-4 h-4 mr-2" />
+                    Generate Multi-Angle Renders
+                  </>
+                )}
+              </Button>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
       </Card>
 
       {visualResults.length === 0 ? (
