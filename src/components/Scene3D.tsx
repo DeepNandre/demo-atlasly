@@ -180,53 +180,67 @@ function CameraController({ sceneGroup }: { sceneGroup: React.RefObject<THREE.Gr
   const { camera, controls } = useThree();
   
   useEffect(() => {
-    if (!sceneGroup.current) {
-      console.log('📷 Camera: waiting for scene group');
-      return;
-    }
+    // Add a small delay to ensure geometry is fully loaded
+    const timeoutId = setTimeout(() => {
+      if (!sceneGroup.current) {
+        console.log('📷 Camera: waiting for scene group');
+        camera.position.set(200, 150, 200);
+        camera.lookAt(0, 0, 0);
+        return;
+      }
 
-    // Calculate bounds from actual rendered scene group
-    const bounds = new THREE.Box3().setFromObject(sceneGroup.current);
-    
-    if (bounds.isEmpty()) {
-      console.log('📷 Camera: bounds empty, using default position');
-      camera.position.set(200, 150, 200);
-      camera.lookAt(0, 0, 0);
-      return;
-    }
+      // Calculate bounds from actual rendered scene group
+      const bounds = new THREE.Box3().setFromObject(sceneGroup.current);
+      
+      if (bounds.isEmpty()) {
+        console.log('📷 Camera: bounds empty, using fallback position');
+        camera.position.set(200, 150, 200);
+        camera.lookAt(0, 0, 0);
+        
+        // Update controls target if available
+        if (controls && 'target' in controls) {
+          (controls as any).target.set(0, 0, 0);
+          (controls as any).update();
+        }
+        return;
+      }
 
-    const center = new THREE.Vector3();
-    bounds.getCenter(center);
-    
-    const size = new THREE.Vector3();
-    bounds.getSize(size);
-    
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const distance = Math.max(maxDim * 1.5, 100);
-    
-    // Position camera at an angle
-    camera.position.set(
-      center.x + distance * 0.7,
-      distance * 0.6,
-      center.z + distance * 0.7
-    );
-    
-    camera.lookAt(center);
-    camera.updateProjectionMatrix();
-    
-    // Update controls target if available
-    if (controls && 'target' in controls) {
-      (controls as any).target.copy(center);
-      (controls as any).update();
-    }
-    
-    console.log('📷 Camera setup from scene bounds:', {
-      center: center.toArray().map(v => v.toFixed(2)),
-      size: size.toArray().map(v => v.toFixed(2)),
-      maxDim: maxDim.toFixed(2),
-      distance: distance.toFixed(2),
-      cameraPos: camera.position.toArray().map(v => v.toFixed(2))
-    });
+      const center = new THREE.Vector3();
+      bounds.getCenter(center);
+      
+      const size = new THREE.Vector3();
+      bounds.getSize(size);
+      
+      // Ensure minimum dimensions for better framing
+      const maxDim = Math.max(size.x, size.y, size.z, 50);
+      const distance = Math.max(maxDim * 1.8, 150);
+      
+      // Position camera at an angle with better perspective
+      camera.position.set(
+        center.x + distance * 0.7,
+        center.y + distance * 0.5,
+        center.z + distance * 0.7
+      );
+      
+      camera.lookAt(center);
+      camera.updateProjectionMatrix();
+      
+      // Update controls target if available
+      if (controls && 'target' in controls) {
+        (controls as any).target.copy(center);
+        (controls as any).update();
+      }
+      
+      console.log('📷 Camera setup from scene bounds:', {
+        center: center.toArray().map(v => v.toFixed(2)),
+        size: size.toArray().map(v => v.toFixed(2)),
+        maxDim: maxDim.toFixed(2),
+        distance: distance.toFixed(2),
+        cameraPos: camera.position.toArray().map(v => v.toFixed(2))
+      });
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
   }, [sceneGroup, camera, controls]);
   
   return null;

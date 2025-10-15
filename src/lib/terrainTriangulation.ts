@@ -3,7 +3,7 @@ import { CoordinateProjection } from './coordinateUtils';
 
 /**
  * Triangulate DEM point cloud into a mesh surface
- * Uses Delaunay triangulation for accurate terrain representation
+ * Uses improved inverse distance weighted interpolation for smooth terrain
  */
 export function triangulateTerrain(
   terrainFeatures: any[],
@@ -19,7 +19,7 @@ export function triangulateTerrain(
     .map(f => {
       const [lng, lat, elevation] = f.geometry.coordinates;
       const { x, y } = projection.latLngToXY(lat, lng);
-      return { x, y, z: elevation };
+      return { x, y, elevation };
     });
 
   if (points.length < 3) {
@@ -29,63 +29,101 @@ export function triangulateTerrain(
 
   console.log('🏔️ Triangulating terrain with', points.length, 'elevation points');
 
-  // Create grid-based triangulation for performance
-  // Group points into a regular grid and triangulate within cells
-  const gridSize = 50; // meters
-  const grid = new Map<string, typeof points>();
+  // Group points into a regular grid for efficient triangulation
+  const gridSize = 30; // Finer grid cell size in meters
+  const grid: Map<string, { x: number; y: number; elevation: number; count: number }> = new Map();
 
-  points.forEach(p => {
-    const cellX = Math.floor(p.x / gridSize);
-    const cellY = Math.floor(p.y / gridSize);
-    const key = `${cellX},${cellY}`;
+  points.forEach(point => {
+    const gridX = Math.floor(point.x / gridSize);
+    const gridY = Math.floor(point.y / gridSize);
+    const key = `${gridX},${gridY}`;
     
-    if (!grid.has(key)) {
-      grid.set(key, []);
+    // Average elevation for points in same grid cell
+    if (grid.has(key)) {
+      const existing = grid.get(key)!;
+      existing.elevation = (existing.elevation * existing.count + point.elevation) / (existing.count + 1);
+      existing.count++;
+    } else {
+      grid.set(key, { ...point, count: 1 });
     }
-    grid.get(key)!.push(p);
   });
+
+  const gridPoints = Array.from(grid.values());
+  console.log(`📐 Reduced to ${gridPoints.length} grid points`);
+
+  // Find bounds
+  const xs = gridPoints.map(p => p.x);
+  const ys = gridPoints.map(p => p.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  // Adaptive grid resolution based on point density
+  const area = (maxX - minX) * (maxY - minY);
+  const pointDensity = gridPoints.length / area;
+  const gridResolution = Math.min(Math.max(Math.floor(Math.sqrt(gridPoints.length) / 2), 15), 40);
+  
+  console.log(`📊 Terrain metrics: area=${area.toFixed(0)}m², density=${pointDensity.toFixed(6)}, resolution=${gridResolution}`);
+
+  const stepX = (maxX - minX) / gridResolution;
+  const stepY = (maxY - minY) / gridResolution;
 
   const vertices: number[] = [];
-  const indices: number[] = [];
   const colors: number[] = [];
-  let vertexIndex = 0;
+  const indices: number[] = [];
 
-  // Create mesh for each grid cell
-  grid.forEach((cellPoints, key) => {
-    if (cellPoints.length < 3) return;
+  // Generate vertex grid with inverse distance weighted interpolation
+  for (let i = 0; i <= gridResolution; i++) {
+    for (let j = 0; j <= gridResolution; j++) {
+      const x = minX + i * stepX;
+      const y = minY + j * stepY;
+      
+      // Inverse distance weighted interpolation (IDW)
+      let weightedElevation = 0;
+      let totalWeight = 0;
+      const maxInfluence = gridSize * 3; // Influence radius
+      
+      for (const p of gridPoints) {
+        const dist = Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2);
+        
+        if (dist < 0.01) {
+          // Very close point - use its elevation directly
+          weightedElevation = p.elevation;
+          totalWeight = 1;
+          break;
+        }
+        
+        if (dist < maxInfluence) {
+          const weight = 1 / (dist * dist); // Inverse square distance
+          weightedElevation += p.elevation * weight;
+          totalWeight += weight;
+        }
+      }
+      
+      const elevation = totalWeight > 0 ? weightedElevation / totalWeight : 0;
 
-    // Sort points to create a simple fan triangulation
-    const center = {
-      x: cellPoints.reduce((s, p) => s + p.x, 0) / cellPoints.length,
-      y: cellPoints.reduce((s, p) => s + p.y, 0) / cellPoints.length,
-      z: cellPoints.reduce((s, p) => s + p.z, 0) / cellPoints.length
-    };
+      vertices.push(x, elevation, y);
+      
+      // Enhanced color gradient based on elevation
+      const color = elevationToColor(elevation);
+      colors.push(color[0], color[1], color[2]);
+    }
+  }
 
-    // Sort by angle from center
-    const sorted = cellPoints.sort((a, b) => {
-      const angleA = Math.atan2(a.y - center.y, a.x - center.x);
-      const angleB = Math.atan2(b.y - center.y, b.x - center.x);
-      return angleA - angleB;
-    });
+  // Create triangle indices with proper winding
+  for (let i = 0; i < gridResolution; i++) {
+    for (let j = 0; j < gridResolution; j++) {
+      const idx = i * (gridResolution + 1) + j;
+      const idx2 = idx + 1;
+      const idx3 = idx + gridResolution + 1;
+      const idx4 = idx3 + 1;
 
-    // Add center vertex
-    const centerIdx = vertexIndex++;
-    vertices.push(center.x, center.z, center.y);
-    const centerColor = elevationToColor(center.z);
-    colors.push(...centerColor);
-
-    // Add surrounding vertices and create triangles
-    sorted.forEach((p, i) => {
-      const idx = vertexIndex++;
-      vertices.push(p.x, p.z, p.y);
-      const color = elevationToColor(p.z);
-      colors.push(...color);
-
-      // Create triangle fan
-      const nextIdx = i === sorted.length - 1 ? centerIdx + 1 : idx + 1;
-      indices.push(centerIdx, idx, nextIdx);
-    });
-  });
+      // Two triangles per quad with consistent winding
+      indices.push(idx, idx3, idx2);
+      indices.push(idx2, idx3, idx4);
+    }
+  }
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
@@ -96,7 +134,6 @@ export function triangulateTerrain(
   console.log('🏔️ Created terrain mesh:', {
     vertices: vertices.length / 3,
     triangles: indices.length / 3,
-    bounds: geometry.boundingBox
   });
 
   return geometry;

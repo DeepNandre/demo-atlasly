@@ -117,12 +117,35 @@ Deno.serve(async (req) => {
     
     const files = await createExportFiles(request, osmData, elevationData);
     
+    // Fetch imagery if requested
+    if (request.include_imagery) {
+      try {
+        console.log('Fetching imagery tiles...');
+        const mapboxToken = Deno.env.get('MAPBOX_TOKEN');
+        if (mapboxToken) {
+          const { fetchImageryTiles, downloadImageryTiles } = await import('../_shared/imageryFetch.ts');
+          const { tiles, metadata } = await fetchImageryTiles(
+            request.center_lat,
+            request.center_lng,
+            request.radius_meters || 500,
+            mapboxToken
+          );
+          const imageryFiles = await downloadImageryTiles(tiles);
+          imageryFiles.forEach((data, path) => files.set(path, data));
+          const encoder = new TextEncoder();
+          files.set('imagery/metadata.json', encoder.encode(JSON.stringify(metadata, null, 2)));
+        }
+      } catch (error) {
+        console.warn('Imagery fetch failed, continuing without imagery:', error);
+      }
+    }
+    
     const exportDuration = Date.now() - exportStart;
     await logJobStage(supabase, requestId, 'create_exports', 'completed', exportDuration, null, {
       fileCount: files.size,
     });
     
-    await updateProgress(supabase, requestId, 70, 'processing', null);
+    await updateProgress(supabase, requestId, 75, 'processing', null);
 
     // Create and validate ZIP
     console.log('Creating ZIP package...');

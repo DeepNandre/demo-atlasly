@@ -26,6 +26,8 @@ export const BoundaryEditor = ({ onBoundaryConfirmed }: BoundaryEditorProps) => 
   const draw = useRef<MapboxDraw | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [hasDrawing, setHasDrawing] = useState(false);
+  const [currentArea, setCurrentArea] = useState<number>(0);
+  const [currentPerimeter, setCurrentPerimeter] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -49,12 +51,25 @@ export const BoundaryEditor = ({ onBoundaryConfirmed }: BoundaryEditorProps) => 
 
     map.current.addControl(draw.current);
 
-    map.current.on('draw.create', () => setHasDrawing(true));
-    map.current.on('draw.update', () => setHasDrawing(true));
-    map.current.on('draw.delete', () => {
+    const updateMetrics = () => {
       const data = draw.current?.getAll();
-      setHasDrawing(data?.features?.length > 0);
-    });
+      if (data && data.features.length > 0) {
+        const feature = data.features[0];
+        const area = turf.area(feature);
+        const perimeter = turf.length(feature, { units: 'meters' });
+        setCurrentArea(area);
+        setCurrentPerimeter(perimeter);
+        setHasDrawing(true);
+      } else {
+        setCurrentArea(0);
+        setCurrentPerimeter(0);
+        setHasDrawing(false);
+      }
+    };
+
+    map.current.on('draw.create', updateMetrics);
+    map.current.on('draw.update', updateMetrics);
+    map.current.on('draw.delete', updateMetrics);
 
     return () => {
       map.current?.remove();
@@ -285,6 +300,22 @@ export const BoundaryEditor = ({ onBoundaryConfirmed }: BoundaryEditorProps) => 
         ref={mapContainer}
         className="w-full h-[500px] rounded-lg border border-border"
       />
+
+      {hasDrawing && (
+        <div className="p-4 bg-muted rounded-lg space-y-2">
+          <h3 className="font-semibold text-sm">Boundary Metrics</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Area:</span>
+              <span className="ml-2 font-medium">{(currentArea / 10000).toFixed(2)} hectares</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Perimeter:</span>
+              <span className="ml-2 font-medium">{currentPerimeter.toFixed(2)} meters</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="text-sm text-muted-foreground space-y-1">
         <p>• Click on the map to draw a polygon boundary</p>
