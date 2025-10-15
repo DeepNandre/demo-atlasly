@@ -54,33 +54,6 @@ const Hero = () => {
                 Get API Access →
               </Button>
             </div>
-            
-            <div className={`pt-8 grid md:grid-cols-3 gap-8 max-w-4xl mx-auto transform transition-all duration-300 ease-out delay-200 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
-              <div className="space-y-2">
-                <h3 className="font-serif text-lg font-semibold underline decoration-primary decoration-2 underline-offset-4">
-                  API Platform
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  RESTful API for seamless integration into your construction tech platform or workflow automation.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-serif text-lg font-semibold underline decoration-primary decoration-2 underline-offset-4">
-                  AI-Powered Analysis
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Intelligent site feasibility insights using advanced AI to identify opportunities and constraints.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-serif text-lg font-semibold underline decoration-primary decoration-2 underline-offset-4">
-                  30-Second Results
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  From location pin to complete site pack with terrain models, solar analysis, and climate data.
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
