@@ -253,7 +253,10 @@ ENDTAB
   }
 
   private buildEntities(): string {
-    const p = (n: number) => n.toFixed(this.options.precision);
+    const p = (n: number | undefined) => {
+      const num = n ?? 0;
+      return num.toFixed(this.options.precision);
+    };
     let entities = '0\nSECTION\n2\nENTITIES\n';
 
     for (const entity of this.entities) {

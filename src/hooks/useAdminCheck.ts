@@ -24,17 +24,21 @@ export const useAdminCheck = () => {
         const { data: subData, error: subError } = await supabase
           .from('user_subscriptions')
           .select('tier')
-          .single();
+          .maybeSingle();
 
         if (subError) {
           console.error('Error checking subscription tier:', subError);
           setHasTier(false);
           setTier(null);
-        } else {
-          const userTier = subData?.tier;
+        } else if (subData) {
+          const userTier = subData.tier;
           setTier(userTier);
           // Admin features only for teams or enterprise tier
           setHasTier(userTier === 'teams' || userTier === 'enterprise');
+        } else {
+          // No subscription record exists yet
+          setHasTier(false);
+          setTier(null);
         }
       } catch (error) {
         console.error('Error in admin check:', error);
