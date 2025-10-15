@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.74.0';
+import JSZip from 'https://esm.sh/jszip@3.10.1';
 import { geojsonToDXF } from '../_shared/dxfExport.ts';
 import { createGLBFromScene } from '../_shared/glbExport.ts';
 import { createSitePlanPDF } from '../_shared/pdfExport.ts';
@@ -962,118 +963,42 @@ async function createValidatedZip(files: Map<string, Uint8Array>): Promise<{
   sha256: string; 
   fileCount: number;
 }> {
-  // Create ZIP using Deno's built-in compression
-  const zip = await createZip(files);
+  console.log(`Creating ZIP with ${files.size} files using JSZip...`);
   
-  // Validate ZIP by checking magic number
-  if (zip[0] !== 0x50 || zip[1] !== 0x4B) {
-    throw new Error('Invalid ZIP format: missing magic number');
+  const zip = new JSZip();
+  
+  // Add all files to the ZIP
+  for (const [filename, data] of files.entries()) {
+    zip.file(filename, data);
+    console.log(`  Added: ${filename} (${data.length} bytes)`);
   }
   
-  // Calculate SHA256 - create a new ArrayBuffer for crypto.subtle
-  const hashBuffer = await crypto.subtle.digest('SHA-256', new Uint8Array(zip));
+  // Generate ZIP as ArrayBuffer with proper compression
+  const zipArrayBuffer = await zip.generateAsync({
+    type: 'arraybuffer',
+    compression: 'DEFLATE',
+    compressionOptions: {
+      level: 6  // Balanced compression
+    }
+  });
+  
+  const zipBuffer = new Uint8Array(zipArrayBuffer);
+  
+  // Validate ZIP by checking magic number
+  if (zipBuffer[0] !== 0x50 || zipBuffer[1] !== 0x4B) {
+    throw new Error('Invalid ZIP format: missing PK magic number');
+  }
+  
+  // Calculate SHA256
+  const hashBuffer = await crypto.subtle.digest('SHA-256', zipBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const sha256 = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   
+  console.log(`ZIP created: ${zipBuffer.length} bytes, SHA256: ${sha256}`);
+  
   return {
-    zipBuffer: zip,
+    zipBuffer,
     sha256,
     fileCount: files.size,
   };
-}
-
-async function createZip(files: Map<string, Uint8Array>): Promise<Uint8Array> {
-  const entries: Array<{ name: string; data: Uint8Array; offset: number }> = [];
-  let offset = 0;
-  
-  // Local file headers + data
-  const localFiles: Uint8Array[] = [];
-  
-  for (const [name, data] of files.entries()) {
-    const nameBytes = new TextEncoder().encode(name);
-    const localHeader = new Uint8Array(30 + nameBytes.length);
-    const view = new DataView(localHeader.buffer);
-    
-    // Local file header signature
-    view.setUint32(0, 0x04034b50, true);
-    view.setUint16(4, 20, true); // version
-    view.setUint16(6, 0, true); // flags
-    view.setUint16(8, 0, true); // compression (stored)
-    view.setUint16(10, 0, true); // mod time
-    view.setUint16(12, 0, true); // mod date
-    view.setUint32(14, 0, true); // crc32 (simplified, should calculate)
-    view.setUint32(18, data.length, true); // compressed size
-    view.setUint32(22, data.length, true); // uncompressed size
-    view.setUint16(26, nameBytes.length, true); // filename length
-    view.setUint16(28, 0, true); // extra field length
-    
-    localHeader.set(nameBytes, 30);
-    
-    entries.push({ name, data, offset });
-    localFiles.push(localHeader, data);
-    offset += localHeader.length + data.length;
-  }
-  
-  // Central directory
-  const centralDir: Uint8Array[] = [];
-  let centralDirSize = 0;
-  
-  for (const entry of entries) {
-    const nameBytes = new TextEncoder().encode(entry.name);
-    const cdHeader = new Uint8Array(46 + nameBytes.length);
-    const view = new DataView(cdHeader.buffer);
-    
-    view.setUint32(0, 0x02014b50, true); // central directory signature
-    view.setUint16(4, 20, true); // version made by
-    view.setUint16(6, 20, true); // version needed
-    view.setUint16(8, 0, true); // flags
-    view.setUint16(10, 0, true); // compression
-    view.setUint16(12, 0, true); // mod time
-    view.setUint16(14, 0, true); // mod date
-    view.setUint32(16, 0, true); // crc32
-    view.setUint32(20, entry.data.length, true); // compressed size
-    view.setUint32(24, entry.data.length, true); // uncompressed size
-    view.setUint16(28, nameBytes.length, true); // filename length
-    view.setUint16(30, 0, true); // extra field length
-    view.setUint16(32, 0, true); // comment length
-    view.setUint16(34, 0, true); // disk number
-    view.setUint16(36, 0, true); // internal attributes
-    view.setUint32(38, 0, true); // external attributes
-    view.setUint32(42, entry.offset, true); // relative offset
-    
-    cdHeader.set(nameBytes, 46);
-    
-    centralDir.push(cdHeader);
-    centralDirSize += cdHeader.length;
-  }
-  
-  // End of central directory
-  const eocd = new Uint8Array(22);
-  const eocdView = new DataView(eocd.buffer);
-  eocdView.setUint32(0, 0x06054b50, true); // EOCD signature
-  eocdView.setUint16(4, 0, true); // disk number
-  eocdView.setUint16(6, 0, true); // disk with central directory
-  eocdView.setUint16(8, entries.length, true); // entries on this disk
-  eocdView.setUint16(10, entries.length, true); // total entries
-  eocdView.setUint32(12, centralDirSize, true); // central directory size
-  eocdView.setUint32(16, offset, true); // central directory offset
-  eocdView.setUint16(20, 0, true); // comment length
-  
-  // Concatenate all parts
-  const totalSize = localFiles.reduce((sum, arr) => sum + arr.length, 0) + 
-                    centralDirSize + eocd.length;
-  const result = new Uint8Array(totalSize);
-  
-  let pos = 0;
-  for (const chunk of localFiles) {
-    result.set(chunk, pos);
-    pos += chunk.length;
-  }
-  for (const chunk of centralDir) {
-    result.set(chunk, pos);
-    pos += chunk.length;
-  }
-  result.set(eocd, pos);
-  
-  return result;
 }
