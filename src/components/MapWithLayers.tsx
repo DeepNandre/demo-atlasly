@@ -46,19 +46,23 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
       if (error) throw error;
       setSiteData(data);
       
-      // Fetch real OSM data in background
-      fetchRealMapData(
-        data.center_lat,
-        data.center_lng,
-        data.radius_meters || 500
-      ).then(realData => {
-        if (realData) {
-          setMapData(realData);
-          console.log('Loaded map data:', realData.stats);
+      // Fetch real OSM data in background - optimized
+      const loadMapData = async () => {
+        try {
+          const realData = await fetchRealMapData(
+            data.center_lat,
+            data.center_lng,
+            data.radius_meters || 500
+          );
+          if (realData) {
+            setMapData(realData);
+            console.log('Loaded OSM data:', realData.stats);
+          }
+        } catch (err) {
+          console.warn('Failed to load OSM data:', err);
         }
-      }).catch(err => {
-        console.warn('Failed to load OSM data, using mock data:', err);
-      });
+      };
+      loadMapData();
     } catch (error) {
       console.error('Error loading site data:', error);
       toast({
@@ -184,40 +188,45 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
     setMapStyle(newStyle);
   };
 
-  // Update layer visibility when layers prop changes
+  // Update layer visibility when layers prop changes - OPTIMIZED for instant response
   useEffect(() => {
     if (!map.current || !map.current.loaded()) return;
 
-    layers.forEach(layer => {
-      // Map layer types to actual layer IDs
-      let layerIds: string[] = [];
-      
-      switch (layer.type) {
-        case 'buildings':
-          layerIds = ['buildings-layer', 'buildings-layer-fill'];
-          break;
-        case 'landuse':
-          layerIds = ['landuse-layer', 'landuse-layer-fill'];
-          break;
-        case 'transit':
-          layerIds = ['transit-layer'];
-          break;
-        case 'green':
-          layerIds = ['green-spaces-fill', 'green-spaces-outline'];
-          break;
-        case 'population':
-          layerIds = ['population-heatmap'];
-          break;
-      }
-      
-      layerIds.forEach(layerId => {
-        if (map.current?.getLayer(layerId)) {
-          map.current.setLayoutProperty(
-            layerId,
-            'visibility',
-            layer.visible ? 'visible' : 'none'
-          );
+    // Batch all visibility changes for better performance
+    requestAnimationFrame(() => {
+      layers.forEach(layer => {
+        // Map layer types to actual layer IDs
+        let layerIds: string[] = [];
+        
+        switch (layer.type) {
+          case 'buildings':
+            layerIds = ['buildings-layer', 'buildings-layer-fill'];
+            break;
+          case 'landuse':
+            layerIds = ['landuse-layer', 'landuse-layer-fill'];
+            break;
+          case 'transit':
+            layerIds = ['transit-layer'];
+            break;
+          case 'green':
+            layerIds = ['green-spaces-fill', 'green-spaces-outline'];
+            break;
+          case 'population':
+            layerIds = ['population-heatmap'];
+            break;
         }
+        
+        const visibility = layer.visible ? 'visible' : 'none';
+        
+        layerIds.forEach(layerId => {
+          try {
+            if (map.current?.getLayer(layerId)) {
+              map.current.setLayoutProperty(layerId, 'visibility', visibility);
+            }
+          } catch (error) {
+            console.warn(`Failed to toggle layer ${layerId}:`, error);
+          }
+        });
       });
     });
   }, [layers]);
@@ -385,12 +394,21 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
       )
     };
 
-    // Add landuse layer (excluding green spaces)
+    // Add landuse layer (excluding green spaces) - WITH VALIDATION
     if (urbanLanduse.features.length > 0) {
-      if (!map.current.getSource('landuse')) {
+      // Filter out any features with invalid geometry
+      const validLanduse = {
+        type: 'FeatureCollection',
+        features: urbanLanduse.features.filter((f: any) => {
+          const coords = f.geometry?.coordinates?.[0];
+          return coords && Array.isArray(coords) && coords.length >= 4; // Valid polygon
+        })
+      };
+
+      if (validLanduse.features.length > 0 && !map.current.getSource('landuse')) {
         map.current.addSource('landuse', {
           type: 'geojson',
-          data: urbanLanduse as any
+          data: validLanduse as any
         });
 
         map.current.addLayer({
@@ -408,7 +426,7 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
               'farmland', '#F0E68C',
               '#CCCCCC'
             ],
-            'fill-opacity': 0.4
+            'fill-opacity': 0.3
           }
         });
 
@@ -427,7 +445,7 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
               'farmland', '#DAA520',
               '#999999'
             ],
-            'line-width': 1
+            'line-width': 1.5
           }
         });
       }
@@ -495,37 +513,44 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
       }
     }
 
-    // Add population density heatmap (using building density as proxy)
+    // Add population density heatmap (using building density as proxy - NOT real population data)
     if (mapData.buildings.features.length > 0) {
-      // Create point data from building centroids
+      // Create point data from building centroids with proper validation
       const buildingPoints = {
         type: 'FeatureCollection',
-        features: mapData.buildings.features.map((f: any) => {
-          // Calculate centroid of polygon
-          const coords = f.geometry.coordinates[0];
-          if (!coords || coords.length === 0) return null;
-          
-          const centroid = coords.reduce((acc: number[], coord: number[]) => {
-            return [acc[0] + coord[0], acc[1] + coord[1]];
-          }, [0, 0]);
-          
-          return {
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [
-                centroid[0] / coords.length,
-                centroid[1] / coords.length
-              ]
-            },
-            properties: {
-              density: f.properties?.levels || 1
-            }
-          };
-        }).filter((f: any) => f !== null)
+        features: mapData.buildings.features
+          .map((f: any) => {
+            const coords = f.geometry?.coordinates?.[0];
+            if (!coords || !Array.isArray(coords) || coords.length === 0) return null;
+            
+            // Calculate proper centroid
+            let sumLng = 0, sumLat = 0, validPoints = 0;
+            coords.forEach((coord: number[]) => {
+              if (Array.isArray(coord) && coord.length >= 2) {
+                sumLng += coord[0];
+                sumLat += coord[1];
+                validPoints++;
+              }
+            });
+            
+            if (validPoints === 0) return null;
+            
+            return {
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: [sumLng / validPoints, sumLat / validPoints]
+              },
+              properties: {
+                // Use building levels/height as density indicator
+                density: Math.max(1, f.properties?.levels || f.properties?.height / 3 || 1)
+              }
+            };
+          })
+          .filter((f: any) => f !== null)
       };
 
-      if (!map.current.getSource('population')) {
+      if (buildingPoints.features.length > 0 && !map.current.getSource('population')) {
         map.current.addSource('population', {
           type: 'geojson',
           data: buildingPoints as any
@@ -540,15 +565,17 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
               'interpolate',
               ['linear'],
               ['get', 'density'],
-              0, 0,
+              1, 0.3,
+              5, 0.7,
               10, 1
             ],
             'heatmap-intensity': [
               'interpolate',
               ['linear'],
               ['zoom'],
-              0, 1,
-              15, 3
+              12, 0.5,
+              14, 1,
+              16, 1.5
             ],
             'heatmap-color': [
               'interpolate',
@@ -565,10 +592,17 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
               'interpolate',
               ['linear'],
               ['zoom'],
-              0, 2,
-              15, 20
+              12, 10,
+              14, 20,
+              16, 30
             ],
-            'heatmap-opacity': 0.6
+            'heatmap-opacity': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              12, 0.7,
+              16, 0.5
+            ]
           }
         });
       }
