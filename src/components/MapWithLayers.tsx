@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import { fetchRealMapData, getLanduseColor } from '@/lib/mapLayerRenderer';
 import { useToast } from '@/hooks/use-toast';
+import { MapStyleToggle } from './MapStyleToggle';
 
 interface MapLayer {
   id: string;
@@ -26,6 +27,7 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
   const [loading, setLoading] = useState(true);
   const [siteData, setSiteData] = useState<any>(null);
   const [mapData, setMapData] = useState<any>(null);
+  const [mapStyle, setMapStyle] = useState<'standard' | 'satellite'>('standard');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -67,29 +69,60 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
   useEffect(() => {
     if (!mapContainer.current || !siteData) return;
 
+    const getMapStyle = (styleType: 'standard' | 'satellite') => {
+      if (styleType === 'satellite') {
+        // Satellite style using various tile providers
+        return {
+          version: 8,
+          sources: {
+            'satellite': {
+              type: 'raster',
+              tiles: [
+                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+              ],
+              tileSize: 256,
+              attribution: '© Esri'
+            }
+          },
+          layers: [
+            {
+              id: 'satellite',
+              type: 'raster',
+              source: 'satellite',
+              minzoom: 0,
+              maxzoom: 19
+            }
+          ]
+        };
+      } else {
+        // Standard OSM style
+        return {
+          version: 8,
+          sources: {
+            'osm-tiles': {
+              type: 'raster',
+              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              tileSize: 256,
+              attribution: '© OpenStreetMap contributors'
+            }
+          },
+          layers: [
+            {
+              id: 'osm-tiles',
+              type: 'raster',
+              source: 'osm-tiles',
+              minzoom: 0,
+              maxzoom: 19
+            }
+          ]
+        };
+      }
+    };
+
     // Initialize map
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: {
-        version: 8,
-        sources: {
-          'osm-tiles': {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            attribution: '© OpenStreetMap contributors'
-          }
-        },
-        layers: [
-          {
-            id: 'osm-tiles',
-            type: 'raster',
-            source: 'osm-tiles',
-            minzoom: 0,
-            maxzoom: 19
-          }
-        ]
-      },
+      style: getMapStyle(mapStyle) as any,
       center: [siteData.center_lng, siteData.center_lat],
       zoom: 15,
       pitch: 0
@@ -141,7 +174,12 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
     return () => {
       map.current?.remove();
     };
-  }, [siteData]);
+  }, [siteData, mapStyle]);
+
+  // Handle map style changes
+  const handleStyleChange = (newStyle: 'standard' | 'satellite') => {
+    setMapStyle(newStyle);
+  };
 
   // Update layer visibility when layers prop changes
   useEffect(() => {
@@ -457,6 +495,8 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="absolute inset-0" />
+      
+      <MapStyleToggle style={mapStyle} onStyleChange={handleStyleChange} />
       
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm">

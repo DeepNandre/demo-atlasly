@@ -5,8 +5,9 @@ import ProjectSelector from '@/components/ai/ProjectSelector';
 import ConversationalAnalysis from '@/components/ConversationalAnalysis';
 import { MapWithLayers } from '@/components/MapWithLayers';
 import { MapLayerControls } from '@/components/MapLayerControls';
+import { AnalysisTemplates } from '@/components/AnalysisTemplates';
 import { Button } from '@/components/ui/button';
-import { Plus, Map, MessageSquare } from 'lucide-react';
+import { Plus, Map, MessageSquare, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
@@ -65,6 +66,7 @@ const SiteAI = () => {
   const [selectedSite, setSelectedSite] = useState<SiteRequest | null>(null);
   const [sites, setSites] = useState<SiteRequest[]>([]);
   const [layers, setLayers] = useState<MapLayer[]>(defaultLayers);
+  const [templateQuery, setTemplateQuery] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -103,6 +105,10 @@ const SiteAI = () => {
         layer.id === layerId ? { ...layer, visible: !layer.visible } : layer
       )
     );
+  };
+
+  const handleTemplateSelect = (query: string) => {
+    setTemplateQuery(query);
   };
 
   return (
@@ -164,25 +170,37 @@ const SiteAI = () => {
       {selectedSite ? (
         <div className="h-[calc(100vh-4rem)]">
           <ResizablePanelGroup direction="horizontal" className="w-full">
-            {/* Left Panel: AI Chat */}
+            {/* Left Panel: AI Chat + Templates */}
             <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
-              <div className="h-full flex flex-col">
-                <div className="p-4 border-b border-border bg-muted/30">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-primary" />
-                    <h2 className="font-semibold text-foreground">AI Assistant</h2>
+              <ResizablePanelGroup direction="vertical">
+                <ResizablePanel defaultSize={70} minSize={50}>
+                  <div className="h-full flex flex-col">
+                    <div className="p-4 border-b border-border bg-muted/30">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5 text-primary" />
+                        <h2 className="font-semibold text-foreground">AI Assistant</h2>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Ask questions about your site
+                      </p>
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <ConversationalAnalysis
+                        siteRequestId={selectedSite.id}
+                        locationName={selectedSite.location_name}
+                        templateQuery={templateQuery}
+                        onQueryProcessed={() => setTemplateQuery(null)}
+                      />
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Ask questions about your site
-                  </p>
-                </div>
-                <div className="flex-1 overflow-hidden">
-                  <ConversationalAnalysis
-                    siteRequestId={selectedSite.id}
-                    locationName={selectedSite.location_name}
-                  />
-                </div>
-              </div>
+                </ResizablePanel>
+
+                <ResizableHandle withHandle />
+
+                <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
+                  <AnalysisTemplates onTemplateSelect={handleTemplateSelect} />
+                </ResizablePanel>
+              </ResizablePanelGroup>
             </ResizablePanel>
 
             <ResizableHandle withHandle />

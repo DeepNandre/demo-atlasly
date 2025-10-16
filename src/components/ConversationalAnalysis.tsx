@@ -24,9 +24,16 @@ interface Message {
 interface ConversationalAnalysisProps {
   siteRequestId: string;
   locationName: string;
+  templateQuery?: string | null;
+  onQueryProcessed?: () => void;
 }
 
-const ConversationalAnalysis = ({ siteRequestId, locationName }: ConversationalAnalysisProps) => {
+const ConversationalAnalysis = ({ 
+  siteRequestId, 
+  locationName, 
+  templateQuery,
+  onQueryProcessed 
+}: ConversationalAnalysisProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +46,13 @@ const ConversationalAnalysis = ({ siteRequestId, locationName }: ConversationalA
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (templateQuery) {
+      sendMessage(templateQuery);
+      onQueryProcessed?.();
+    }
+  }, [templateQuery]);
 
   const suggestedQuestions = [
     "Analyze transport accessibility",
@@ -171,7 +185,7 @@ const ConversationalAnalysis = ({ siteRequestId, locationName }: ConversationalA
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-background">
       {/* Messages */}
       <ScrollArea className="flex-1 p-4" ref={scrollRef}>
         {messages.length === 0 ? (
