@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Send, Sparkles, MessageSquare, AlertCircle } from 'lucide-react';
+import { Loader2, Send, Sparkles, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Message {
@@ -91,18 +90,7 @@ const ConversationalAnalysis = ({ siteRequestId, locationName }: ConversationalA
   };
 
   return (
-    <Card className="flex flex-col h-full bg-card border-border">
-      {/* Header */}
-      <div className="p-4 border-b border-border bg-muted/30">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" />
-          <div>
-            <h3 className="font-semibold text-foreground">AI Site Analysis</h3>
-            <p className="text-sm text-muted-foreground">{locationName}</p>
-          </div>
-        </div>
-      </div>
-
+    <div className="flex flex-col h-full">
       {/* Messages */}
       <ScrollArea className="flex-1 p-4" ref={scrollRef}>
         {messages.length === 0 ? (
@@ -176,13 +164,13 @@ const ConversationalAnalysis = ({ siteRequestId, locationName }: ConversationalA
       </ScrollArea>
 
       {/* Input */}
-      <div className="p-4 border-t border-border bg-muted/30">
+      <div className="p-4 border-t border-border bg-card">
         <div className="flex gap-2">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage(input)}
-            placeholder="Ask about solar optimization, sustainability, costs..."
+            placeholder="Ask about this site..."
             disabled={isLoading}
             className="flex-1 bg-background"
           />
@@ -199,10 +187,10 @@ const ConversationalAnalysis = ({ siteRequestId, locationName }: ConversationalA
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          Powered by multi-source data: OpenStreetMap, climate data, and site analysis
+          Powered by multi-source data analysis
         </p>
       </div>
-    </Card>
+    </div>
   );
 };
 

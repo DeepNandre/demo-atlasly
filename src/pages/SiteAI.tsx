@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import ChatSidebar from '@/components/ai/ChatSidebar';
-import ChatInterface from '@/components/ai/ChatInterface';
 import ProjectSelector from '@/components/ai/ProjectSelector';
-import { SiteAnalysisPanel } from '@/components/SiteAnalysisPanel';
+import ConversationalAnalysis from '@/components/ConversationalAnalysis';
+import { MapWithLayers } from '@/components/MapWithLayers';
+import { MapLayerControls } from '@/components/MapLayerControls';
 import { Button } from '@/components/ui/button';
-import { Plus, BarChart3 } from 'lucide-react';
+import { Plus, Map, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 const SiteIQLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
@@ -42,13 +43,28 @@ export interface SiteRequest {
   status: string;
 }
 
+interface MapLayer {
+  id: string;
+  name: string;
+  visible: boolean;
+  color: string;
+  type: 'buildings' | 'landuse' | 'transit' | 'green' | 'population';
+}
+
+const defaultLayers: MapLayer[] = [
+  { id: 'buildings', name: 'Buildings', visible: true, color: '#FFD700', type: 'buildings' },
+  { id: 'landuse', name: 'Land Use', visible: true, color: '#00FF00', type: 'landuse' },
+  { id: 'transit', name: 'Transit', visible: true, color: '#1E90FF', type: 'transit' },
+  { id: 'green', name: 'Green Spaces', visible: false, color: '#228B22', type: 'green' },
+  { id: 'population', name: 'Population', visible: false, color: '#FF4500', type: 'population' }
+];
+
 const SiteAI = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [selectedSite, setSelectedSite] = useState<SiteRequest | null>(null);
   const [sites, setSites] = useState<SiteRequest[]>([]);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [showAnalysis, setShowAnalysis] = useState(true);
+  const [layers, setLayers] = useState<MapLayer[]>(defaultLayers);
 
   useEffect(() => {
     if (!user) {
@@ -81,36 +97,38 @@ const SiteAI = () => {
     }
   };
 
-  const handleNewChat = () => {
-    setActiveChatId(null);
+  const handleLayerToggle = (layerId: string) => {
+    setLayers(prev =>
+      prev.map(layer =>
+        layer.id === layerId ? { ...layer, visible: !layer.visible } : layer
+      )
+    );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-gray-950 dark:to-gray-900">
-      {/* Enhanced Header */}
-      <div className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60 dark:bg-gray-950/80 dark:supports-[backdrop-filter]:bg-gray-950/60">
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-xl">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
-            {/* Logo & Title */}
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
                 <div className="relative">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-                    <SiteIQLogo className="text-white" size={24} />
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-medium">
+                    <SiteIQLogo className="text-primary-foreground" size={24} />
                   </div>
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-950 animate-pulse"></div>
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-card animate-pulse"></div>
                 </div>
                 <div>
-                  <h1 className="text-xl font-semibold text-gray-900 dark:text-white">SiteIQ AI</h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Intelligent Site Analysis</p>
+                  <h1 className="text-xl font-semibold text-foreground">SiteIQ AI</h1>
+                  <p className="text-sm text-muted-foreground">Intelligent Site Analysis</p>
                 </div>
               </div>
               
-              <div className="hidden lg:block h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
+              <div className="hidden lg:block h-8 w-px bg-border"></div>
               
-              {/* Project Selector */}
               <div className="hidden lg:flex items-center space-x-3">
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Active Project</span>
+                <span className="text-sm font-medium text-muted-foreground">Active Project</span>
                 <ProjectSelector
                   sites={sites}
                   selectedSite={selectedSite}
@@ -119,27 +137,14 @@ const SiteAI = () => {
               </div>
             </div>
             
-            {/* Actions */}
             <div className="flex items-center space-x-3">
               {selectedSite && (
-                <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 rounded-full border border-green-200 dark:border-green-800">
+                <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-green-500/10 rounded-full border border-green-500/20">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-xs font-medium text-green-700 dark:text-green-300 capitalize">
+                  <span className="text-xs font-medium text-green-600 dark:text-green-400 capitalize">
                     {selectedSite.status}
                   </span>
                 </div>
-              )}
-              
-              {selectedSite && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAnalysis(!showAnalysis)}
-                  className="hidden md:flex"
-                >
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  {showAnalysis ? 'Hide' : 'Show'} Analysis
-                </Button>
               )}
               
               <Button
@@ -152,95 +157,116 @@ const SiteAI = () => {
               </Button>
             </div>
           </div>
-          
-          {/* Mobile Project Selector */}
-          <div className="lg:hidden mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-            <div className="flex items-center space-x-3">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Project:</span>
-              <ProjectSelector
-                sites={sites}
-                selectedSite={selectedSite}
-                onSiteSelect={setSelectedSite}
-              />
-            </div>
-          </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex h-[calc(100vh-4rem)]">
-        {/* Enhanced Sidebar */}
-        <ChatSidebar
-          activeChatId={activeChatId}
-          onChatSelect={setActiveChatId}
-          onNewChat={handleNewChat}
-          siteRequestId={selectedSite?.id}
-        />
+      {selectedSite ? (
+        <div className="h-[calc(100vh-4rem)]">
+          <ResizablePanelGroup direction="horizontal" className="w-full">
+            {/* Left Panel: AI Chat */}
+            <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
+              <div className="h-full flex flex-col">
+                <div className="p-4 border-b border-border bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-primary" />
+                    <h2 className="font-semibold text-foreground">AI Assistant</h2>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ask questions about your site
+                  </p>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <ConversationalAnalysis
+                    siteRequestId={selectedSite.id}
+                    locationName={selectedSite.location_name}
+                  />
+                </div>
+              </div>
+            </ResizablePanel>
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex">
-          {/* Chat Interface */}
-          {selectedSite ? (
-            <>
-              <ChatInterface
-                siteRequestId={selectedSite.id}
-                locationName={selectedSite.location_name}
-                chatId={activeChatId}
-                onChatIdChange={setActiveChatId}
-              />
-              
-              {/* Analysis Panel */}
-              {showAnalysis && (
-                <div className="w-80 border-l bg-muted/30">
-                  <SiteAnalysisPanel siteRequestId={selectedSite.id} />
-                </div>
-              )}
-            </>
-          ) : (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-center space-y-6 max-w-lg">
-              <div className="relative mx-auto">
-                <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6 shadow-lg">
-                  <SiteIQLogo className="text-primary" size={48} />
-                </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">AI</span>
-                </div>
+            <ResizableHandle withHandle />
+
+            {/* Right Panel: Map */}
+            <ResizablePanel defaultSize={65} minSize={50}>
+              <ResizablePanelGroup direction="horizontal">
+                <ResizablePanel defaultSize={75} minSize={60}>
+                  <div className="h-full flex flex-col">
+                    <div className="p-4 border-b border-border bg-muted/30">
+                      <div className="flex items-center gap-2">
+                        <Map className="w-5 h-5 text-primary" />
+                        <h2 className="font-semibold text-foreground">Interactive Map</h2>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Visualize site data and layers
+                      </p>
+                    </div>
+                    <div className="flex-1">
+                      <MapWithLayers
+                        siteRequestId={selectedSite.id}
+                        layers={layers}
+                        onLayersChange={setLayers}
+                      />
+                    </div>
+                  </div>
+                </ResizablePanel>
+
+                <ResizableHandle withHandle />
+
+                {/* Layer Controls */}
+                <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
+                  <MapLayerControls
+                    layers={layers}
+                    onLayerToggle={handleLayerToggle}
+                  />
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
+      ) : (
+        <div className="flex h-[calc(100vh-4rem)] items-center justify-center p-8">
+          <div className="text-center space-y-6 max-w-lg">
+            <div className="relative mx-auto">
+              <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6 shadow-medium">
+                <SiteIQLogo className="text-primary" size={48} />
               </div>
-              
-              <div className="space-y-3">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome to SiteIQ AI</h2>
-                <p className="text-lg text-gray-600 dark:text-gray-300 leading-relaxed">
-                  Your intelligent site analysis assistant is ready to help. Select a project to get started with insights, recommendations, and visualizations.
-                </p>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
-                <Button 
-                  onClick={() => navigate('/generate')}
-                  size="lg"
-                  className="w-full sm:w-auto shadow-lg"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create New Project
-                </Button>
-                
-                {sites.length > 0 && (
-                  <Button 
-                    variant="outline"
-                    size="lg"
-                    onClick={() => setSelectedSite(sites[0])}
-                    className="w-full sm:w-auto"
-                  >
-                    Use Existing Project
-                  </Button>
-                )}
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">AI</span>
               </div>
             </div>
+            
+            <div className="space-y-3">
+              <h2 className="text-3xl font-bold text-foreground">Welcome to SiteIQ AI</h2>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                Your intelligent site analysis assistant is ready to help. Select a project to get started with insights, recommendations, and visualizations.
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+              <Button 
+                onClick={() => navigate('/generate')}
+                size="lg"
+                className="w-full sm:w-auto shadow-medium"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create New Project
+              </Button>
+              
+              {sites.length > 0 && (
+                <Button 
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setSelectedSite(sites[0])}
+                  className="w-full sm:w-auto"
+                >
+                  Use Existing Project
+                </Button>
+              )}
+            </div>
           </div>
-          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };
