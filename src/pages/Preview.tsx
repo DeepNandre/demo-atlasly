@@ -14,6 +14,7 @@ import { FeedbackButton } from '@/components/FeedbackButton';
 import { DesignAssistantPanel } from '@/components/DesignAssistantPanel';
 import { ElevationTab } from '@/components/ElevationTab';
 import { SolarAnalyzerTab } from '@/components/SolarAnalyzerTab';
+import ConversationalAnalysis from '@/components/ConversationalAnalysis';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
@@ -266,6 +267,7 @@ const Preview = () => {
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
               <TabsList className="bg-card/95 backdrop-blur-sm shadow-lg">
                 <TabsTrigger value="3d">3D View</TabsTrigger>
+                <TabsTrigger value="ai">AI Analysis</TabsTrigger>
                 <TabsTrigger value="elevation">Elevation</TabsTrigger>
                 <TabsTrigger value="solar">Solar</TabsTrigger>
                 <TabsTrigger value="climate">Climate</TabsTrigger>
@@ -295,6 +297,17 @@ const Preview = () => {
                   contextLayers={contextLayers}
                   aoiBounds={aoiBounds}
                 />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="ai" className="h-full m-0">
+              <div className="container mx-auto p-6 h-full">
+                {siteInfo && (
+                  <ConversationalAnalysis 
+                    siteRequestId={id!} 
+                    locationName={siteInfo.location_name}
+                  />
+                )}
               </div>
             </TabsContent>
 

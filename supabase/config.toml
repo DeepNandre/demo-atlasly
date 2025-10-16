@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.validate-exports]
 verify_jwt = false
+
+[functions.conversational-analysis]
+verify_jwt = true
