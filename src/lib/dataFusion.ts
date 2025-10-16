@@ -10,11 +10,32 @@ export interface LocationContext {
 }
 
 export interface OSMData {
-  buildings: number;
+  buildings: Array<{ 
+    type: string; 
+    name?: string; 
+    height?: number;
+    levels?: number;
+    geometry?: number[][][];
+  }>;
   roads: number;
-  amenities: Array<{ type: string; name: string; distance: number }>;
-  landuse: Array<{ type: string; area: number }>;
-  transit: Array<{ type: string; name: string; distance: number }>;
+  amenities: Array<{ 
+    type: string; 
+    name: string; 
+    distance: number;
+    coordinates: [number, number];
+  }>;
+  landuse: Array<{ 
+    type: string; 
+    name?: string;
+    area: number;
+    geometry?: number[][][];
+  }>;
+  transit: Array<{ 
+    type: string; 
+    name: string; 
+    distance: number;
+    coordinates: [number, number];
+  }>;
 }
 
 export interface WeatherData {
@@ -71,42 +92,67 @@ export async function fetchOSMData(lat: number, lng: number, radius: number = 50
 
     const data = await response.json();
     
-    // Process OSM data
-    const buildings = data.elements.filter((e: any) => e.tags?.building).length;
+    // Process OSM data with geometry
+    const buildingsData = data.elements
+      .filter((e: any) => e.tags?.building && e.type === 'way')
+      .map((e: any) => {
+        const nodes = data.elements.filter((n: any) => n.type === 'node' && e.nodes?.includes(n.id));
+        const geometry = nodes.length > 0 ? [nodes.map((n: any) => [n.lon, n.lat])] : undefined;
+        
+        return {
+          type: e.tags.building,
+          name: e.tags.name,
+          height: parseFloat(e.tags.height) || (parseFloat(e.tags['building:levels']) || 3) * 3,
+          levels: parseFloat(e.tags['building:levels']) || 3,
+          geometry
+        };
+      })
+      .filter((b: any) => b.geometry);
+    
     const roads = data.elements.filter((e: any) => e.tags?.highway).length;
     
     const amenities = data.elements
-      .filter((e: any) => e.tags?.amenity)
+      .filter((e: any) => e.tags?.amenity && e.type === 'node')
       .map((e: any) => ({
         type: e.tags.amenity,
         name: e.tags.name || e.tags.amenity,
-        distance: calculateDistance(lat, lng, e.lat, e.lon)
+        distance: calculateDistance(lat, lng, e.lat, e.lon),
+        coordinates: [e.lon, e.lat] as [number, number]
+      }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 20);
+
+    const landuseData = data.elements
+      .filter((e: any) => e.tags?.landuse && e.type === 'way')
+      .map((e: any) => {
+        const nodes = data.elements.filter((n: any) => n.type === 'node' && e.nodes?.includes(n.id));
+        const geometry = nodes.length > 0 ? [nodes.map((n: any) => [n.lon, n.lat])] : undefined;
+        
+        return {
+          type: e.tags.landuse,
+          name: e.tags.name,
+          area: calculateArea(e),
+          geometry
+        };
+      })
+      .filter((l: any) => l.geometry);
+
+    const transit = data.elements
+      .filter((e: any) => e.tags?.public_transport && e.type === 'node')
+      .map((e: any) => ({
+        type: e.tags.public_transport,
+        name: e.tags.name || e.tags.public_transport,
+        distance: calculateDistance(lat, lng, e.lat, e.lon),
+        coordinates: [e.lon, e.lat] as [number, number]
       }))
       .sort((a, b) => a.distance - b.distance)
       .slice(0, 10);
 
-    const landuse = data.elements
-      .filter((e: any) => e.tags?.landuse)
-      .map((e: any) => ({
-        type: e.tags.landuse,
-        area: calculateArea(e)
-      }));
-
-    const transit = data.elements
-      .filter((e: any) => e.tags?.public_transport)
-      .map((e: any) => ({
-        type: e.tags.public_transport,
-        name: e.tags.name || e.tags.public_transport,
-        distance: calculateDistance(lat, lng, e.lat, e.lon)
-      }))
-      .sort((a, b) => a.distance - b.distance)
-      .slice(0, 5);
-
-    return { buildings, roads, amenities, landuse, transit };
+    return { buildings: buildingsData, roads, amenities, landuse: landuseData, transit };
   } catch (error) {
     console.error('Error fetching OSM data:', error);
     return {
-      buildings: 0,
+      buildings: [],
       roads: 0,
       amenities: [],
       landuse: [],

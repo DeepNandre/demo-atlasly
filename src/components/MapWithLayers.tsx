@@ -3,6 +3,8 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { fetchRealMapData, getLanduseColor } from '@/lib/mapLayerRenderer';
+import { useToast } from '@/hooks/use-toast';
 
 interface MapLayer {
   id: string;
@@ -23,6 +25,8 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
   const map = useRef<maplibregl.Map | null>(null);
   const [loading, setLoading] = useState(true);
   const [siteData, setSiteData] = useState<any>(null);
+  const [mapData, setMapData] = useState<any>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadSiteData();
@@ -38,8 +42,25 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
 
       if (error) throw error;
       setSiteData(data);
+      
+      // Fetch real OSM data
+      const realData = await fetchRealMapData(
+        data.center_lat,
+        data.center_lng,
+        data.radius_meters || 500
+      );
+      
+      if (realData) {
+        setMapData(realData);
+        console.log('Loaded map data:', realData.stats);
+      }
     } catch (error) {
       console.error('Error loading site data:', error);
+      toast({
+        title: 'Error loading map data',
+        description: 'Using demo data instead',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -107,10 +128,14 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
         });
       }
 
-      // Add mock building layer
-      addMockBuildingsLayer();
-      addMockLanduseLayer();
-      addMockTransitLayer();
+      // Add real data layers if available, otherwise mock
+      if (mapData) {
+        addRealDataLayers();
+      } else {
+        addMockBuildingsLayer();
+        addMockLanduseLayer();
+        addMockTransitLayer();
+      }
     });
 
     return () => {
@@ -255,6 +280,126 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
         'line-width': 1
       }
     });
+  };
+
+  const addRealDataLayers = () => {
+    if (!map.current || !mapData) return;
+
+    // Add buildings layer
+    if (mapData.buildings.features.length > 0) {
+      map.current.addSource('buildings', {
+        type: 'geojson',
+        data: mapData.buildings
+      });
+
+      map.current.addLayer({
+        id: 'buildings-layer-fill',
+        type: 'fill',
+        source: 'buildings',
+        paint: {
+          'fill-color': '#FFD700',
+          'fill-opacity': 0.5
+        }
+      });
+
+      map.current.addLayer({
+        id: 'buildings-layer',
+        type: 'line',
+        source: 'buildings',
+        paint: {
+          'line-color': '#FFA500',
+          'line-width': 2
+        }
+      });
+    }
+
+    // Add landuse layer with color coding
+    if (mapData.landuse.features.length > 0) {
+      map.current.addSource('landuse', {
+        type: 'geojson',
+        data: mapData.landuse
+      });
+
+      map.current.addLayer({
+        id: 'landuse-layer-fill',
+        type: 'fill',
+        source: 'landuse',
+        paint: {
+          'fill-color': [
+            'match',
+            ['get', 'type'],
+            'residential', '#FF69B4',
+            'commercial', '#4169E1',
+            'industrial', '#A9A9A9',
+            'park', '#00FF00',
+            'forest', '#228B22',
+            'grass', '#90EE90',
+            'farmland', '#F0E68C',
+            '#CCCCCC'
+          ],
+          'fill-opacity': 0.3
+        }
+      });
+
+      map.current.addLayer({
+        id: 'landuse-layer',
+        type: 'line',
+        source: 'landuse',
+        paint: {
+          'line-color': [
+            'match',
+            ['get', 'type'],
+            'residential', '#FF1493',
+            'commercial', '#0000CD',
+            'industrial', '#696969',
+            'park', '#008000',
+            'forest', '#006400',
+            '#999999'
+          ],
+          'line-width': 1
+        }
+      });
+    }
+
+    // Add transit layer
+    if (mapData.transit.features.length > 0) {
+      map.current.addSource('transit', {
+        type: 'geojson',
+        data: mapData.transit
+      });
+
+      map.current.addLayer({
+        id: 'transit-layer',
+        type: 'circle',
+        source: 'transit',
+        paint: {
+          'circle-radius': 6,
+          'circle-color': '#1E90FF',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFFFFF'
+        }
+      });
+    }
+
+    // Add amenities layer
+    if (mapData.amenities && mapData.amenities.features.length > 0) {
+      map.current.addSource('amenities', {
+        type: 'geojson',
+        data: mapData.amenities
+      });
+
+      map.current.addLayer({
+        id: 'green-layer',
+        type: 'circle',
+        source: 'amenities',
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#FF6347',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFFFFF'
+        }
+      });
+    }
   };
 
   const addMockTransitLayer = () => {

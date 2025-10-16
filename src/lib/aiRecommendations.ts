@@ -116,16 +116,16 @@ export function generateRecommendations(
   }
 
   // Density and context
-  if (siteContext.osm.buildings > 20) {
+  if (siteContext.osm.buildings.length > 20) {
     recommendations.push({
       category: 'site-planning',
       priority: 'medium',
       title: 'Urban Infill Context',
-      description: `${siteContext.osm.buildings} buildings in surrounding area`,
+      description: `${siteContext.osm.buildings.length} buildings in surrounding area`,
       impact: 'Dense context requires contextual design and privacy considerations',
       action: 'Match street wall height, provide adequate setbacks, consider noise mitigation'
     });
-  } else if (siteContext.osm.buildings < 5) {
+  } else if (siteContext.osm.buildings.length < 5) {
     recommendations.push({
       category: 'site-planning',
       priority: 'low',
