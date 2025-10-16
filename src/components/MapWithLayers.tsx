@@ -203,10 +203,10 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
           layerIds = ['transit-layer'];
           break;
         case 'green':
-          layerIds = ['green-layer'];
+          layerIds = ['green-spaces-fill', 'green-spaces-outline'];
           break;
         case 'population':
-          // Population layer not implemented yet
+          layerIds = ['population-heatmap'];
           break;
       }
       
@@ -369,12 +369,28 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
       }
     }
 
-    // Add landuse layer with color coding
-    if (mapData.landuse.features.length > 0) {
+    // Separate green spaces from landuse data
+    const greenSpaceTypes = ['park', 'forest', 'grass', 'meadow', 'recreation_ground', 'garden'];
+    const greenSpaces = {
+      type: 'FeatureCollection',
+      features: mapData.landuse.features.filter((f: any) => 
+        greenSpaceTypes.includes(f.properties?.type)
+      )
+    };
+
+    const urbanLanduse = {
+      type: 'FeatureCollection',
+      features: mapData.landuse.features.filter((f: any) => 
+        !greenSpaceTypes.includes(f.properties?.type)
+      )
+    };
+
+    // Add landuse layer (excluding green spaces)
+    if (urbanLanduse.features.length > 0) {
       if (!map.current.getSource('landuse')) {
         map.current.addSource('landuse', {
           type: 'geojson',
-          data: mapData.landuse
+          data: urbanLanduse as any
         });
 
         map.current.addLayer({
@@ -388,13 +404,11 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
               'residential', '#FF69B4',
               'commercial', '#4169E1',
               'industrial', '#A9A9A9',
-              'park', '#00FF00',
-              'forest', '#228B22',
-              'grass', '#90EE90',
+              'retail', '#87CEEB',
               'farmland', '#F0E68C',
               '#CCCCCC'
             ],
-            'fill-opacity': 0.3
+            'fill-opacity': 0.4
           }
         });
 
@@ -409,11 +423,51 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
               'residential', '#FF1493',
               'commercial', '#0000CD',
               'industrial', '#696969',
-              'park', '#008000',
-              'forest', '#006400',
+              'retail', '#4682B4',
+              'farmland', '#DAA520',
               '#999999'
             ],
             'line-width': 1
+          }
+        });
+      }
+    }
+
+    // Add green spaces layer
+    if (greenSpaces.features.length > 0) {
+      if (!map.current.getSource('green-spaces')) {
+        map.current.addSource('green-spaces', {
+          type: 'geojson',
+          data: greenSpaces as any
+        });
+
+        map.current.addLayer({
+          id: 'green-spaces-fill',
+          type: 'fill',
+          source: 'green-spaces',
+          paint: {
+            'fill-color': [
+              'match',
+              ['get', 'type'],
+              'park', '#00FF00',
+              'forest', '#228B22',
+              'grass', '#90EE90',
+              'meadow', '#98FB98',
+              'recreation_ground', '#7CFC00',
+              'garden', '#ADFF2F',
+              '#00FF00'
+            ],
+            'fill-opacity': 0.5
+          }
+        });
+
+        map.current.addLayer({
+          id: 'green-spaces-outline',
+          type: 'line',
+          source: 'green-spaces',
+          paint: {
+            'line-color': '#006400',
+            'line-width': 2
           }
         });
       }
@@ -441,23 +495,80 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
       }
     }
 
-    // Add amenities layer
-    if (mapData.amenities && mapData.amenities.features.length > 0) {
-      if (!map.current.getSource('amenities')) {
-        map.current.addSource('amenities', {
+    // Add population density heatmap (using building density as proxy)
+    if (mapData.buildings.features.length > 0) {
+      // Create point data from building centroids
+      const buildingPoints = {
+        type: 'FeatureCollection',
+        features: mapData.buildings.features.map((f: any) => {
+          // Calculate centroid of polygon
+          const coords = f.geometry.coordinates[0];
+          if (!coords || coords.length === 0) return null;
+          
+          const centroid = coords.reduce((acc: number[], coord: number[]) => {
+            return [acc[0] + coord[0], acc[1] + coord[1]];
+          }, [0, 0]);
+          
+          return {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [
+                centroid[0] / coords.length,
+                centroid[1] / coords.length
+              ]
+            },
+            properties: {
+              density: f.properties?.levels || 1
+            }
+          };
+        }).filter((f: any) => f !== null)
+      };
+
+      if (!map.current.getSource('population')) {
+        map.current.addSource('population', {
           type: 'geojson',
-          data: mapData.amenities
+          data: buildingPoints as any
         });
 
         map.current.addLayer({
-          id: 'green-layer',
-          type: 'circle',
-          source: 'amenities',
+          id: 'population-heatmap',
+          type: 'heatmap',
+          source: 'population',
           paint: {
-            'circle-radius': 5,
-            'circle-color': '#FF6347',
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#FFFFFF'
+            'heatmap-weight': [
+              'interpolate',
+              ['linear'],
+              ['get', 'density'],
+              0, 0,
+              10, 1
+            ],
+            'heatmap-intensity': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              0, 1,
+              15, 3
+            ],
+            'heatmap-color': [
+              'interpolate',
+              ['linear'],
+              ['heatmap-density'],
+              0, 'rgba(33,102,172,0)',
+              0.2, 'rgb(103,169,207)',
+              0.4, 'rgb(209,229,240)',
+              0.6, 'rgb(253,219,199)',
+              0.8, 'rgb(239,138,98)',
+              1, 'rgb(178,24,43)'
+            ],
+            'heatmap-radius': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              0, 2,
+              15, 20
+            ],
+            'heatmap-opacity': 0.6
           }
         });
       }
