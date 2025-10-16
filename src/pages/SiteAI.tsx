@@ -77,6 +77,56 @@ const SiteAI = () => {
     loadUserSites();
   }, [user, navigate]);
 
+  // Handle auto-selection from URL query params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const projectId = params.get('project');
+    
+    if (projectId && sites.length > 0) {
+      const project = sites.find(s => s.id === projectId);
+      if (project) {
+        setSelectedSite(project);
+        // Clean up URL params after selection
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    } else if (!selectedSite && sites.length > 0) {
+      // Auto-select first site if none selected
+      setSelectedSite(sites[0]);
+    }
+  }, [sites]);
+
+  // Listen for site creation/updates via storage event
+  useEffect(() => {
+    const handleStorageChange = () => {
+      loadUserSites();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also reload when the page regains focus (for same-tab navigation)
+    window.addEventListener('focus', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleStorageChange);
+    };
+  }, []);
+
+  // Refresh sites when navigating to this page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadUserSites();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   const loadUserSites = async () => {
     if (!user) return;
 
@@ -92,11 +142,6 @@ const SiteAI = () => {
     }
 
     setSites(data || []);
-    
-    // Auto-select first site if none selected
-    if (!selectedSite && data && data.length > 0) {
-      setSelectedSite(data[0]);
-    }
   };
 
   const handleLayerToggle = (layerId: string) => {

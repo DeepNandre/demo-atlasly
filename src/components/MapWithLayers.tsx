@@ -36,6 +36,7 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
 
   const loadSiteData = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('site_requests')
         .select('*')
@@ -45,17 +46,19 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
       if (error) throw error;
       setSiteData(data);
       
-      // Fetch real OSM data
-      const realData = await fetchRealMapData(
+      // Fetch real OSM data in background
+      fetchRealMapData(
         data.center_lat,
         data.center_lng,
         data.radius_meters || 500
-      );
-      
-      if (realData) {
-        setMapData(realData);
-        console.log('Loaded map data:', realData.stats);
-      }
+      ).then(realData => {
+        if (realData) {
+          setMapData(realData);
+          console.log('Loaded map data:', realData.stats);
+        }
+      }).catch(err => {
+        console.warn('Failed to load OSM data, using mock data:', err);
+      });
     } catch (error) {
       console.error('Error loading site data:', error);
       toast({
@@ -63,6 +66,7 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
         description: 'Using demo data instead',
         variant: 'destructive'
       });
+      setLoading(false);
     }
   };
 
@@ -71,7 +75,6 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
 
     const getMapStyle = (styleType: 'standard' | 'satellite') => {
       if (styleType === 'satellite') {
-        // Satellite style using various tile providers
         return {
           version: 8,
           sources: {
@@ -95,7 +98,6 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
           ]
         };
       } else {
-        // Standard OSM style
         return {
           version: 8,
           sources: {
@@ -173,8 +175,9 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
 
     return () => {
       map.current?.remove();
+      map.current = null;
     };
-  }, [siteData, mapStyle]);
+  }, [siteData, mapStyle, mapData]);
 
   // Handle map style changes
   const handleStyleChange = (newStyle: 'standard' | 'satellite') => {
@@ -183,26 +186,39 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
 
   // Update layer visibility when layers prop changes
   useEffect(() => {
-    if (!map.current) return;
+    if (!map.current || !map.current.loaded()) return;
 
     layers.forEach(layer => {
-      const layerId = `${layer.type}-layer`;
-      const layerFillId = `${layer.type}-layer-fill`;
+      // Map layer types to actual layer IDs
+      let layerIds: string[] = [];
       
-      if (map.current?.getLayer(layerId)) {
-        map.current.setLayoutProperty(
-          layerId,
-          'visibility',
-          layer.visible ? 'visible' : 'none'
-        );
+      switch (layer.type) {
+        case 'buildings':
+          layerIds = ['buildings-layer', 'buildings-layer-fill'];
+          break;
+        case 'landuse':
+          layerIds = ['landuse-layer', 'landuse-layer-fill'];
+          break;
+        case 'transit':
+          layerIds = ['transit-layer'];
+          break;
+        case 'green':
+          layerIds = ['green-layer'];
+          break;
+        case 'population':
+          // Population layer not implemented yet
+          break;
       }
-      if (map.current?.getLayer(layerFillId)) {
-        map.current.setLayoutProperty(
-          layerFillId,
-          'visibility',
-          layer.visible ? 'visible' : 'none'
-        );
-      }
+      
+      layerIds.forEach(layerId => {
+        if (map.current?.getLayer(layerId)) {
+          map.current.setLayoutProperty(
+            layerId,
+            'visibility',
+            layer.visible ? 'visible' : 'none'
+          );
+        }
+      });
     });
   }, [layers]);
 
@@ -325,118 +341,126 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
 
     // Add buildings layer
     if (mapData.buildings.features.length > 0) {
-      map.current.addSource('buildings', {
-        type: 'geojson',
-        data: mapData.buildings
-      });
+      if (!map.current.getSource('buildings')) {
+        map.current.addSource('buildings', {
+          type: 'geojson',
+          data: mapData.buildings
+        });
 
-      map.current.addLayer({
-        id: 'buildings-layer-fill',
-        type: 'fill',
-        source: 'buildings',
-        paint: {
-          'fill-color': '#FFD700',
-          'fill-opacity': 0.5
-        }
-      });
+        map.current.addLayer({
+          id: 'buildings-layer-fill',
+          type: 'fill',
+          source: 'buildings',
+          paint: {
+            'fill-color': '#FFD700',
+            'fill-opacity': 0.5
+          }
+        });
 
-      map.current.addLayer({
-        id: 'buildings-layer',
-        type: 'line',
-        source: 'buildings',
-        paint: {
-          'line-color': '#FFA500',
-          'line-width': 2
-        }
-      });
+        map.current.addLayer({
+          id: 'buildings-layer',
+          type: 'line',
+          source: 'buildings',
+          paint: {
+            'line-color': '#FFA500',
+            'line-width': 2
+          }
+        });
+      }
     }
 
     // Add landuse layer with color coding
     if (mapData.landuse.features.length > 0) {
-      map.current.addSource('landuse', {
-        type: 'geojson',
-        data: mapData.landuse
-      });
+      if (!map.current.getSource('landuse')) {
+        map.current.addSource('landuse', {
+          type: 'geojson',
+          data: mapData.landuse
+        });
 
-      map.current.addLayer({
-        id: 'landuse-layer-fill',
-        type: 'fill',
-        source: 'landuse',
-        paint: {
-          'fill-color': [
-            'match',
-            ['get', 'type'],
-            'residential', '#FF69B4',
-            'commercial', '#4169E1',
-            'industrial', '#A9A9A9',
-            'park', '#00FF00',
-            'forest', '#228B22',
-            'grass', '#90EE90',
-            'farmland', '#F0E68C',
-            '#CCCCCC'
-          ],
-          'fill-opacity': 0.3
-        }
-      });
+        map.current.addLayer({
+          id: 'landuse-layer-fill',
+          type: 'fill',
+          source: 'landuse',
+          paint: {
+            'fill-color': [
+              'match',
+              ['get', 'type'],
+              'residential', '#FF69B4',
+              'commercial', '#4169E1',
+              'industrial', '#A9A9A9',
+              'park', '#00FF00',
+              'forest', '#228B22',
+              'grass', '#90EE90',
+              'farmland', '#F0E68C',
+              '#CCCCCC'
+            ],
+            'fill-opacity': 0.3
+          }
+        });
 
-      map.current.addLayer({
-        id: 'landuse-layer',
-        type: 'line',
-        source: 'landuse',
-        paint: {
-          'line-color': [
-            'match',
-            ['get', 'type'],
-            'residential', '#FF1493',
-            'commercial', '#0000CD',
-            'industrial', '#696969',
-            'park', '#008000',
-            'forest', '#006400',
-            '#999999'
-          ],
-          'line-width': 1
-        }
-      });
+        map.current.addLayer({
+          id: 'landuse-layer',
+          type: 'line',
+          source: 'landuse',
+          paint: {
+            'line-color': [
+              'match',
+              ['get', 'type'],
+              'residential', '#FF1493',
+              'commercial', '#0000CD',
+              'industrial', '#696969',
+              'park', '#008000',
+              'forest', '#006400',
+              '#999999'
+            ],
+            'line-width': 1
+          }
+        });
+      }
     }
 
     // Add transit layer
     if (mapData.transit.features.length > 0) {
-      map.current.addSource('transit', {
-        type: 'geojson',
-        data: mapData.transit
-      });
+      if (!map.current.getSource('transit')) {
+        map.current.addSource('transit', {
+          type: 'geojson',
+          data: mapData.transit
+        });
 
-      map.current.addLayer({
-        id: 'transit-layer',
-        type: 'circle',
-        source: 'transit',
-        paint: {
-          'circle-radius': 6,
-          'circle-color': '#1E90FF',
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#FFFFFF'
-        }
-      });
+        map.current.addLayer({
+          id: 'transit-layer',
+          type: 'circle',
+          source: 'transit',
+          paint: {
+            'circle-radius': 6,
+            'circle-color': '#1E90FF',
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#FFFFFF'
+          }
+        });
+      }
     }
 
     // Add amenities layer
     if (mapData.amenities && mapData.amenities.features.length > 0) {
-      map.current.addSource('amenities', {
-        type: 'geojson',
-        data: mapData.amenities
-      });
+      if (!map.current.getSource('amenities')) {
+        map.current.addSource('amenities', {
+          type: 'geojson',
+          data: mapData.amenities
+        });
 
-      map.current.addLayer({
-        id: 'green-layer',
-        type: 'circle',
-        source: 'amenities',
-        paint: {
-          'circle-radius': 5,
-          'circle-color': '#FF6347',
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#FFFFFF'
-        }
-      });
+        map.current.addLayer({
+          id: 'green-layer',
+          type: 'circle',
+          source: 'amenities',
+          paint: {
+            'circle-radius': 5,
+            'circle-color': '#FF6347',
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#FFFFFF'
+          }
+        });
+      }
     }
   };
 

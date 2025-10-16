@@ -26,7 +26,6 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MigrationModal } from '@/components/MigrationModal';
-import { SiteChat } from '@/components/SiteChat';
 import { APIKeyManager } from '@/components/APIKeyManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
@@ -65,8 +64,6 @@ const Dashboard = () => {
   const [showMigrationModal, setShowMigrationModal] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [chatSiteId, setChatSiteId] = useState<string | null>(null);
-  const [chatLocationName, setChatLocationName] = useState<string>('');
 
   // Check if we should show migration modal
   useEffect(() => {
@@ -401,6 +398,14 @@ const Dashboard = () => {
                                 {request.status === 'completed' && (
                                   <>
                                     <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => navigate(`/site-ai?project=${request.id}`)}
+                                    >
+                                      <MessageSquare className="w-4 h-4 mr-1" />
+                                      AI Analysis
+                                    </Button>
+                                    <Button
                                       asChild
                                       size="sm"
                                       variant="outline"
@@ -435,24 +440,14 @@ const Dashboard = () => {
                                     Retry
                                   </Button>
                                 )}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setChatSiteId(request.id);
-                                    setChatLocationName(request.location_name);
-                                  }}
-                                >
-                                  <MessageSquare className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => openDeleteDialog(request.id)}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
+                                 <Button
+                                   size="sm"
+                                   variant="ghost"
+                                   onClick={() => openDeleteDialog(request.id)}
+                                 >
+                                   <Trash2 className="w-4 h-4" />
+                                 </Button>
+                               </div>
                               {request.status === 'completed' && request.zip_size_bytes && (
                                 <div className="text-xs text-muted-foreground text-right">
                                   <div>{(request.zip_size_bytes / 1024 / 1024).toFixed(2)} MB · {request.file_count} files</div>
@@ -485,20 +480,6 @@ const Dashboard = () => {
           )}
         </div>
       </main>
-      
-      {chatSiteId && (
-        <SiteChat
-          siteRequestId={chatSiteId}
-          locationName={chatLocationName}
-          open={!!chatSiteId}
-          onOpenChange={(open) => {
-            if (!open) {
-              setChatSiteId(null);
-              setChatLocationName('');
-            }
-          }}
-        />
-      )}
     </div>
   );
 };
