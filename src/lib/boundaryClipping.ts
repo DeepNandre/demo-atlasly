@@ -24,6 +24,12 @@ export function clipFeaturesToBoundary(
   
   features.forEach((feature, index) => {
     try {
+      // Validate feature has valid geometry
+      if (!feature?.geometry?.coordinates) {
+        console.warn(`Feature ${index} has no coordinates`);
+        return;
+      }
+      
       // Check if feature intersects boundary
       const intersects = turf.booleanIntersects(feature, boundaryPolygon);
       
@@ -37,8 +43,12 @@ export function clipFeaturesToBoundary(
                 ...feature,
                 geometry: intersection.geometry
               });
+            } else {
+              // If no intersection geometry but intersects, keep original
+              clipped.push(feature);
             }
-          } catch (e) {
+          } catch (e: any) {
+            console.warn(`Failed to clip feature ${index}: ${e.message}, keeping original`);
             // If intersection fails, keep original if it's within boundary
             clipped.push(feature);
           }
@@ -63,9 +73,12 @@ export function clipFeaturesToBoundary(
           clipped.push(feature);
         }
       }
-    } catch (error) {
-      console.warn(`Error clipping feature ${index}:`, error);
-      // On error, keep feature if it might be valid
+    } catch (error: any) {
+      console.warn(`Error clipping feature ${index}: ${error.message}`);
+      // On error, try to keep feature if geometry looks valid
+      if (feature?.geometry?.coordinates) {
+        clipped.push(feature);
+      }
     }
   });
 

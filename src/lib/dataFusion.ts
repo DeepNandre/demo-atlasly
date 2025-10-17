@@ -148,17 +148,27 @@ export async function fetchOSMData(
       .filter((e: any) => e.tags?.building && e.type === 'way')
       .map((e: any) => {
         const nodes = data.elements.filter((n: any) => n.type === 'node' && e.nodes?.includes(n.id));
-        const geometry = nodes.length > 0 ? [nodes.map((n: any) => [n.lon, n.lat])] : undefined;
+        if (nodes.length === 0) return null;
+        
+        // Create coordinate ring and ensure it's closed
+        const coords = nodes.map((n: any) => [n.lon, n.lat]);
+        const firstCoord = coords[0];
+        const lastCoord = coords[coords.length - 1];
+        
+        // Close the ring if not already closed
+        if (firstCoord[0] !== lastCoord[0] || firstCoord[1] !== lastCoord[1]) {
+          coords.push([...firstCoord]);
+        }
         
         return {
           type: e.tags.building,
           name: e.tags.name,
           height: parseFloat(e.tags.height) || (parseFloat(e.tags['building:levels']) || 3) * 3,
           levels: parseFloat(e.tags['building:levels']) || 3,
-          geometry
+          geometry: [coords]
         };
       })
-      .filter((b: any) => b.geometry);
+      .filter((b: any) => b !== null);
     
     const roads = data.elements.filter((e: any) => e.tags?.highway).length;
     
@@ -177,16 +187,26 @@ export async function fetchOSMData(
       .filter((e: any) => e.tags?.landuse && e.type === 'way')
       .map((e: any) => {
         const nodes = data.elements.filter((n: any) => n.type === 'node' && e.nodes?.includes(n.id));
-        const geometry = nodes.length > 0 ? [nodes.map((n: any) => [n.lon, n.lat])] : undefined;
+        if (nodes.length === 0) return null;
+        
+        // Create coordinate ring and ensure it's closed
+        const coords = nodes.map((n: any) => [n.lon, n.lat]);
+        const firstCoord = coords[0];
+        const lastCoord = coords[coords.length - 1];
+        
+        // Close the ring if not already closed
+        if (firstCoord[0] !== lastCoord[0] || firstCoord[1] !== lastCoord[1]) {
+          coords.push([...firstCoord]);
+        }
         
         return {
           type: e.tags.landuse,
           name: e.tags.name,
           area: calculateArea(e),
-          geometry
+          geometry: [coords]
         };
       })
-      .filter((l: any) => l.geometry);
+      .filter((l: any) => l !== null);
 
     const transit = data.elements
       .filter((e: any) => e.tags?.public_transport && e.type === 'node')
