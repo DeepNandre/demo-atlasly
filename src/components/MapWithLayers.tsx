@@ -475,69 +475,84 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
         }
       }
 
-      if (mapData.buildings.features.length > 0) {
-        const buildingPoints = {
-          type: 'FeatureCollection',
-          features: mapData.buildings.features.map((f: any) => {
-            const coords = f.geometry?.coordinates?.[0];
-            if (!coords || !Array.isArray(coords)) return null;
-            
-            let sumLng = 0, sumLat = 0, count = 0;
-            coords.forEach((coord: number[]) => {
-              if (Array.isArray(coord) && coord.length >= 2) {
-                sumLng += coord[0];
-                sumLat += coord[1];
-                count++;
-              }
-            });
-            
-            if (count === 0) return null;
-            
-            return {
-              type: 'Feature',
-              geometry: {
-                type: 'Point',
-                coordinates: [sumLng / count, sumLat / count]
-              },
-              properties: { density: 1 }
-            };
-          }).filter((f: any) => f !== null)
-        };
-
-        if (buildingPoints.features.length > 0) {
-          if (map.current.getSource('population')) {
-            (map.current.getSource('population') as any).setData(buildingPoints);
-          } else {
-            map.current.addSource('population', {
-              type: 'geojson',
-              data: buildingPoints as any
-            });
-
-            map.current.addLayer({
-              id: 'population-heatmap',
-              type: 'heatmap',
-              source: 'population',
-              layout: {
-                visibility: 'none'
-              },
-              paint: {
-                'heatmap-weight': 0.5,
-                'heatmap-intensity': 1,
-                'heatmap-color': [
-                  'interpolate',
-                  ['linear'],
-                  ['heatmap-density'],
-                  0, 'rgba(33,102,172,0)',
-                  0.5, 'rgb(103,169,207)',
-                  1, 'rgb(178,24,43)'
-                ],
-                'heatmap-radius': 20,
-                'heatmap-opacity': 0.7
-              }
-            });
-            
-            console.log('✅ Population heatmap added');
+      // Add real population density layer with Kontur data
+      if (!map.current.getSource('population-density')) {
+        map.current.addSource('population-density', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: []
           }
+        });
+
+        // 3D extrusion layer for population density
+        map.current.addLayer({
+          id: 'population-density-3d',
+          type: 'fill-extrusion',
+          source: 'population-density',
+          layout: {
+            visibility: 'none'
+          },
+          paint: {
+            'fill-extrusion-color': [
+              'interpolate',
+              ['linear'],
+              ['get', 'density'],
+              0, '#FFEDA0',
+              50, '#FED976',
+              100, '#FEB24C',
+              200, '#FD8D3C',
+              500, '#FC4E2A',
+              1000, '#E31A1C',
+              2000, '#BD0026',
+              5000, '#800026'
+            ],
+            'fill-extrusion-height': [
+              'interpolate',
+              ['linear'],
+              ['get', 'population'],
+              0, 0,
+              10, 2,
+              50, 10,
+              100, 20,
+              500, 50,
+              1000, 100,
+              2000, 200
+            ],
+            'fill-extrusion-opacity': 0.75
+          }
+        });
+        
+        console.log('✅ Population density layer added');
+        
+        // Fetch real population data if siteData is available
+        if (siteData) {
+          (async () => {
+            try {
+              console.log('Fetching real population density data from Kontur...');
+              const response = await supabase.functions.invoke('fetch-population-density', {
+                body: {
+                  minLat: siteData.boundary_geojson.bbox[1],
+                  maxLat: siteData.boundary_geojson.bbox[3],
+                  minLng: siteData.boundary_geojson.bbox[0],
+                  maxLng: siteData.boundary_geojson.bbox[2]
+                }
+              });
+
+              if (response.error) throw response.error;
+              
+              console.log('✅ Population data loaded:', response.data?.features?.length, 'hexagons');
+              if (map.current && map.current.getSource('population-density')) {
+                (map.current.getSource('population-density') as any).setData(response.data);
+              }
+            } catch (error) {
+              console.error('Error loading population density:', error);
+              toast({
+                title: "Population data loading...",
+                description: "Real population data is being fetched. This may take a moment.",
+              });
+            }
+          })();
         }
       }
     };
@@ -575,7 +590,7 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
             layerIds.push('green-spaces-fill', 'green-spaces-outline');
             break;
           case 'population':
-            layerIds.push('population-heatmap');
+            layerIds.push('population-density-3d');
             break;
         }
         

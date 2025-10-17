@@ -380,6 +380,45 @@ export type Database = {
           },
         ]
       }
+      population_cache: {
+        Row: {
+          bbox_key: string
+          created_at: string | null
+          expires_at: string | null
+          fetched_at: string | null
+          geojson: Json
+          id: string
+          max_lat: number
+          max_lng: number
+          min_lat: number
+          min_lng: number
+        }
+        Insert: {
+          bbox_key: string
+          created_at?: string | null
+          expires_at?: string | null
+          fetched_at?: string | null
+          geojson: Json
+          id?: string
+          max_lat: number
+          max_lng: number
+          min_lat: number
+          min_lng: number
+        }
+        Update: {
+          bbox_key?: string
+          created_at?: string | null
+          expires_at?: string | null
+          fetched_at?: string | null
+          geojson?: Json
+          id?: string
+          max_lat?: number
+          max_lng?: number
+          min_lat?: number
+          min_lng?: number
+        }
+        Relationships: []
+      }
       site_requests: {
         Row: {
           area_sqm: number | null
@@ -750,6 +789,10 @@ export type Database = {
       become_first_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      clean_expired_population_cache: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       has_role: {
         Args: {
