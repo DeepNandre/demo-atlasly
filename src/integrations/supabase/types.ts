@@ -58,6 +58,72 @@ export type Database = {
           },
         ]
       }
+      analysis_tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          layer_data: Json | null
+          metadata: Json | null
+          parent_task_id: string | null
+          progress: number
+          query: string
+          result: Json | null
+          site_request_id: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          layer_data?: Json | null
+          metadata?: Json | null
+          parent_task_id?: string | null
+          progress?: number
+          query: string
+          result?: Json | null
+          site_request_id: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          layer_data?: Json | null
+          metadata?: Json | null
+          parent_task_id?: string | null
+          progress?: number
+          query?: string
+          result?: Json | null
+          site_request_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_tasks_site_request_id_fkey"
+            columns: ["site_request_id"]
+            isOneToOne: false
+            referencedRelation: "site_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_keys: {
         Row: {
           created_at: string
@@ -125,6 +191,47 @@ export type Database = {
             columns: ["api_key_id"]
             isOneToOne: false
             referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      environmental_data: {
+        Row: {
+          created_at: string
+          data: Json
+          data_type: string
+          expires_at: string
+          fetched_at: string
+          id: string
+          metadata: Json | null
+          site_request_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          data_type: string
+          expires_at?: string
+          fetched_at?: string
+          id?: string
+          metadata?: Json | null
+          site_request_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          data_type?: string
+          expires_at?: string
+          fetched_at?: string
+          id?: string
+          metadata?: Json | null
+          site_request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "environmental_data_site_request_id_fkey"
+            columns: ["site_request_id"]
+            isOneToOne: false
+            referencedRelation: "site_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -489,6 +596,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_drawings: {
+        Row: {
+          created_at: string
+          geometry: Json
+          id: string
+          name: string
+          properties: Json | null
+          site_request_id: string
+          style: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          geometry: Json
+          id?: string
+          name?: string
+          properties?: Json | null
+          site_request_id: string
+          style?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          geometry?: Json
+          id?: string
+          name?: string
+          properties?: Json | null
+          site_request_id?: string
+          style?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_drawings_site_request_id_fkey"
+            columns: ["site_request_id"]
+            isOneToOne: false
+            referencedRelation: "site_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
