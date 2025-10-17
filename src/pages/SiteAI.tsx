@@ -275,10 +275,6 @@ const SiteAI = () => {
           {/* Right Sidebar - Resizable Layers */}
           <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
             <div className="h-full bg-background border-l border-border/50 overflow-y-auto">
-              <EnhancedLayerPanel
-                layers={layers}
-                onLayersChange={setLayers}
-              />
               <AnalysisProgressPanel siteRequestId={selectedSite.id} />
             </div>
           </ResizablePanel>
