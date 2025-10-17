@@ -55,6 +55,7 @@ export const EnhancedLayerPanel = ({
   const [editingLayer, setEditingLayer] = useState<MapLayer | null>(null);
   const [layerName, setLayerName] = useState('');
   const [layerColor, setLayerColor] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
 
   const toggleLayer = (id: string) => {
     onLayersChange(
@@ -91,44 +92,52 @@ export const EnhancedLayerPanel = ({
   const baseDataLayers = layers.filter(l => ['buildings', 'landuse', 'transit', 'green', 'population'].includes(l.type));
   const aiGeneratedLayers = layers.filter(l => l.type === 'ai-generated');
 
-  const LayerGroup = ({ title, groupLayers }: { title: string; groupLayers: MapLayer[] }) => (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2 px-2 py-1">
-        <Layers className="w-3.5 h-3.5 text-muted-foreground" />
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</h3>
+  const LayerGroup = ({ title, groupLayers }: { title: string; groupLayers: MapLayer[] }) => {
+    if (groupLayers.length === 0) return null;
+    
+    return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-md">
+        <Layers className="w-4 h-4 text-primary" />
+        <h3 className="text-xs font-semibold uppercase tracking-wider">{title}</h3>
+        <Badge variant="outline" className="ml-auto text-xs">
+          {groupLayers.length}
+        </Badge>
       </div>
       {groupLayers.map(layer => (
         <div
           key={layer.id}
-          className="group flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+          className="group flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-all border border-transparent hover:border-border"
         >
-          <button className="cursor-grab hover:bg-muted rounded p-0.5">
-            <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
+          <button className="cursor-grab hover:bg-muted rounded p-1 transition-colors">
+            <GripVertical className="w-4 h-4 text-muted-foreground" />
           </button>
           
           <div
-            className="w-3 h-3 rounded-sm flex-shrink-0 border border-border"
+            className="w-4 h-4 rounded flex-shrink-0 border-2 border-background shadow-sm"
             style={{ backgroundColor: layer.color }}
           />
           
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium truncate">{layer.name}</p>
-              {layer.objectCount !== undefined && (
-                <Badge variant="outline" className="text-xs px-1.5 py-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <p className="text-sm font-semibold truncate">{layer.name}</p>
+              {layer.objectCount !== undefined && layer.objectCount > 0 && (
+                <Badge variant="secondary" className="text-xs px-2 py-0.5">
                   {layer.objectCount}
                 </Badge>
               )}
             </div>
             {layer.dataSource && (
-              <p className="text-xs text-muted-foreground">{layer.dataSource}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <span className="w-1 h-1 rounded-full bg-primary/60" />
+                {layer.dataSource}
+              </p>
             )}
           </div>
           
           <Switch
             checked={layer.visible}
             onCheckedChange={() => toggleLayer(layer.id)}
-            className="scale-75"
           />
           
           <DropdownMenu>
@@ -210,17 +219,23 @@ export const EnhancedLayerPanel = ({
         </div>
       ))}
     </div>
-  );
+    );
+  };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="text-base flex items-center justify-between">
-          <span>Map Layers</span>
-          <Badge variant="outline" className="text-xs">
-            {layers.filter(l => l.visible).length}/{layers.length} visible
+    <Card className="w-full shadow-lg border-border/50">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Layers className="w-5 h-5 text-primary" />
+            </div>
+            Map Layers
+          </CardTitle>
+          <Badge variant="secondary" className="text-xs font-semibold px-3 py-1">
+            {layers.filter(l => l.visible).length}/{layers.length}
           </Badge>
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {aiGeneratedLayers.length > 0 && (
@@ -232,11 +247,13 @@ export const EnhancedLayerPanel = ({
         )}
         
         {layers.length === 0 && (
-          <div className="text-center py-8">
-            <Layers className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">No layers yet</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Layers will appear here as you analyze the site
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+              <Layers className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">No layers yet</p>
+            <p className="text-xs text-muted-foreground mt-2 max-w-xs mx-auto">
+              Start analyzing the site to generate data layers automatically
             </p>
           </div>
         )}

@@ -82,16 +82,18 @@ serve(async (req) => {
       const buffer = turf.buffer(center, radius, { units: 'kilometers' });
       
       // Generate mock transit points within buffer
-      const transitPoints = turf.randomPoint(5, { bbox: turf.bbox(buffer) });
-      
-      layers.push({
-        id: `transit-${Date.now()}`,
-        name: 'Transit Stops',
-        color: '#3b82f6',
-        geojson: transitPoints,
-        objectCount: 5,
-        dataSource: 'OpenStreetMap'
-      });
+      if (buffer) {
+        const transitPoints = turf.randomPoint(5, { bbox: turf.bbox(buffer) });
+        
+        layers.push({
+          id: `transit-${Date.now()}`,
+          name: 'Transit Stops',
+          color: '#3b82f6',
+          geojson: transitPoints,
+          objectCount: 5,
+          dataSource: 'OpenStreetMap'
+        });
+      }
     }
 
     // Green space analysis
@@ -143,16 +145,18 @@ serve(async (req) => {
       const radius = (siteData.radius_meters || 500) / 1000;
       const buffer = turf.buffer(center, radius, { units: 'kilometers' });
       
-      const amenityPoints = turf.randomPoint(8, { bbox: turf.bbox(buffer) });
-      
-      layers.push({
-        id: `amenities-${Date.now()}`,
-        name: 'Nearby Amenities',
-        color: '#f59e0b',
-        geojson: amenityPoints,
-        objectCount: 8,
-        dataSource: 'OpenStreetMap'
-      });
+      if (buffer) {
+        const amenityPoints = turf.randomPoint(8, { bbox: turf.bbox(buffer) });
+        
+        layers.push({
+          id: `amenities-${Date.now()}`,
+          name: 'Nearby Amenities',
+          color: '#f59e0b',
+          geojson: amenityPoints,
+          objectCount: 8,
+          dataSource: 'OpenStreetMap'
+        });
+      }
     }
 
     // Land use analysis
@@ -187,38 +191,88 @@ serve(async (req) => {
     // Environmental data analysis - wind, solar
     if (queryLower.includes('wind') || queryLower.includes('solar') || queryLower.includes('climate') || queryLower.includes('environmental')) {
       try {
-        // Fetch environmental data
-        const { data: envData, error: envError } = await supabase.functions.invoke('fetch-environmental-data', {
-          body: {
-            site_request_id,
-            lat: siteData.center_lat,
-            lng: siteData.center_lng,
-            data_types: ['wind', 'solar', 'temperature']
+        console.log('Fetching environmental data for:', siteData.center_lat, siteData.center_lng);
+        
+        // Fetch environmental data directly from Open-Meteo API
+        const windUrl = `https://api.open-meteo.com/v1/forecast?latitude=${siteData.center_lat}&longitude=${siteData.center_lng}&hourly=windspeed_10m,winddirection_10m&forecast_days=7`;
+        const windResponse = await fetch(windUrl);
+        const windData = await windResponse.json();
+        
+        const solarUrl = `https://api.open-meteo.com/v1/forecast?latitude=${siteData.center_lat}&longitude=${siteData.center_lng}&daily=shortwave_radiation_sum&timezone=auto`;
+        const solarResponse = await fetch(solarUrl);
+        const solarData = await solarResponse.json();
+        
+        // Process wind rose data
+        const windRoseData = processWindRose(windData.hourly);
+        
+        const environmentalData = {
+          wind: {
+            current: windData.hourly?.windspeed_10m?.[0] || 0,
+            direction: windData.hourly?.winddirection_10m?.[0] || 0,
+            rose: windRoseData,
+            unit: 'km/h'
+          },
+          solar: {
+            daily: solarData.daily?.shortwave_radiation_sum || [],
+            dates: solarData.daily?.time || [],
+            unit: 'MJ/m²'
           }
+        };
+        
+        console.log('Environmental data fetched:', environmentalData);
+        
+        metrics.environmental_analysis = [
+          { metric: 'Wind Speed', value: `${environmentalData.wind.current.toFixed(1)} km/h` },
+          { metric: 'Wind Direction', value: `${environmentalData.wind.direction}°` },
+          { metric: 'Solar Data Points', value: environmentalData.solar.daily.length },
+          { metric: 'Data Source', value: 'Open-Meteo API' }
+        ];
+        
+        insights.push('Real-time wind and solar data from Open-Meteo');
+        insights.push('Interactive wind rose and solar radiation charts');
+        
+        // Add environmental data to response - this will be shown as charts
+        layers.push({
+          id: `environmental-${Date.now()}`,
+          name: 'Environmental Data',
+          color: '#8b5cf6',
+          geojson: null,
+          objectCount: 0,
+          dataSource: 'Open-Meteo API',
+          chartData: environmentalData
         });
         
-        if (!envError && envData?.data) {
-          metrics.environmental_analysis = [
-            { metric: 'Wind Speed', value: `${envData.data.wind?.current || 'N/A'} km/h` },
-            { metric: 'Solar Radiation', value: 'Available' },
-            { metric: 'Data Source', value: 'Open-Meteo API' }
-          ];
-          
-          insights.push('Real-time environmental data from Open-Meteo');
-          insights.push('Wind rose and solar radiation charts available');
-          
-          // Add chart data to first layer or create a special environmental layer
-          if (layers.length > 0) {
-            layers[0].chartData = {
-              wind: envData.data.wind,
-              solar: envData.data.solar,
-              temperature: envData.data.temperature
-            };
-          }
-        }
       } catch (err) {
         console.error('Failed to fetch environmental data:', err);
+        insights.push('Environmental data temporarily unavailable');
       }
+    }
+    
+    // Helper function for wind rose
+    function processWindRose(hourlyData: any) {
+      if (!hourlyData?.windspeed_10m || !hourlyData?.winddirection_10m) return [];
+      
+      const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      const directionBins = Array(8).fill(0).map(() => ({ count: 0, totalSpeed: 0 }));
+      
+      for (let i = 0; i < hourlyData.windspeed_10m.length; i++) {
+        const speed = hourlyData.windspeed_10m[i];
+        const direction = hourlyData.winddirection_10m[i];
+        
+        if (speed && direction !== null) {
+          const binIndex = Math.floor(((direction + 22.5) % 360) / 45);
+          directionBins[binIndex].count++;
+          directionBins[binIndex].totalSpeed += speed;
+        }
+      }
+      
+      return directions.map((dir, idx) => ({
+        direction: dir,
+        frequency: directionBins[idx].count,
+        avgSpeed: directionBins[idx].count > 0 
+          ? (directionBins[idx].totalSpeed / directionBins[idx].count).toFixed(1)
+          : 0
+      }));
     }
     
     if (include_context) {

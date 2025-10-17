@@ -119,6 +119,7 @@ const ConversationalAnalysis = ({
         const layerWithCharts = data.layers.find((l: any) => l.chartData);
         if (layerWithCharts) {
           environmentalChartData = layerWithCharts.chartData;
+          console.log('Found environmental chart data:', environmentalChartData);
         }
       }
       
@@ -222,23 +223,30 @@ const ConversationalAnalysis = ({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-background">
       {/* Messages */}
-      <ScrollArea className="flex-1 p-3" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
         {messages.length === 0 ? (
-          <div className="space-y-3 mt-2">
-            <div className="px-2">
-              <p className="text-sm text-muted-foreground">
-                Ask me anything about this site. I can help with analysis, insights, and recommendations.
-              </p>
+          <div className="space-y-4 mt-4">
+            <div className="px-3">
+              <div className="mb-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <p className="text-sm font-medium text-primary mb-2 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  AI-Powered Site Analysis
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Ask me anything about this site. I can analyze transport, green spaces, amenities, solar potential, wind patterns, and more.
+                </p>
+              </div>
             </div>
-            <div className="space-y-1.5 px-2">
+            <div className="space-y-2 px-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Quick Questions</p>
               {suggestedQuestions.slice(0, 4).map((q, i) => (
                 <Button
                   key={i}
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="w-full justify-start text-left h-auto py-2 px-2 text-xs hover:bg-muted/50"
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 text-xs font-normal hover:bg-primary/5 hover:border-primary/30 transition-all"
                   onClick={() => sendMessage(q)}
                 >
                   {q}
@@ -256,18 +264,18 @@ const ConversationalAnalysis = ({
                   }`}
                 >
                   {msg.role === 'assistant' && (
-                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Sparkles className="w-4 h-4 text-primary" />
                     </div>
                   )}
                   <div
-                    className={`rounded-lg p-2.5 text-sm ${
+                    className={`rounded-xl p-3 text-sm max-w-[85%] ${
                       msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground ml-auto max-w-[85%]'
-                        : 'bg-muted text-foreground max-w-[90%]'
+                        ? 'bg-primary text-primary-foreground ml-auto shadow-md'
+                        : 'bg-card text-card-foreground border border-border shadow-sm'
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                   </div>
                 </div>
                 
@@ -312,7 +320,7 @@ const ConversationalAnalysis = ({
       </ScrollArea>
 
       {/* Input */}
-      <div className="p-3 border-t border-border/50">
+      <div className="p-4 border-t border-border bg-card/50 backdrop-blur-sm">
         <div className="flex gap-2">
           <Input
             value={input}
@@ -320,12 +328,13 @@ const ConversationalAnalysis = ({
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage(input)}
             placeholder="Ask about this site..."
             disabled={isLoading}
-            className="flex-1 text-sm"
+            className="flex-1 text-sm bg-background border-border focus-visible:ring-primary"
           />
           <Button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || isLoading}
-            size="sm"
+            size="default"
+            className="shadow-sm"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
