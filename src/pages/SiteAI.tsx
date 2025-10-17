@@ -247,7 +247,7 @@ const SiteAI = () => {
           <ResizableHandle withHandle />
 
           {/* Map - Resizable */}
-          <ResizablePanel defaultSize={55} minSize={40}>
+          <ResizablePanel defaultSize={75} minSize={60}>
             <div className="h-full relative">
               {/* Map Controls - Top Left */}
               <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
@@ -261,21 +261,17 @@ const SiteAI = () => {
                 />
               </div>
               
+              {/* Analysis Progress - Top Right */}
+              <div className="absolute top-4 right-4 z-10">
+                <AnalysisProgressPanel siteRequestId={selectedSite.id} />
+              </div>
+              
               <MapWithLayers
                 siteRequestId={selectedSite.id}
                 layers={layers}
                 onLayersChange={setLayers}
                 mapStyle={mapStyle}
               />
-            </div>
-          </ResizablePanel>
-
-          <ResizableHandle withHandle />
-
-          {/* Right Sidebar - Resizable Layers */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-            <div className="h-full bg-background border-l border-border/50 overflow-y-auto">
-              <AnalysisProgressPanel siteRequestId={selectedSite.id} />
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
