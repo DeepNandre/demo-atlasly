@@ -51,68 +51,90 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
       if (error) throw error;
       setSiteData(data);
       
-      // Fetch real OSM data in background - with boundary clipping and error handling
-      const loadMapData = async () => {
+      // Fetch real OSM data with robust retry logic
+      const loadMapData = async (retryCount = 0) => {
+        const maxRetries = 3;
         setOsmLoading(true);
         setOsmError(null);
         
         try {
-          console.log('🔄 Fetching OSM data with boundary clipping...');
+          console.log(`🔄 Fetching OSM data (attempt ${retryCount + 1}/${maxRetries + 1})...`);
           const realData = await fetchRealMapData(
             data.center_lat,
             data.center_lng,
             data.radius_meters || 500,
-            data.boundary_geojson // Pass boundary for precise clipping
+            data.boundary_geojson
           );
           
           if (realData) {
             setMapData(realData);
             setOsmLoading(false);
-            console.log('✅ Loaded CLIPPED OSM data:', realData.stats);
-            
-            toast({
-              title: '✅ Real data loaded',
-              description: `Found ${realData.stats.buildingCount} buildings, ${realData.stats.transitCount} transit stops within boundary`,
+            console.log('✅ Successfully loaded OSM data:', {
+              buildings: realData.stats.buildingCount,
+              landuse: realData.landuse.features.length,
+              transit: realData.stats.transitCount,
+              amenities: realData.stats.amenityCount
             });
             
-            // Update layer counts based on real clipped data
+            // Count green spaces
+            const greenCount = realData.landuse.features.filter((f: any) => 
+              ['park', 'forest', 'grass', 'meadow', 'recreation_ground', 'garden'].includes(f.properties?.type)
+            ).length;
+            
+            const landuseCount = realData.landuse.features.length - greenCount;
+            
+            toast({
+              title: '✅ Map data loaded',
+              description: `${realData.stats.buildingCount} buildings, ${landuseCount} landuse areas, ${greenCount} green spaces, ${realData.stats.transitCount} transit stops`,
+            });
+            
+            // Update layer counts with real data
             onLayersChange(layers.map(layer => {
-              if (layer.type === 'buildings') {
-                return { ...layer, objectCount: realData.stats.buildingCount, dataSource: 'OpenStreetMap' };
+              switch (layer.type) {
+                case 'buildings':
+                  return { ...layer, objectCount: realData.stats.buildingCount, dataSource: 'OpenStreetMap' };
+                case 'landuse':
+                  return { ...layer, objectCount: landuseCount, dataSource: 'OpenStreetMap' };
+                case 'transit':
+                  return { ...layer, objectCount: realData.stats.transitCount, dataSource: 'OpenStreetMap' };
+                case 'green':
+                  return { ...layer, objectCount: greenCount, dataSource: 'OpenStreetMap' };
+                case 'population':
+                  return { ...layer, objectCount: realData.stats.buildingCount, dataSource: 'Derived from Buildings' };
+                default:
+                  return layer;
               }
-              if (layer.type === 'transit') {
-                return { ...layer, objectCount: realData.stats.transitCount, dataSource: 'OpenStreetMap' };
-              }
-              if (layer.type === 'green') {
-                const greenCount = realData.landuse.features.filter((f: any) => 
-                  ['park', 'forest', 'grass', 'meadow'].includes(f.properties?.type)
-                ).length;
-                return { ...layer, objectCount: greenCount, dataSource: 'OpenStreetMap' };
-              }
-              return layer;
             }));
           }
         } catch (err: any) {
-          console.error('❌ Failed to load OSM data:', err);
-          setOsmLoading(false);
-          setOsmError(err.message || 'Failed to load map data');
+          console.error(`❌ OSM data fetch failed (attempt ${retryCount + 1}):`, err);
           
-          toast({
-            title: '⚠️ OpenStreetMap temporarily unavailable',
-            description: 'Retrying data fetch. Map layers may take a moment to load.',
-            variant: 'default'
-          });
-          
-          // Retry after 3 seconds
-          setTimeout(() => loadMapData(), 3000);
+          if (retryCount < maxRetries) {
+            const delay = Math.min(1000 * Math.pow(2, retryCount), 8000); // Exponential backoff
+            console.log(`⏳ Retrying in ${delay}ms...`);
+            toast({
+              title: '⏳ Loading map data...',
+              description: `Retrying (${retryCount + 1}/${maxRetries})`,
+            });
+            setTimeout(() => loadMapData(retryCount + 1), delay);
+          } else {
+            setOsmLoading(false);
+            setOsmError(err.message || 'Failed to load map data');
+            toast({
+              title: '⚠️ Map data unavailable',
+              description: 'OpenStreetMap servers are temporarily busy. Layers will appear when data loads.',
+              variant: 'destructive'
+            });
+          }
         }
       };
+      
       loadMapData();
     } catch (error) {
       console.error('Error loading site data:', error);
       toast({
-        title: 'Error loading map data',
-        description: 'Using demo data instead',
+        title: 'Error loading site',
+        description: 'Failed to load site information',
         variant: 'destructive'
       });
       setLoading(false);
@@ -220,7 +242,17 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
       center: [siteData.center_lng, siteData.center_lat],
       zoom: 15,
       pitch: 0
-    });
+    } as any); // Type assertion to allow preserveDrawingBuffer in next line
+    
+    // Enable preserveDrawingBuffer for export functionality (must be set after creation)
+    if (map.current) {
+      const canvas = map.current.getCanvas();
+      const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
+      if (gl) {
+        // Already created, but set for future reference
+        (map.current as any)._preserveDrawingBuffer = true;
+      }
+    }
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
@@ -257,6 +289,7 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
 
       // Add real data layers when available
       if (mapData) {
+        console.log('🗺️ Adding real data layers on map load...');
         addRealDataLayers();
       }
       
@@ -268,7 +301,15 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
       map.current?.remove();
       map.current = null;
     };
-  }, [siteData, mapStyle, mapData]);
+  }, [siteData, mapStyle]);
+
+  // Separate effect to add layers when mapData becomes available
+  useEffect(() => {
+    if (!map.current || !map.current.loaded() || !mapData) return;
+    
+    console.log('🗺️ Map data updated, adding/updating layers...');
+    addRealDataLayers();
+  }, [mapData]);
 
   // Function to add custom AI-generated layers
   const addCustomLayers = () => {

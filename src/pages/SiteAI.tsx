@@ -199,20 +199,33 @@ const SiteAI = () => {
       }
 
       if (format === 'image' || format === 'pdf') {
-        // Wait for map to be fully rendered
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // IMPORTANT: Wait longer for all map layers to fully render
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // Get the MapLibre canvas directly
-        const mapContainer = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement;
+        // Get ALL MapLibre canvases (base map + vector layers)
+        const mapContainer = document.querySelector('.maplibregl-canvas-container');
         if (!mapContainer) {
-          throw new Error('Map canvas not found');
+          throw new Error('Map container not found');
         }
 
-        // Create a new canvas for export with white background
+        // Get all canvases in the correct order
+        const canvases = Array.from(mapContainer.querySelectorAll('canvas')) as HTMLCanvasElement[];
+        if (canvases.length === 0) {
+          throw new Error('No map canvases found');
+        }
+
+        console.log(`📸 Found ${canvases.length} map canvases to export`);
+
+        // Use the first canvas dimensions as reference
+        const baseCanvas = canvases[0];
+        const width = baseCanvas.width;
+        const height = baseCanvas.height;
+
+        // Create export canvas with proper dimensions
         const exportCanvas = document.createElement('canvas');
-        exportCanvas.width = mapContainer.width;
-        exportCanvas.height = mapContainer.height;
-        const ctx = exportCanvas.getContext('2d');
+        exportCanvas.width = width;
+        exportCanvas.height = height;
+        const ctx = exportCanvas.getContext('2d', { alpha: false });
         
         if (!ctx) {
           throw new Error('Failed to create canvas context');
@@ -220,10 +233,17 @@ const SiteAI = () => {
 
         // Fill with white background
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+        ctx.fillRect(0, 0, width, height);
         
-        // Draw the map canvas
-        ctx.drawImage(mapContainer, 0, 0);
+        // Composite all canvases in order (base map, then vector layers)
+        canvases.forEach((canvas, index) => {
+          console.log(`Drawing canvas ${index + 1}/${canvases.length}`);
+          try {
+            ctx.drawImage(canvas, 0, 0, width, height);
+          } catch (err) {
+            console.warn(`Failed to draw canvas ${index}:`, err);
+          }
+        });
         
         if (format === 'image') {
           exportCanvas.toBlob((blob) => {
@@ -237,38 +257,28 @@ const SiteAI = () => {
               
               toast({
                 title: '✅ Image exported',
-                description: 'Map image downloaded successfully',
+                description: 'Map with all visible layers downloaded successfully',
               });
               setExportDialogOpen(false);
               setExportingFormat(null);
             }
-          }, 'image/png');
+          }, 'image/png', 1.0);
           return;
         } else if (format === 'pdf') {
-          const imgData = exportCanvas.toDataURL('image/png');
+          const imgData = exportCanvas.toDataURL('image/png', 1.0);
           const pdf = new jsPDF({
-            orientation: exportCanvas.width > exportCanvas.height ? 'landscape' : 'portrait',
-            unit: 'mm',
-            format: 'a4'
+            orientation: width > height ? 'landscape' : 'portrait',
+            unit: 'px',
+            format: [width, height],
+            compress: true
           });
 
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
-          const imgWidth = exportCanvas.width;
-          const imgHeight = exportCanvas.height;
-          const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-          
-          const width = imgWidth * ratio;
-          const height = imgHeight * ratio;
-          const x = (pdfWidth - width) / 2;
-          const y = (pdfHeight - height) / 2;
-          
-          pdf.addImage(imgData, 'PNG', x, y, width, height);
+          pdf.addImage(imgData, 'PNG', 0, 0, width, height, undefined, 'FAST');
           pdf.save(`${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_map.pdf`);
 
           toast({
             title: '✅ PDF exported',
-            description: 'Map PDF downloaded successfully',
+            description: 'Map with all visible layers downloaded as PDF',
           });
 
           setExportDialogOpen(false);
