@@ -51,6 +51,9 @@ export const exportMapToPNG = async (
     // Wait for all tiles to be loaded
     await waitForAllTilesLoaded(map);
     
+    // Additional wait to ensure final render
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     // Get the map canvas - MapLibre uses preserveDrawingBuffer
     const canvas = map.getCanvas();
     
@@ -59,6 +62,19 @@ export const exportMapToPNG = async (
     }
 
     console.log('📸 Capturing canvas:', canvas.width, 'x', canvas.height);
+    
+    // Verify canvas has content
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
+    const isBlank = imageData && Array.from(imageData.data).every((val, i) => 
+      i % 4 === 3 ? val === 255 : val === 0
+    );
+    
+    if (isBlank) {
+      console.warn('⚠️ Canvas appears blank, forcing map redraw');
+      map.triggerRepaint();
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
 
     return new Promise((resolve) => {
       canvas.toBlob((blob) => {

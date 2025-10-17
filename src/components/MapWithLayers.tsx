@@ -233,6 +233,7 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
       map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
       map.current.on('load', () => {
+        console.log('✅ Map loaded, canvas ready for export');
         setLoading(false);
         
         if (siteData.boundary_geojson && map.current) {
@@ -261,6 +262,10 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
             }
           });
         }
+        
+        // Fetch OSM data after map is fully loaded
+        console.log('📡 Starting OSM data fetch...');
+        fetchOSMData(siteData);
       });
 
       return () => {
@@ -270,19 +275,29 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
     }, [siteData, mapStyle]);
 
     useEffect(() => {
-      if (!map.current || !map.current.loaded() || !mapData) {
+      if (!map.current || !mapData) {
         console.log('⚠️ Cannot add layers yet:', { 
           mapExists: !!map.current, 
-          mapLoaded: map.current?.loaded(), 
           dataExists: !!mapData 
         });
         return;
       }
       
-      console.log('🗺️ Adding OSM data layers...');
-      addAllLayers();
-      setLayersAdded(true);
-      console.log('✅ All layers added and ready for toggle');
+      // Wait for map to be fully loaded before adding layers
+      const addLayersWhenReady = () => {
+        if (!map.current?.loaded()) {
+          console.log('⏳ Waiting for map to load before adding layers...');
+          setTimeout(addLayersWhenReady, 100);
+          return;
+        }
+        
+        console.log('🗺️ Map ready, adding OSM data layers...');
+        addAllLayers();
+        setLayersAdded(true);
+        console.log('✅ All layers added and ready for toggle');
+      };
+      
+      addLayersWhenReady();
     }, [mapData]);
 
     const addAllLayers = () => {
@@ -528,7 +543,7 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
     };
 
     useEffect(() => {
-      if (!map.current || !map.current.loaded()) {
+      if (!map.current) {
         console.log('⚠️ Map not ready for layer toggle');
         return;
       }
@@ -540,7 +555,7 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
 
       console.log('🎨 Updating layer visibility:', layers.map(l => `${l.type}:${l.visible}`));
 
-      let changesApplied = false;
+      let changesApplied = 0;
 
       layers.forEach(layer => {
         const visibility = layer.visible ? 'visible' : 'none';
@@ -565,19 +580,27 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
         }
         
         layerIds.forEach(layerId => {
-          if (map.current?.getLayer(layerId)) {
-            map.current.setLayoutProperty(layerId, 'visibility', visibility);
-            console.log(`✅ ${layerId} → ${visibility}`);
-            changesApplied = true;
-          } else {
-            console.warn(`⚠️ Layer not found: ${layerId}`);
+          try {
+            if (map.current?.getLayer(layerId)) {
+              map.current.setLayoutProperty(layerId, 'visibility', visibility);
+              console.log(`✅ ${layerId} → ${visibility}`);
+              changesApplied++;
+            } else {
+              console.warn(`⚠️ Layer not found in map: ${layerId}`);
+            }
+          } catch (error) {
+            console.error(`❌ Error setting visibility for ${layerId}:`, error);
           }
         });
       });
 
-      if (changesApplied) {
+      if (changesApplied > 0) {
+        // Force map to repaint
         map.current?.triggerRepaint();
+        
         const visibleCount = layers.filter(l => l.visible).length;
+        console.log(`✅ Applied ${changesApplied} layer visibility changes, ${visibleCount} layers now visible`);
+        
         sonnerToast.success(`${visibleCount} layer${visibleCount !== 1 ? 's' : ''} active`, {
           duration: 1500
         });
