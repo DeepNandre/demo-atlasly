@@ -11,9 +11,11 @@ import { MapStyleSelector, type MapStyleType } from '@/components/MapStyleSelect
 import { MapLayerToggle } from '@/components/MapLayerToggle';
 import { Button } from '@/components/ui/button';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { Plus, ChevronDown } from 'lucide-react';
+import { Plus, ChevronDown, Box, Map as MapIcon, Download, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 const SiteIQLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
@@ -70,11 +72,15 @@ const defaultLayers: MapLayer[] = [
 const SiteAI = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedSite, setSelectedSite] = useState<SiteRequest | null>(null);
   const [sites, setSites] = useState<SiteRequest[]>([]);
   const [layers, setLayers] = useState<MapLayer[]>(defaultLayers);
   const [templateQuery, setTemplateQuery] = useState<string | null>(null);
   const [mapStyle, setMapStyle] = useState<MapStyleType>('simple');
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -161,13 +167,109 @@ const SiteAI = () => {
   };
 
   const handleLayerCreated = (newLayer: any) => {
-    setLayers(prev => {
-      const existingLayer = prev.find(l => l.id === newLayer.id);
-      if (existingLayer) {
-        return prev.map(l => l.id === newLayer.id ? { ...l, ...newLayer } : l);
+    const layerExists = layers.find(l => l.id === newLayer.id);
+    
+    if (layerExists) {
+      setLayers(prevLayers =>
+        prevLayers.map(layer =>
+          layer.id === newLayer.id ? { ...layer, ...newLayer } : layer
+        )
+      );
+    } else {
+      setLayers(prevLayers => [...prevLayers, newLayer]);
+    }
+  };
+
+  const handleExport = async (format: string) => {
+    if (!selectedSite) return;
+    
+    setExportingFormat(format);
+    
+    try {
+      let response;
+      
+      if (format === 'pdf') {
+        // Call PDF export function
+        response = await supabase.functions.invoke('export-elevation', {
+          body: { site_request_id: selectedSite.id, format: 'pdf' }
+        });
+      } else if (format === 'dxf' || format === 'dwg') {
+        // Call DXF/DWG export
+        response = await supabase.functions.invoke('export-elevation', {
+          body: { site_request_id: selectedSite.id, format: format }
+        });
+      } else if (format === 'geojson') {
+        // Export GeoJSON of site boundary
+        const { data: siteData } = await supabase
+          .from('site_requests')
+          .select('boundary_geojson, location_name')
+          .eq('id', selectedSite.id)
+          .single();
+        
+        if (siteData?.boundary_geojson) {
+          const blob = new Blob([JSON.stringify(siteData.boundary_geojson, null, 2)], 
+            { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}.geojson`;
+          a.click();
+          URL.revokeObjectURL(url);
+          
+          toast({
+            title: '✅ Export complete',
+            description: `GeoJSON file downloaded successfully`,
+          });
+          
+          setExportDialogOpen(false);
+          setExportingFormat(null);
+          return;
+        }
+      } else if (format === 'csv') {
+        // Export layer statistics as CSV
+        const csvData = layers.map(l => 
+          `${l.name},${l.type},${l.objectCount || 0},${l.dataSource || 'N/A'}`
+        ).join('\n');
+        
+        const csvContent = `Layer Name,Type,Object Count,Data Source\n${csvData}`;
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${selectedSite.location_name.replace(/[^a-z0-9]/gi, '_')}_layers.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: '✅ Export complete',
+          description: `CSV file downloaded successfully`,
+        });
+        
+        setExportDialogOpen(false);
+        setExportingFormat(null);
+        return;
       }
-      return [...prev, newLayer];
-    });
+      
+      if (response?.error) {
+        throw new Error(response.error.message);
+      }
+      
+      toast({
+        title: '✅ Export started',
+        description: `Your ${format.toUpperCase()} export is being prepared`,
+      });
+      
+      setExportDialogOpen(false);
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast({
+        title: '❌ Export failed',
+        description: error.message || 'Failed to export data',
+        variant: 'destructive',
+      });
+    } finally {
+      setExportingFormat(null);
+    }
   };
 
   const handleTemplateSelect = (query: string) => {
@@ -259,19 +361,116 @@ const SiteAI = () => {
                   layers={layers}
                   onToggleLayer={handleLayerToggle}
                 />
+                
+                {/* 3D View Toggle */}
+                <Button
+                  size="sm"
+                  variant={viewMode === '3d' ? 'default' : 'outline'}
+                  onClick={() => setViewMode(viewMode === '2d' ? '3d' : '2d')}
+                  className="w-full gap-2"
+                >
+                  {viewMode === '2d' ? <Box className="w-4 h-4" /> : <MapIcon className="w-4 h-4" />}
+                  {viewMode === '2d' ? '3D View' : '2D View'}
+                </Button>
               </div>
               
-              {/* Analysis Progress - Top Right */}
-              <div className="absolute top-4 right-4 z-10">
+              {/* Export Button - Top Right Corner (above progress) */}
+              <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+                <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="default" size="sm" className="gap-2">
+                      <Download className="w-4 h-4" />
+                      Export
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Export Site Data</DialogTitle>
+                      <DialogDescription>
+                        Choose the format for exporting {selectedSite.location_name} data
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-2 gap-3 py-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleExport('pdf')}
+                        disabled={!!exportingFormat}
+                        className="h-20 flex flex-col gap-2"
+                      >
+                        {exportingFormat === 'pdf' && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span className="text-lg">📄</span>
+                        <span className="text-sm">PDF Report</span>
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        onClick={() => handleExport('dxf')}
+                        disabled={!!exportingFormat}
+                        className="h-20 flex flex-col gap-2"
+                      >
+                        {exportingFormat === 'dxf' && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span className="text-lg">📐</span>
+                        <span className="text-sm">DXF (CAD)</span>
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        onClick={() => handleExport('geojson')}
+                        disabled={!!exportingFormat}
+                        className="h-20 flex flex-col gap-2"
+                      >
+                        {exportingFormat === 'geojson' && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span className="text-lg">🗺️</span>
+                        <span className="text-sm">GeoJSON</span>
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        onClick={() => handleExport('csv')}
+                        disabled={!!exportingFormat}
+                        className="h-20 flex flex-col gap-2"
+                      >
+                        {exportingFormat === 'csv' && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span className="text-lg">📊</span>
+                        <span className="text-sm">CSV Data</span>
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                
                 <AnalysisProgressPanel siteRequestId={selectedSite.id} />
               </div>
               
-              <MapWithLayers
-                siteRequestId={selectedSite.id}
-                layers={layers}
-                onLayersChange={setLayers}
-                mapStyle={mapStyle}
-              />
+              {/* Render 2D or 3D View */}
+              {viewMode === '2d' ? (
+                <MapWithLayers
+                  siteRequestId={selectedSite.id}
+                  layers={layers}
+                  onLayersChange={setLayers}
+                  mapStyle={mapStyle}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-muted/20">
+                  <div className="text-center space-y-4">
+                    <Box className="w-16 h-16 mx-auto text-primary" />
+                    <div>
+                      <h3 className="text-lg font-semibold">3D View</h3>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        3D terrain visualization coming soon
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setViewMode('2d')}
+                        className="mt-4"
+                      >
+                        <MapIcon className="w-4 h-4 mr-2" />
+                        Back to 2D View
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>

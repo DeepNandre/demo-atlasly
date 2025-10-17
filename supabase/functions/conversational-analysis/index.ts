@@ -57,8 +57,16 @@ serve(async (req) => {
       throw new Error('Site request not found');
     }
 
-    // Build enhanced context with multi-source data
+    // Build enhanced context with multi-source data and conversation history
     let contextData = '';
+    
+    // Fetch conversation history from ai_logs for memory
+    const { data: conversationHistory } = await supabase
+      .from('ai_logs')
+      .select('role, content, created_at')
+      .eq('site_request_id', site_request_id)
+      .order('created_at', { ascending: false })
+      .limit(10); // Last 10 messages for context
     
     // Detect query type and extract metrics
     const queryLower = query.toLowerCase();
@@ -296,27 +304,43 @@ SITE FEATURES:
 `;
     }
 
-    // Enhanced system prompt - CONCISE responses
-    const systemPrompt = `You are a concise site analysis AI for architecture and urban planning.
+    // Enhanced system prompt with conversation history and real data
+    const conversationContext = conversationHistory && conversationHistory.length > 0
+      ? `\n\nPREVIOUS CONVERSATION (most recent first):\n${conversationHistory.reverse().map(msg => 
+          `${msg.role.toUpperCase()}: ${msg.content}`
+        ).join('\n')}\n`
+      : '';
+    
+    const systemPrompt = `You are an expert site analysis AI specializing in architecture and urban planning.
 
-Site: ${siteData.location_name} (${siteData.center_lat}, ${siteData.center_lng})
-Data: OpenStreetMap, Open-Meteo climate, elevation
+SITE INFORMATION:
+Location: ${siteData.location_name}
+Coordinates: ${siteData.center_lat}, ${siteData.center_lng}
+Area: ${siteData.area_sqm ? (siteData.area_sqm / 10000).toFixed(2) + ' hectares' : 'N/A'}
 
-${contextData}
+DATA SOURCES:
+- OpenStreetMap (buildings, roads, landuse, transit, amenities)
+- Open-Meteo API (climate, wind, solar radiation)
+- Elevation data from terrain analysis
+${siteData.climate_summary ? `\nCLIMATE SUMMARY:\n${JSON.stringify(siteData.climate_summary, null, 2)}` : ''}
+${siteData.elevation_summary ? `\nELEVATION SUMMARY:\n${JSON.stringify(siteData.elevation_summary, null, 2)}` : ''}
+${conversationContext}
 
-CRITICAL RESPONSE RULES:
-1. MAX 3 short paragraphs OR 5 bullet points
-2. Lead with key insights and numbers first
-3. Be specific and actionable - avoid general advice
-4. Always cite data sources inline (e.g., "12 km/h SW winds (Open-Meteo)")
-5. NO long explanations of methodology
+RESPONSE RULES:
+1. MAX 3 paragraphs OR 5 bullet points - be extremely concise
+2. Lead with actionable insights and specific numbers
+3. Always cite data sources inline (e.g., "15 km/h SW winds (Open-Meteo)")
+4. Reference previous conversation when relevant
+5. Be specific to THIS site - no generic advice
+6. Include confidence levels when making recommendations
 
-Good example:
-"Wind: Prevailing SW at 12 km/h (Open-Meteo). Use windbreaks on west side.
-Solar: 4.2 kWh/m²/day avg. South-facing roofs optimal for PV.
-Recommendation: Orient E-W to maximize south exposure."
+EXAMPLE GOOD RESPONSE:
+"Wind: Prevailing SW 15 km/h (Open-Meteo). Position windbreaks on west side.
+Solar: 4.8 kWh/m²/day avg (Open-Meteo). South-facing roofs optimize PV yield by 23%.
+Transit: 3 bus stops <500m (OpenStreetMap). Strong public transport connectivity.
+→ Recommendation: Orient buildings E-W for solar, add bike storage near transit."
 
-Bad example: Long explanations, methodology details, general information.`;
+AVOID: Long explanations, methodology details, obvious information.`;
 
     // Call Lovable AI
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
