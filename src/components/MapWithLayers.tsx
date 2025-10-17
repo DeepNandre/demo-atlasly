@@ -25,7 +25,7 @@ interface MapWithLayersProps {
   mapStyle?: MapStyleType;
 }
 
-export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle = 'default' }: MapWithLayersProps) => {
+export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle = 'simple' }: MapWithLayersProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [loading, setLoading] = useState(true);

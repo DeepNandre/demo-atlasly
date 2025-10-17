@@ -74,7 +74,7 @@ const SiteAI = () => {
   const [sites, setSites] = useState<SiteRequest[]>([]);
   const [layers, setLayers] = useState<MapLayer[]>(defaultLayers);
   const [templateQuery, setTemplateQuery] = useState<string | null>(null);
-  const [mapStyle, setMapStyle] = useState<MapStyleType>('default');
+  const [mapStyle, setMapStyle] = useState<MapStyleType>('simple');
 
   useEffect(() => {
     if (!user) {
