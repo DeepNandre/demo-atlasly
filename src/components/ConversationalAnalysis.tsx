@@ -149,8 +149,11 @@ const ConversationalAnalysis = ({
         environmentalData: environmentalChartData
       };
 
+      // Store in state - will persist
       setMessages(prev => [...prev, assistantMessage]);
       setActiveAnalysis([]);
+      
+      console.log('Message stored with environmental data:', assistantMessage);
     } catch (error) {
       console.error('Error sending message:', error);
       toast({

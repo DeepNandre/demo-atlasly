@@ -296,29 +296,27 @@ SITE FEATURES:
 `;
     }
 
-    // Enhanced system prompt with multi-source intelligence
-    const systemPrompt = `You are an expert architectural site analyst with deep knowledge of:
-- Solar design and passive strategies
-- Building orientation and massing
-- Zoning and regulatory compliance
-- Sustainable design principles
-- Cost-effective site planning
-- Urban design and context
+    // Enhanced system prompt - CONCISE responses
+    const systemPrompt = `You are a concise site analysis AI for architecture and urban planning.
 
-You have access to multi-source data including OpenStreetMap, climate data, elevation models, and site-specific information.
+Site: ${siteData.location_name} (${siteData.center_lat}, ${siteData.center_lng})
+Data: OpenStreetMap, Open-Meteo climate, elevation
 
-SITE CONTEXT:
 ${contextData}
 
-When answering questions:
-1. Provide specific, actionable recommendations
-2. Reference actual site data and metrics
-3. Explain trade-offs and alternatives
-4. Prioritize sustainability and cost-effectiveness
-5. Use architectural terminology appropriately
-6. Quantify impacts when possible (e.g., "rotate 15° to increase solar gain by 12%")
+CRITICAL RESPONSE RULES:
+1. MAX 3 short paragraphs OR 5 bullet points
+2. Lead with key insights and numbers first
+3. Be specific and actionable - avoid general advice
+4. Always cite data sources inline (e.g., "12 km/h SW winds (Open-Meteo)")
+5. NO long explanations of methodology
 
-Always be concise but comprehensive. Focus on design implications, not just data presentation.`;
+Good example:
+"Wind: Prevailing SW at 12 km/h (Open-Meteo). Use windbreaks on west side.
+Solar: 4.2 kWh/m²/day avg. South-facing roofs optimal for PV.
+Recommendation: Orient E-W to maximize south exposure."
+
+Bad example: Long explanations, methodology details, general information.`;
 
     // Call Lovable AI
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -333,8 +331,7 @@ Always be concise but comprehensive. Focus on design implications, not just data
           { role: 'system', content: systemPrompt },
           { role: 'user', content: query }
         ],
-        temperature: 0.7,
-        max_tokens: 1000
+        max_tokens: 400
       }),
     });
 

@@ -7,7 +7,9 @@ import { MapWithLayers } from '@/components/MapWithLayers';
 import { EnhancedLayerPanel } from '@/components/EnhancedLayerPanel';
 import { AnalysisProgressPanel } from '@/components/AnalysisProgressPanel';
 import { AnalysisTemplates } from '@/components/AnalysisTemplates';
+import { MapStyleSelector, type MapStyleType } from '@/components/MapStyleSelector';
 import { Button } from '@/components/ui/button';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Plus, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -71,6 +73,7 @@ const SiteAI = () => {
   const [sites, setSites] = useState<SiteRequest[]>([]);
   const [layers, setLayers] = useState<MapLayer[]>(defaultLayers);
   const [templateQuery, setTemplateQuery] = useState<string | null>(null);
+  const [mapStyle, setMapStyle] = useState<MapStyleType>('default');
 
   useEffect(() => {
     if (!user) {
@@ -209,53 +212,71 @@ const SiteAI = () => {
 
       {/* Main Content */}
       {selectedSite ? (
-        <div className="flex-1 flex overflow-hidden">
-          {/* Left Sidebar - AI Chat */}
-          <div className="w-80 border-r border-border/50 bg-card flex flex-col">
-            <div className="flex-1 overflow-hidden">
-              <ConversationalAnalysis
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          {/* Left Sidebar - Resizable Chat */}
+          <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+            <div className="h-full border-r border-border/50 bg-card flex flex-col">
+              <div className="flex-1 overflow-hidden">
+                <ConversationalAnalysis
+                  siteRequestId={selectedSite.id}
+                  locationName={selectedSite.location_name}
+                  templateQuery={templateQuery}
+                  onQueryProcessed={() => setTemplateQuery(null)}
+                  onLayerCreated={handleLayerCreated}
+                />
+              </div>
+              
+              {/* Templates - Collapsible */}
+              <div className="border-t border-border/50">
+                <Collapsible>
+                  <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-muted/50 transition-smooth">
+                    <span className="text-sm font-medium text-muted-foreground">Quick Analysis Templates</span>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="border-t border-border/50">
+                    <div className="p-3 max-h-64 overflow-y-auto">
+                      <AnalysisTemplates onTemplateSelect={handleTemplateSelect} />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+            </div>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          {/* Map - Resizable */}
+          <ResizablePanel defaultSize={55} minSize={40}>
+            <div className="h-full relative">
+              {/* Map Style Selector */}
+              <div className="absolute top-4 left-4 z-10">
+                <MapStyleSelector 
+                  currentStyle={mapStyle}
+                  onStyleChange={setMapStyle}
+                />
+              </div>
+              
+              <MapWithLayers
                 siteRequestId={selectedSite.id}
-                locationName={selectedSite.location_name}
-                templateQuery={templateQuery}
-                onQueryProcessed={() => setTemplateQuery(null)}
-                onLayerCreated={handleLayerCreated}
+                layers={layers}
+                onLayersChange={setLayers}
               />
             </div>
-            
-            {/* Templates - Collapsible */}
-            <div className="border-t border-border/50">
-              <Collapsible>
-                <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-muted/50 transition-smooth">
-                  <span className="text-sm font-medium text-muted-foreground">Quick Analysis Templates</span>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="border-t border-border/50">
-                  <div className="p-3 max-h-64 overflow-y-auto">
-                    <AnalysisTemplates onTemplateSelect={handleTemplateSelect} />
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            </div>
-          </div>
+          </ResizablePanel>
 
-          {/* Map - Full Width */}
-          <div className="flex-1 relative">
-            <MapWithLayers
-              siteRequestId={selectedSite.id}
-              layers={layers}
-              onLayersChange={setLayers}
-            />
-            
-            {/* Floating Panels */}
-            <div className="absolute top-4 right-4 z-10 space-y-3 max-w-sm">
+          <ResizableHandle withHandle />
+
+          {/* Right Sidebar - Resizable Layers */}
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+            <div className="h-full bg-background border-l border-border/50 overflow-y-auto">
               <EnhancedLayerPanel
                 layers={layers}
                 onLayersChange={setLayers}
               />
               <AnalysisProgressPanel siteRequestId={selectedSite.id} />
             </div>
-          </div>
-        </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       ) : (
         <div className="flex h-[calc(100vh-4rem)] items-center justify-center p-8">
           <div className="text-center space-y-6 max-w-lg">
