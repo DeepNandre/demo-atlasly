@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import ProjectSelector from '@/components/ai/ProjectSelector';
 import ConversationalAnalysis from '@/components/ConversationalAnalysis';
-import { MapWithLayers } from '@/components/MapWithLayers';
+import { MapWithLayers, MapWithLayersRef } from '@/components/MapWithLayers';
 import { EnhancedLayerPanel } from '@/components/EnhancedLayerPanel';
 import { AnalysisProgressPanel } from '@/components/AnalysisProgressPanel';
 import { AnalysisTemplates } from '@/components/AnalysisTemplates';
@@ -75,6 +75,7 @@ const SiteAI = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const mapRef = useRef<MapWithLayersRef>(null);
   const [selectedSite, setSelectedSite] = useState<SiteRequest | null>(null);
   const [sites, setSites] = useState<SiteRequest[]>([]);
   const [layers, setLayers] = useState<MapLayer[]>(defaultLayers);
@@ -187,284 +188,46 @@ const SiteAI = () => {
     setExportingFormat(format);
     
     try {
-      const { data: siteData, error: siteError } = await supabase
-        .from('site_requests')
-        .select('*')
-        .eq('id', selectedSite.id)
-        .single();
-
-      if (siteError || !siteData) {
-        throw new Error('Failed to fetch site data');
-      }
-
       if (format === 'image' || format === 'pdf') {
-        // IMPORTANT: Wait longer for all map layers to fully render
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Get ALL MapLibre canvases (base map + vector layers)
-        const mapContainer = document.querySelector('.maplibregl-canvas-container');
-        if (!mapContainer) {
-          throw new Error('Map container not found');
+        const map = mapRef.current?.getMap();
+        if (!map) {
+          throw new Error('Map not ready for export');
         }
 
-        // Get all canvases in the correct order
-        const canvases = Array.from(mapContainer.querySelectorAll('canvas')) as HTMLCanvasElement[];
-        if (canvases.length === 0) {
-          throw new Error('No map canvases found');
-        }
-
-        console.log(`📸 Found ${canvases.length} map canvases to export`);
-
-        // Use the first canvas dimensions as reference
-        const baseCanvas = canvases[0];
-        const width = baseCanvas.width;
-        const height = baseCanvas.height;
-
-        // Create export canvas with proper dimensions
-        const exportCanvas = document.createElement('canvas');
-        exportCanvas.width = width;
-        exportCanvas.height = height;
-        const ctx = exportCanvas.getContext('2d', { alpha: false });
-        
-        if (!ctx) {
-          throw new Error('Failed to create canvas context');
-        }
-
-        // Fill with white background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, width, height);
-        
-        // Composite all canvases in order (base map, then vector layers)
-        canvases.forEach((canvas, index) => {
-          console.log(`Drawing canvas ${index + 1}/${canvases.length}`);
-          try {
-            ctx.drawImage(canvas, 0, 0, width, height);
-          } catch (err) {
-            console.warn(`Failed to draw canvas ${index}:`, err);
-          }
+        toast({
+          title: 'Exporting...',
+          description: `Generating ${format.toUpperCase()} with all visible layers...`,
         });
+
+        let blob: Blob | null = null;
         
         if (format === 'image') {
-          exportCanvas.toBlob((blob) => {
-            if (blob) {
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_map.png`;
-              a.click();
-              URL.revokeObjectURL(url);
-              
-              toast({
-                title: '✅ Image exported',
-                description: 'Map with all visible layers downloaded successfully',
-              });
-              setExportDialogOpen(false);
-              setExportingFormat(null);
-            }
-          }, 'image/png', 1.0);
-          return;
+          blob = await exportMapToPNG(map);
         } else if (format === 'pdf') {
-          const imgData = exportCanvas.toDataURL('image/png', 1.0);
-          const pdf = new jsPDF({
-            orientation: width > height ? 'landscape' : 'portrait',
-            unit: 'px',
-            format: [width, height],
-            compress: true
-          });
-
-          pdf.addImage(imgData, 'PNG', 0, 0, width, height, undefined, 'FAST');
-          pdf.save(`${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_map.pdf`);
-
-          toast({
-            title: '✅ PDF exported',
-            description: 'Map with all visible layers downloaded as PDF',
-          });
-
-          setExportDialogOpen(false);
-          setExportingFormat(null);
-          return;
+          blob = await exportMapToPDF(map);
         }
-      } else if (format === 'geojson') {
-        // Export GeoJSON with boundary and metadata
-        const boundaryFeature = (siteData.boundary_geojson as any) || {
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [siteData.center_lng, siteData.center_lat]
-          },
-          properties: {}
-        };
 
-        const geoJsonExport = {
-          type: 'FeatureCollection',
-          features: [
-            {
-              type: 'Feature',
-              geometry: boundaryFeature.geometry || {
-                type: 'Point',
-                coordinates: [siteData.center_lng, siteData.center_lat]
-              },
-              properties: {
-                ...(boundaryFeature.properties || {}),
-                name: siteData.location_name,
-                area_sqm: siteData.area_sqm,
-                center_lat: siteData.center_lat,
-                center_lng: siteData.center_lng,
-                created_at: siteData.created_at
-              }
-            }
-          ]
-        };
-
-        const blob = new Blob([JSON.stringify(geoJsonExport, null, 2)], 
-          { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}.geojson`;
-        a.click();
-        URL.revokeObjectURL(url);
-        
+        if (blob) {
+          downloadBlob(blob, `site-${selectedSite.id}.${format === 'image' ? 'png' : 'pdf'}`);
+          toast({
+            title: 'Export Complete',
+            description: `${format.toUpperCase()} downloaded successfully`,
+          });
+          setExportDialogOpen(false);
+        } else {
+          throw new Error('Failed to generate export');
+        }
+      } else {
         toast({
-          title: '✅ Export complete',
-          description: `GeoJSON file downloaded successfully`,
+          title: 'Coming Soon',
+          description: `${format.toUpperCase()} export will be available soon`,
         });
-        
-        setExportDialogOpen(false);
-        setExportingFormat(null);
-        return;
-      } else if (format === 'csv') {
-        // Export comprehensive site data as CSV
-        const rows = [
-          ['Site Information', ''],
-          ['Location', siteData.location_name],
-          ['Area (m²)', siteData.area_sqm?.toFixed(2) || 'N/A'],
-          ['Center Latitude', siteData.center_lat],
-          ['Center Longitude', siteData.center_lng],
-          ['Status', siteData.status],
-          ['Created', new Date(siteData.created_at).toLocaleDateString()],
-          [''],
-          ['Layer Statistics', ''],
-          ['Layer Name', 'Type', 'Object Count', 'Data Source'],
-          ...layers.map(l => [
-            l.name,
-            l.type,
-            (l.objectCount || 0).toString(),
-            l.dataSource || 'N/A'
-          ])
-        ];
-        
-        const csvContent = rows.map(row => row.join(',')).join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_data.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        toast({
-          title: '✅ Export complete',
-          description: `CSV file downloaded successfully`,
-        });
-        
-        setExportDialogOpen(false);
-        setExportingFormat(null);
-        return;
-      } else if (format === 'dxf') {
-        // Generate simple DXF with boundary
-        const boundary = (siteData.boundary_geojson as any);
-        const coords = boundary?.geometry?.coordinates?.[0] || [[siteData.center_lng, siteData.center_lat]];
-        
-        let dxfContent = `0
-SECTION
-2
-HEADER
-9
-$ACADVER
-1
-AC1015
-0
-ENDSEC
-0
-SECTION
-2
-TABLES
-0
-TABLE
-2
-LAYER
-0
-LAYER
-2
-BOUNDARY
-70
-0
-62
-7
-6
-CONTINUOUS
-0
-ENDTAB
-0
-ENDSEC
-0
-SECTION
-2
-ENTITIES
-`;
-
-        // Add boundary polyline
-        coords.forEach((coord: number[], i: number) => {
-          if (i < coords.length - 1) {
-            dxfContent += `0
-LINE
-8
-BOUNDARY
-10
-${coord[0]}
-20
-${coord[1]}
-30
-0.0
-11
-${coords[i + 1][0]}
-21
-${coords[i + 1][1]}
-31
-0.0
-`;
-          }
-        });
-
-        dxfContent += `0
-ENDSEC
-0
-EOF`;
-
-        const blob = new Blob([dxfContent], { type: 'application/dxf' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_boundary.dxf`;
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        toast({
-          title: '✅ DXF downloaded',
-          description: 'Site boundary DXF file downloaded successfully',
-        });
-        
-        setExportDialogOpen(false);
-        setExportingFormat(null);
-        return;
       }
-      
     } catch (error: any) {
       console.error('Export error:', error);
       toast({
-        title: '❌ Export failed',
-        description: error.message || 'Failed to export data',
+        title: 'Export Failed',
+        description: error.message || 'An error occurred during export',
         variant: 'destructive',
       });
     } finally {
@@ -644,6 +407,7 @@ EOF`;
               {/* Map View */}
               <div data-map-container className="h-full">
                 <MapWithLayers
+                  ref={mapRef}
                   siteRequestId={selectedSite.id}
                   layers={layers}
                   onLayersChange={setLayers}

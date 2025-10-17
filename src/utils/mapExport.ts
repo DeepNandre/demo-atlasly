@@ -4,51 +4,77 @@
  */
 
 import jsPDF from 'jspdf';
+import maplibregl from 'maplibre-gl';
+
+const waitForMapIdle = (map: maplibregl.Map): Promise<void> => {
+  return new Promise((resolve) => {
+    if (map.loaded() && !map.isMoving()) {
+      // Wait a bit more to ensure tiles are rendered
+      setTimeout(resolve, 1500);
+    } else {
+      const onIdle = () => {
+        map.off('idle', onIdle);
+        setTimeout(resolve, 1500);
+      };
+      map.once('idle', onIdle);
+    }
+  });
+};
 
 export const exportMapToPNG = async (
-  mapContainer: HTMLElement,
-  fileName: string
+  map: maplibregl.Map
 ): Promise<Blob | null> => {
   try {
-    // Get the map canvas element
-    const canvas = mapContainer.querySelector('canvas') as HTMLCanvasElement;
+    console.log('🖼️ Starting PNG export...');
+    
+    // Wait for map to be completely idle
+    await waitForMapIdle(map);
+    
+    // Get the map canvas - MapLibre uses preserveDrawingBuffer
+    const canvas = map.getCanvas();
     
     if (!canvas) {
       throw new Error('Map canvas not found');
     }
 
-    // Wait for any pending renders
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('📸 Capturing canvas:', canvas.width, 'x', canvas.height);
 
     return new Promise((resolve) => {
       canvas.toBlob((blob) => {
+        if (blob) {
+          console.log('✅ PNG export successful:', blob.size, 'bytes');
+        } else {
+          console.error('❌ Failed to create blob');
+        }
         resolve(blob);
       }, 'image/png', 1.0);
     });
   } catch (error) {
-    console.error('Error exporting map to PNG:', error);
+    console.error('❌ Error exporting map to PNG:', error);
     return null;
   }
 };
 
 export const exportMapToPDF = async (
-  mapContainer: HTMLElement,
-  fileName: string
+  map: maplibregl.Map
 ): Promise<Blob | null> => {
   try {
-    // Get the map canvas element
-    const canvas = mapContainer.querySelector('canvas') as HTMLCanvasElement;
+    console.log('📄 Starting PDF export...');
+    
+    // Wait for map to be completely idle
+    await waitForMapIdle(map);
+    
+    const canvas = map.getCanvas();
     
     if (!canvas) {
       throw new Error('Map canvas not found');
     }
 
-    // Wait for any pending renders
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
     const imgData = canvas.toDataURL('image/png', 1.0);
     const imgWidth = canvas.width;
     const imgHeight = canvas.height;
+    
+    console.log('📄 Creating PDF:', imgWidth, 'x', imgHeight);
     
     // Create PDF with canvas dimensions
     const pdf = new jsPDF({
@@ -59,9 +85,12 @@ export const exportMapToPDF = async (
 
     pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
     
-    return pdf.output('blob');
+    const blob = pdf.output('blob');
+    console.log('✅ PDF export successful:', blob.size, 'bytes');
+    
+    return blob;
   } catch (error) {
-    console.error('Error exporting map to PDF:', error);
+    console.error('❌ Error exporting map to PDF:', error);
     return null;
   }
 };
