@@ -9,6 +9,7 @@ import { AnalysisProgressPanel } from '@/components/AnalysisProgressPanel';
 import { AnalysisTemplates } from '@/components/AnalysisTemplates';
 import { MapStyleSelector, type MapStyleType } from '@/components/MapStyleSelector';
 import { MapLayerToggle } from '@/components/MapLayerToggle';
+import { Scene3D } from '@/components/Scene3D';
 import { Button } from '@/components/ui/button';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Plus, ChevronDown, Box, Map as MapIcon, Download, Loader2 } from 'lucide-react';
@@ -16,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { fetchRealMapData } from '@/lib/mapLayerRenderer';
 
 const SiteIQLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
@@ -81,6 +83,9 @@ const SiteAI = () => {
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<string | null>(null);
+  const [scene3DData, setScene3DData] = useState<any>(null);
+  const [loading3D, setLoading3D] = useState(false);
+  const [siteData, setSiteData] = useState<any>(null);
 
   useEffect(() => {
     if (!user) {
@@ -156,6 +161,71 @@ const SiteAI = () => {
     }
 
     setSites(data || []);
+  };
+
+  // Load 3D data when switching to 3D view
+  useEffect(() => {
+    if (viewMode === '3d' && selectedSite && !scene3DData) {
+      load3DData();
+    }
+  }, [viewMode, selectedSite]);
+
+  // Reset 3D data when site changes
+  useEffect(() => {
+    setScene3DData(null);
+  }, [selectedSite]);
+
+  const load3DData = async () => {
+    if (!selectedSite) return;
+    
+    setLoading3D(true);
+    try {
+      // Fetch site data
+      const { data: site, error } = await supabase
+        .from('site_requests')
+        .select('*')
+        .eq('id', selectedSite.id)
+        .single();
+
+      if (error) throw error;
+      setSiteData(site);
+
+      // Fetch OSM data with boundary clipping
+      const osmData = await fetchRealMapData(
+        site.center_lat,
+        site.center_lng,
+        site.radius_meters || 500,
+        site.boundary_geojson
+      );
+
+      if (osmData) {
+        setScene3DData({
+          buildings: osmData.buildings.features || [],
+          roads: osmData.transit.features || [],
+          terrain: [], // Terrain data would come from elevation analysis
+          aoiBounds: {
+            minLat: site.center_lat - 0.005,
+            maxLat: site.center_lat + 0.005,
+            minLng: site.center_lng - 0.005,
+            maxLng: site.center_lng + 0.005,
+          }
+        });
+        
+        toast({
+          title: '✅ 3D data loaded',
+          description: `Loaded ${osmData.buildings.features.length} buildings for 3D visualization`,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading 3D data:', error);
+      toast({
+        title: '❌ Failed to load 3D data',
+        description: 'Could not fetch visualization data',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading3D(false);
+    }
   };
 
   const handleLayerToggle = (layerId: string) => {
@@ -449,14 +519,49 @@ const SiteAI = () => {
                   onLayersChange={setLayers}
                   mapStyle={mapStyle}
                 />
+              ) : loading3D ? (
+                <div className="w-full h-full flex items-center justify-center bg-muted/20">
+                  <div className="text-center space-y-4">
+                    <Loader2 className="w-16 h-16 mx-auto text-primary animate-spin" />
+                    <div>
+                      <h3 className="text-lg font-semibold">Loading 3D View</h3>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Fetching buildings and terrain data...
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : scene3DData ? (
+                <div className="w-full h-full relative">
+                  <Scene3D
+                    buildings={scene3DData.buildings}
+                    roads={scene3DData.roads}
+                    terrain={scene3DData.terrain}
+                    layers={{
+                      buildings: layers.find(l => l.id === 'buildings')?.visible ?? true,
+                      roads: layers.find(l => l.id === 'transit')?.visible ?? true,
+                      terrain: true
+                    }}
+                    aoiBounds={scene3DData.aoiBounds}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setViewMode('2d')}
+                    className="absolute top-4 left-4 z-10 bg-background/95 backdrop-blur"
+                  >
+                    <MapIcon className="w-4 h-4 mr-2" />
+                    Back to 2D View
+                  </Button>
+                </div>
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-muted/20">
                   <div className="text-center space-y-4">
                     <Box className="w-16 h-16 mx-auto text-primary" />
                     <div>
-                      <h3 className="text-lg font-semibold">3D View</h3>
+                      <h3 className="text-lg font-semibold">No 3D Data</h3>
                       <p className="text-sm text-muted-foreground mt-2">
-                        3D terrain visualization coming soon
+                        Unable to load 3D visualization data
                       </p>
                       <Button
                         variant="outline"
