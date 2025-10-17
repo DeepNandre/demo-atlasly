@@ -2,12 +2,15 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Building2, TreePine, Bus, MapPin, Layers } from 'lucide-react';
 
-interface MapLayer {
+export interface MapLayer {
   id: string;
   name: string;
   visible: boolean;
   color: string;
-  type: 'buildings' | 'landuse' | 'transit' | 'green' | 'population';
+  type: 'buildings' | 'landuse' | 'transit' | 'green' | 'population' | 'ai-generated';
+  objectCount?: number;
+  dataSource?: string;
+  geojson?: any;
 }
 
 interface MapLayerControlsProps {
@@ -20,7 +23,8 @@ const layerIcons = {
   landuse: MapPin,
   transit: Bus,
   green: TreePine,
-  population: Layers
+  population: Layers,
+  'ai-generated': Layers
 };
 
 export const MapLayerControls = ({ layers, onLayerToggle }: MapLayerControlsProps) => {
@@ -38,24 +42,37 @@ export const MapLayerControls = ({ layers, onLayerToggle }: MapLayerControlsProp
               key={layer.id}
               className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-smooth"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                   style={{ backgroundColor: `${layer.color}15` }}
                 >
                   <Icon className="w-4 h-4" style={{ color: layer.color }} />
                 </div>
-                <Label
-                  htmlFor={`layer-${layer.id}`}
-                  className="text-sm font-medium cursor-pointer text-foreground"
-                >
-                  {layer.name}
-                </Label>
+                <div className="flex-1 min-w-0">
+                  <Label
+                    htmlFor={`layer-${layer.id}`}
+                    className="text-sm font-medium cursor-pointer text-foreground block truncate"
+                  >
+                    {layer.name}
+                  </Label>
+                  {layer.objectCount !== undefined && (
+                    <div className="text-xs text-muted-foreground">
+                      {layer.objectCount.toLocaleString()} objects
+                    </div>
+                  )}
+                  {layer.dataSource && (
+                    <div className="text-xs text-muted-foreground truncate">
+                      {layer.dataSource}
+                    </div>
+                  )}
+                </div>
               </div>
               <Switch
                 id={`layer-${layer.id}`}
                 checked={layer.visible}
                 onCheckedChange={() => onLayerToggle(layer.id)}
+                className="shrink-0"
               />
             </div>
           );

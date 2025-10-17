@@ -12,6 +12,14 @@ interface AnalysisResult {
   status: 'pending' | 'analyzing' | 'complete' | 'error';
   results?: { metric: string; value: string | number }[];
   insights?: string[];
+  layerData?: {
+    id: string;
+    name: string;
+    color: string;
+    objectCount: number;
+    dataSource: string;
+    geojson?: any;
+  };
 }
 
 interface Message {
@@ -26,13 +34,15 @@ interface ConversationalAnalysisProps {
   locationName: string;
   templateQuery?: string | null;
   onQueryProcessed?: () => void;
+  onLayerCreated?: (layer: any) => void;
 }
 
 const ConversationalAnalysis = ({ 
   siteRequestId, 
   locationName, 
   templateQuery,
-  onQueryProcessed 
+  onQueryProcessed,
+  onLayerCreated
 }: ConversationalAnalysisProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -93,22 +103,37 @@ const ConversationalAnalysis = ({
       if (error) throw error;
 
       // Update analysis cards to complete
-      if (analysisCards.length > 0 && data.metrics) {
-        setActiveAnalysis(prev => 
-          prev.map(card => ({
-            ...card,
-            status: 'complete' as const,
-            results: data.metrics[card.title.toLowerCase().replace(/\s+/g, '_')] || card.results,
-            insights: data.insights || card.insights
-          }))
-        );
+      const completedCards = analysisCards.map((card, idx) => ({
+        ...card,
+        status: 'complete' as const,
+        results: data.metrics?.[card.title.toLowerCase().replace(/\s+/g, '_')] || card.results,
+        insights: data.insights || card.insights,
+        layerData: data.layers?.[idx] // AI can generate layer data
+      }));
+      
+      // Create layers from analysis results
+      if (onLayerCreated && completedCards.length > 0) {
+        completedCards.forEach((card) => {
+          if (card.layerData) {
+            onLayerCreated({
+              id: card.layerData.id,
+              name: card.layerData.name,
+              visible: true,
+              color: card.layerData.color,
+              type: 'ai-generated',
+              objectCount: card.layerData.objectCount,
+              dataSource: card.layerData.dataSource,
+              geojson: card.layerData.geojson
+            });
+          }
+        });
       }
 
       const assistantMessage: Message = {
         role: 'assistant',
         content: data.response,
         timestamp: new Date(),
-        analysisCards: activeAnalysis.length > 0 ? activeAnalysis : undefined
+        analysisCards: completedCards.length > 0 ? completedCards : undefined
       };
 
       setMessages(prev => [...prev, assistantMessage]);

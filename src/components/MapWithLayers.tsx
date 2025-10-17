@@ -12,7 +12,10 @@ interface MapLayer {
   name: string;
   visible: boolean;
   color: string;
-  type: 'buildings' | 'landuse' | 'transit' | 'green' | 'population';
+  type: 'buildings' | 'landuse' | 'transit' | 'green' | 'population' | 'ai-generated';
+  objectCount?: number;
+  dataSource?: string;
+  geojson?: any;
 }
 
 interface MapWithLayersProps {
@@ -218,6 +221,9 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
         addMockLanduseLayer();
         addMockTransitLayer();
       }
+      
+      // Add custom AI-generated layers
+      addCustomLayers();
     });
 
     return () => {
@@ -229,6 +235,82 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
   // Handle map style changes
   const handleStyleChange = (newStyle: MapStyleType) => {
     setMapStyle(newStyle);
+  };
+
+  // Function to add custom AI-generated layers
+  const addCustomLayers = () => {
+    if (!map.current) return;
+    
+    layers.forEach(layer => {
+      if (layer.type === 'ai-generated' && layer.geojson) {
+        const sourceId = `custom-${layer.id}`;
+        const layerId = `custom-layer-${layer.id}`;
+        
+        // Remove existing layer and source if they exist
+        if (map.current!.getLayer(layerId)) {
+          map.current!.removeLayer(layerId);
+        }
+        if (map.current!.getLayer(`${layerId}-outline`)) {
+          map.current!.removeLayer(`${layerId}-outline`);
+        }
+        if (map.current!.getSource(sourceId)) {
+          map.current!.removeSource(sourceId);
+        }
+        
+        // Add new source
+        map.current!.addSource(sourceId, {
+          type: 'geojson',
+          data: layer.geojson
+        });
+        
+        // Determine layer type from geometry
+        const geometryType = layer.geojson.features?.[0]?.geometry?.type;
+        
+        if (geometryType === 'Point') {
+          map.current!.addLayer({
+            id: layerId,
+            type: 'circle',
+            source: sourceId,
+            paint: {
+              'circle-radius': 6,
+              'circle-color': layer.color,
+              'circle-opacity': 0.8,
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#ffffff'
+            },
+            layout: {
+              visibility: layer.visible ? 'visible' : 'none'
+            }
+          });
+        } else if (geometryType === 'Polygon' || geometryType === 'MultiPolygon') {
+          map.current!.addLayer({
+            id: layerId,
+            type: 'fill',
+            source: sourceId,
+            paint: {
+              'fill-color': layer.color,
+              'fill-opacity': 0.4
+            },
+            layout: {
+              visibility: layer.visible ? 'visible' : 'none'
+            }
+          });
+          
+          map.current!.addLayer({
+            id: `${layerId}-outline`,
+            type: 'line',
+            source: sourceId,
+            paint: {
+              'line-color': layer.color,
+              'line-width': 2
+            },
+            layout: {
+              visibility: layer.visible ? 'visible' : 'none'
+            }
+          });
+        }
+      }
+    });
   };
 
   // Update layer visibility when layers prop changes - OPTIMIZED for instant response
@@ -257,6 +339,10 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
           case 'population':
             layerIds = ['population-heatmap'];
             break;
+          case 'ai-generated':
+            const customLayerId = `custom-layer-${layer.id}`;
+            layerIds = [customLayerId, `${customLayerId}-outline`];
+            break;
         }
         
         const visibility = layer.visible ? 'visible' : 'none';
@@ -271,6 +357,9 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
           }
         });
       });
+      
+      // Re-add custom layers if they don't exist yet
+      addCustomLayers();
     });
   }, [layers]);
 

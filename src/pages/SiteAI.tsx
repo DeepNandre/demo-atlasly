@@ -50,7 +50,10 @@ interface MapLayer {
   name: string;
   visible: boolean;
   color: string;
-  type: 'buildings' | 'landuse' | 'transit' | 'green' | 'population';
+  type: 'buildings' | 'landuse' | 'transit' | 'green' | 'population' | 'ai-generated';
+  objectCount?: number;
+  dataSource?: string;
+  geojson?: any;
 }
 
 const defaultLayers: MapLayer[] = [
@@ -153,6 +156,16 @@ const SiteAI = () => {
     );
   };
 
+  const handleLayerCreated = (newLayer: any) => {
+    setLayers(prev => {
+      const existingLayer = prev.find(l => l.id === newLayer.id);
+      if (existingLayer) {
+        return prev.map(l => l.id === newLayer.id ? { ...l, ...newLayer } : l);
+      }
+      return [...prev, newLayer];
+    });
+  };
+
   const handleTemplateSelect = (query: string) => {
     setTemplateQuery(query);
   };
@@ -205,6 +218,7 @@ const SiteAI = () => {
                 locationName={selectedSite.location_name}
                 templateQuery={templateQuery}
                 onQueryProcessed={() => setTemplateQuery(null)}
+                onLayerCreated={handleLayerCreated}
               />
             </div>
             
