@@ -98,10 +98,13 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
           setOsmError(err.message || 'Failed to load map data');
           
           toast({
-            title: '⚠️ Using demo data',
-            description: 'Unable to load real-time OpenStreetMap data. Showing placeholder layers.',
-            variant: 'destructive'
+            title: '⚠️ OpenStreetMap temporarily unavailable',
+            description: 'Retrying data fetch. Map layers may take a moment to load.',
+            variant: 'default'
           });
+          
+          // Retry after 3 seconds
+          setTimeout(() => loadMapData(), 3000);
         }
       };
       loadMapData();
@@ -252,13 +255,9 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
         });
       }
 
-      // Add real data layers if available, otherwise mock
+      // Add real data layers when available
       if (mapData) {
         addRealDataLayers();
-      } else {
-        addMockBuildingsLayer();
-        addMockLanduseLayer();
-        addMockTransitLayer();
       }
       
       // Add custom AI-generated layers

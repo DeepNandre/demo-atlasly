@@ -198,72 +198,83 @@ const SiteAI = () => {
         throw new Error('Failed to fetch site data');
       }
 
-      if (format === 'image') {
-        const mapElement = document.querySelector('.maplibregl-map') as HTMLElement;
-        if (!mapElement) {
-          throw new Error('Map not found');
-        }
-
-        const canvas = await html2canvas(mapElement, {
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-          scale: 2
-        });
-
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_map.png`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }
-        });
-
-        toast({
-          title: '✅ Image exported',
-          description: 'Map image downloaded successfully',
-        });
-
-        setExportDialogOpen(false);
-        setExportingFormat(null);
-        return;
-      } else if (format === 'pdf') {
-        const mapElement = document.querySelector('.maplibregl-map') as HTMLElement;
-        if (!mapElement) {
-          throw new Error('Map not found');
-        }
-
-        const canvas = await html2canvas(mapElement, {
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-          scale: 2
-        });
-
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({
-          orientation: 'landscape',
-          unit: 'mm',
-          format: 'a4'
-        });
-
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
+      if (format === 'image' || format === 'pdf') {
+        // Wait for map to be fully rendered
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_map.pdf`);
+        // Get the MapLibre canvas directly
+        const mapContainer = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement;
+        if (!mapContainer) {
+          throw new Error('Map canvas not found');
+        }
 
-        toast({
-          title: '✅ PDF exported',
-          description: 'Map PDF downloaded successfully',
-        });
+        // Create a new canvas for export with white background
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = mapContainer.width;
+        exportCanvas.height = mapContainer.height;
+        const ctx = exportCanvas.getContext('2d');
+        
+        if (!ctx) {
+          throw new Error('Failed to create canvas context');
+        }
 
-        setExportDialogOpen(false);
-        setExportingFormat(null);
-        return;
+        // Fill with white background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+        
+        // Draw the map canvas
+        ctx.drawImage(mapContainer, 0, 0);
+        
+        if (format === 'image') {
+          exportCanvas.toBlob((blob) => {
+            if (blob) {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_map.png`;
+              a.click();
+              URL.revokeObjectURL(url);
+              
+              toast({
+                title: '✅ Image exported',
+                description: 'Map image downloaded successfully',
+              });
+              setExportDialogOpen(false);
+              setExportingFormat(null);
+            }
+          }, 'image/png');
+          return;
+        } else if (format === 'pdf') {
+          const imgData = exportCanvas.toDataURL('image/png');
+          const pdf = new jsPDF({
+            orientation: exportCanvas.width > exportCanvas.height ? 'landscape' : 'portrait',
+            unit: 'mm',
+            format: 'a4'
+          });
+
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          const imgWidth = exportCanvas.width;
+          const imgHeight = exportCanvas.height;
+          const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+          
+          const width = imgWidth * ratio;
+          const height = imgHeight * ratio;
+          const x = (pdfWidth - width) / 2;
+          const y = (pdfHeight - height) / 2;
+          
+          pdf.addImage(imgData, 'PNG', x, y, width, height);
+          pdf.save(`${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_map.pdf`);
+
+          toast({
+            title: '✅ PDF exported',
+            description: 'Map PDF downloaded successfully',
+          });
+
+          setExportDialogOpen(false);
+          setExportingFormat(null);
+          return;
+        }
       } else if (format === 'geojson') {
         // Export GeoJSON with boundary and metadata
         const boundaryFeature = (siteData.boundary_geojson as any) || {
