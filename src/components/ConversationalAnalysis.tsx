@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Send, Sparkles, MessageSquare } from 'lucide-react';
+import { Loader2, Send, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AnalysisCard } from './AnalysisCard';
 
@@ -185,35 +185,28 @@ const ConversationalAnalysis = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full">
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-3" ref={scrollRef}>
         {messages.length === 0 ? (
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg border border-border">
-              <MessageSquare className="w-5 h-5 text-primary mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-foreground font-medium mb-2">
-                  Welcome to AI-Powered Site Analysis
-                </p>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Ask me anything about this site. I can help with solar optimization, sustainability strategies, cost planning, and design recommendations.
-                </p>
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground font-medium">Try asking:</p>
-                  {suggestedQuestions.map((q, i) => (
-                    <Button
-                      key={i}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start text-left h-auto py-2 px-3 text-xs"
-                      onClick={() => sendMessage(q)}
-                    >
-                      {q}
-                    </Button>
-                  ))}
-                </div>
-              </div>
+          <div className="space-y-3 mt-2">
+            <div className="px-2">
+              <p className="text-sm text-muted-foreground">
+                Ask me anything about this site. I can help with analysis, insights, and recommendations.
+              </p>
+            </div>
+            <div className="space-y-1.5 px-2">
+              {suggestedQuestions.slice(0, 4).map((q, i) => (
+                <Button
+                  key={i}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-left h-auto py-2 px-2 text-xs hover:bg-muted/50"
+                  onClick={() => sendMessage(q)}
+                >
+                  {q}
+                </Button>
+              ))}
             </div>
           </div>
         ) : (
@@ -226,26 +219,23 @@ const ConversationalAnalysis = ({
                   }`}
                 >
                   {msg.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Sparkles className="w-4 h-4 text-primary" />
+                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Sparkles className="w-3.5 h-3.5 text-primary" />
                     </div>
                   )}
                   <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
+                    className={`rounded-lg p-2.5 text-sm ${
                       msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted border border-border'
+                        ? 'bg-primary text-primary-foreground ml-auto max-w-[85%]'
+                        : 'bg-muted text-foreground max-w-[90%]'
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                    <p className="text-xs opacity-60 mt-1">
-                      {msg.timestamp.toLocaleTimeString()}
-                    </p>
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
                   </div>
                 </div>
                 
                 {msg.analysisCards && msg.analysisCards.length > 0 && (
-                  <div className="ml-11 space-y-2">
+                  <div className="ml-9 space-y-2 mt-2">
                     {msg.analysisCards.map((card, idx) => (
                       <AnalysisCard key={idx} {...card} />
                     ))}
@@ -255,7 +245,7 @@ const ConversationalAnalysis = ({
             ))}
             
             {activeAnalysis.length > 0 && (
-              <div className="ml-11 space-y-2">
+              <div className="ml-9 space-y-2">
                 {activeAnalysis.map((card, idx) => (
                   <AnalysisCard key={idx} {...card} />
                 ))}
@@ -263,11 +253,11 @@ const ConversationalAnalysis = ({
             )}
             {isLoading && (
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
                   <Loader2 className="w-4 h-4 text-primary animate-spin" />
                 </div>
-                <div className="bg-muted border border-border rounded-lg p-3">
-                  <p className="text-sm text-muted-foreground">Analyzing...</p>
+                <div className="bg-muted rounded-lg p-2.5 text-sm">
+                  <p className="text-muted-foreground">Analyzing...</p>
                 </div>
               </div>
             )}
@@ -276,7 +266,7 @@ const ConversationalAnalysis = ({
       </ScrollArea>
 
       {/* Input */}
-      <div className="p-4 border-t border-border bg-card">
+      <div className="p-3 border-t border-border/50">
         <div className="flex gap-2">
           <Input
             value={input}
@@ -284,12 +274,12 @@ const ConversationalAnalysis = ({
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage(input)}
             placeholder="Ask about this site..."
             disabled={isLoading}
-            className="flex-1 bg-background"
+            className="flex-1 text-sm"
           />
           <Button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || isLoading}
-            size="icon"
+            size="sm"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -298,9 +288,6 @@ const ConversationalAnalysis = ({
             )}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-2">
-          Powered by multi-source data analysis
-        </p>
       </div>
     </div>
   );

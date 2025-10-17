@@ -1,6 +1,4 @@
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Bus, 
   TreePine, 
@@ -86,47 +84,33 @@ interface AnalysisTemplatesProps {
 
 export const AnalysisTemplates = ({ onTemplateSelect, disabled }: AnalysisTemplatesProps) => {
   return (
-    <Card className="h-full flex flex-col bg-card border-border">
-      <div className="p-4 border-b border-border bg-muted/30">
-        <h3 className="font-semibold text-foreground">Quick Analysis</h3>
-        <p className="text-xs text-muted-foreground mt-1">
-          Pre-built analysis templates
-        </p>
-      </div>
-
-      <ScrollArea className="flex-1 p-4">
-        <div className="grid grid-cols-1 gap-3">
-          {templates.map((template) => {
-            const Icon = template.icon;
-            return (
-              <Button
-                key={template.id}
-                variant="outline"
-                className="h-auto p-3 justify-start text-left hover:bg-muted/50 transition-smooth"
-                onClick={() => onTemplateSelect(template.query)}
-                disabled={disabled}
+    <div className="space-y-1.5">
+      {templates.map((template) => {
+        const Icon = template.icon;
+        return (
+          <Button
+            key={template.id}
+            variant="ghost"
+            className="h-auto p-2 w-full justify-start text-left hover:bg-muted/50 transition-smooth"
+            onClick={() => onTemplateSelect(template.query)}
+            disabled={disabled}
+          >
+            <div className="flex items-center gap-2 w-full">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${template.color}15` }}
               >
-                <div className="flex items-start gap-3 w-full">
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: `${template.color}20` }}
-                  >
-                    <Icon className="w-5 h-5" style={{ color: template.color }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-foreground">
-                      {template.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {template.description}
-                    </p>
-                  </div>
-                </div>
-              </Button>
-            );
-          })}
-        </div>
-      </ScrollArea>
-    </Card>
+                <Icon className="w-4 h-4" style={{ color: template.color }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-xs text-foreground">
+                  {template.name}
+                </p>
+              </div>
+            </div>
+          </Button>
+        );
+      })}
+    </div>
   );
 };

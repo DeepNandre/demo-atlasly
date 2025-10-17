@@ -7,9 +7,10 @@ import { MapWithLayers } from '@/components/MapWithLayers';
 import { MapLayerControls } from '@/components/MapLayerControls';
 import { AnalysisTemplates } from '@/components/AnalysisTemplates';
 import { Button } from '@/components/ui/button';
-import { Plus, Map, MessageSquare, Sparkles } from 'lucide-react';
+import { Plus, Layers, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const SiteIQLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
@@ -157,135 +158,98 @@ const SiteAI = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-xl">
-        <div className="px-4 py-3">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Minimal Header */}
+      <div className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur-sm">
+        <div className="px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-medium">
-                    <SiteIQLogo className="text-primary-foreground" size={24} />
-                  </div>
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-card animate-pulse"></div>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                  <SiteIQLogo className="text-primary-foreground" size={20} />
                 </div>
-                <div>
-                  <h1 className="text-xl font-semibold text-foreground">SiteIQ AI</h1>
-                  <p className="text-sm text-muted-foreground">Intelligent Site Analysis</p>
-                </div>
+                <h1 className="text-lg font-semibold text-foreground">SiteIQ AI</h1>
               </div>
               
-              <div className="hidden lg:block h-8 w-px bg-border"></div>
-              
-              <div className="hidden lg:flex items-center space-x-3">
-                <span className="text-sm font-medium text-muted-foreground">Active Project</span>
-                <ProjectSelector
-                  sites={sites}
-                  selectedSite={selectedSite}
-                  onSiteSelect={setSelectedSite}
-                />
-              </div>
+              {selectedSite && (
+                <>
+                  <div className="h-6 w-px bg-border"></div>
+                  <ProjectSelector
+                    sites={sites}
+                    selectedSite={selectedSite}
+                    onSiteSelect={setSelectedSite}
+                  />
+                </>
+              )}
             </div>
             
-            <div className="flex items-center space-x-3">
-              {selectedSite && (
-                <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-green-500/10 rounded-full border border-green-500/20">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-xs font-medium text-green-600 dark:text-green-400 capitalize">
-                    {selectedSite.status}
-                  </span>
-                </div>
-              )}
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/dashboard')}
-                className="hidden sm:flex"
-              >
-                Dashboard
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/dashboard')}
+            >
+              Dashboard
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       {selectedSite ? (
-        <div className="h-[calc(100vh-4rem)]">
-          <ResizablePanelGroup direction="horizontal" className="w-full">
-            {/* Left Panel: AI Chat + Templates */}
-            <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
-              <ResizablePanelGroup direction="vertical">
-                <ResizablePanel defaultSize={70} minSize={50}>
-                  <div className="h-full flex flex-col">
-                    <div className="p-4 border-b border-border bg-muted/30">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="w-5 h-5 text-primary" />
-                        <h2 className="font-semibold text-foreground">AI Assistant</h2>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Ask questions about your site
-                      </p>
-                    </div>
-                    <div className="flex-1 overflow-hidden">
-                      <ConversationalAnalysis
-                        siteRequestId={selectedSite.id}
-                        locationName={selectedSite.location_name}
-                        templateQuery={templateQuery}
-                        onQueryProcessed={() => setTemplateQuery(null)}
-                      />
-                    </div>
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Sidebar - AI Chat */}
+          <div className="w-80 border-r border-border/50 bg-card flex flex-col">
+            <div className="flex-1 overflow-hidden">
+              <ConversationalAnalysis
+                siteRequestId={selectedSite.id}
+                locationName={selectedSite.location_name}
+                templateQuery={templateQuery}
+                onQueryProcessed={() => setTemplateQuery(null)}
+              />
+            </div>
+            
+            {/* Templates - Collapsible */}
+            <div className="border-t border-border/50">
+              <Collapsible>
+                <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-muted/50 transition-smooth">
+                  <span className="text-sm font-medium text-muted-foreground">Quick Analysis Templates</span>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="border-t border-border/50">
+                  <div className="p-3 max-h-64 overflow-y-auto">
+                    <AnalysisTemplates onTemplateSelect={handleTemplateSelect} />
                   </div>
-                </ResizablePanel>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          </div>
 
-                <ResizableHandle withHandle />
-
-                <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
-                  <AnalysisTemplates onTemplateSelect={handleTemplateSelect} />
-                </ResizablePanel>
-              </ResizablePanelGroup>
-            </ResizablePanel>
-
-            <ResizableHandle withHandle />
-
-            {/* Right Panel: Map */}
-            <ResizablePanel defaultSize={65} minSize={50}>
-              <ResizablePanelGroup direction="horizontal">
-                <ResizablePanel defaultSize={75} minSize={60}>
-                  <div className="h-full flex flex-col">
-                    <div className="p-4 border-b border-border bg-muted/30">
-                      <div className="flex items-center gap-2">
-                        <Map className="w-5 h-5 text-primary" />
-                        <h2 className="font-semibold text-foreground">Interactive Map</h2>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Visualize site data and layers
-                      </p>
-                    </div>
-                    <div className="flex-1">
-                      <MapWithLayers
-                        siteRequestId={selectedSite.id}
-                        layers={layers}
-                        onLayersChange={setLayers}
-                      />
-                    </div>
-                  </div>
-                </ResizablePanel>
-
-                <ResizableHandle withHandle />
-
-                {/* Layer Controls */}
-                <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
+          {/* Map - Full Width */}
+          <div className="flex-1 relative">
+            <MapWithLayers
+              siteRequestId={selectedSite.id}
+              layers={layers}
+              onLayersChange={setLayers}
+            />
+            
+            {/* Floating Layer Controls */}
+            <div className="absolute top-4 right-4 z-10">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="secondary" size="sm" className="shadow-lg">
+                    <Layers className="w-4 h-4 mr-2" />
+                    Layers
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0" align="end">
                   <MapLayerControls
                     layers={layers}
                     onLayerToggle={handleLayerToggle}
                   />
-                </ResizablePanel>
-              </ResizablePanelGroup>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="flex h-[calc(100vh-4rem)] items-center justify-center p-8">
