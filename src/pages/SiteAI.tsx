@@ -8,6 +8,7 @@ import { EnhancedLayerPanel } from '@/components/EnhancedLayerPanel';
 import { AnalysisProgressPanel } from '@/components/AnalysisProgressPanel';
 import { AnalysisTemplates } from '@/components/AnalysisTemplates';
 import { MapStyleSelector, type MapStyleType } from '@/components/MapStyleSelector';
+import { MapLayerToggle } from '@/components/MapLayerToggle';
 import { Button } from '@/components/ui/button';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Plus, ChevronDown } from 'lucide-react';
@@ -248,11 +249,15 @@ const SiteAI = () => {
           {/* Map - Resizable */}
           <ResizablePanel defaultSize={55} minSize={40}>
             <div className="h-full relative">
-              {/* Map Style Selector */}
-              <div className="absolute top-4 left-4 z-10">
+              {/* Map Controls - Top Left */}
+              <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
                 <MapStyleSelector 
                   currentStyle={mapStyle}
                   onStyleChange={setMapStyle}
+                />
+                <MapLayerToggle 
+                  layers={layers}
+                  onToggleLayer={handleLayerToggle}
                 />
               </div>
               
@@ -260,6 +265,7 @@ const SiteAI = () => {
                 siteRequestId={selectedSite.id}
                 layers={layers}
                 onLayersChange={setLayers}
+                mapStyle={mapStyle}
               />
             </div>
           </ResizablePanel>

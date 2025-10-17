@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import { fetchRealMapData, getLanduseColor } from '@/lib/mapLayerRenderer';
 import { useToast } from '@/hooks/use-toast';
-import { MapStyleSelector, MapStyleType } from './MapStyleSelector';
+import { MapStyleType } from './MapStyleSelector';
 
 interface MapLayer {
   id: string;
@@ -22,15 +22,15 @@ interface MapWithLayersProps {
   siteRequestId: string;
   layers: MapLayer[];
   onLayersChange: (layers: MapLayer[]) => void;
+  mapStyle?: MapStyleType;
 }
 
-export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWithLayersProps) => {
+export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle = 'default' }: MapWithLayersProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [loading, setLoading] = useState(true);
   const [siteData, setSiteData] = useState<any>(null);
   const [mapData, setMapData] = useState<any>(null);
-  const [mapStyle, setMapStyle] = useState<MapStyleType>('default');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -231,11 +231,6 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
       map.current = null;
     };
   }, [siteData, mapStyle, mapData]);
-
-  // Handle map style changes
-  const handleStyleChange = (newStyle: MapStyleType) => {
-    setMapStyle(newStyle);
-  };
 
   // Function to add custom AI-generated layers
   const addCustomLayers = () => {
@@ -796,8 +791,6 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="absolute inset-0" />
-      
-      <MapStyleSelector currentStyle={mapStyle} onStyleChange={handleStyleChange} />
       
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm">
