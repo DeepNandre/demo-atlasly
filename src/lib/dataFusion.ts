@@ -71,12 +71,20 @@ export async function fetchOSMData(
   radius: number = 500,
   boundary?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
 ): Promise<OSMData> {
-  const overpassUrl = 'https://overpass-api.de/api/interpreter';
+  // Multiple Overpass API endpoints for fallback
+  const overpassEndpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.openstreetmap.ru/api/interpreter'
+  ];
+  
+  // Reduced timeout for faster response
+  const timeout = 15;
   
   // Overpass QL query - use bounding box if available, otherwise circular radius
   const query = boundary 
     ? `
-      [out:json][timeout:25];
+      [out:json][timeout:${timeout}];
       (
         way["building"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
         way["highway"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
@@ -89,7 +97,7 @@ export async function fetchOSMData(
       out skel qt;
     `
     : `
-      [out:json][timeout:25];
+      [out:json][timeout:${timeout}];
       (
         way["building"](around:${radius},${lat},${lng});
         way["highway"](around:${radius},${lat},${lng});
@@ -102,17 +110,41 @@ export async function fetchOSMData(
       out skel qt;
     `;
 
-  try {
-    const response = await fetch(overpassUrl, {
-      method: 'POST',
-      body: `data=${encodeURIComponent(query)}`,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    });
-
-    const data = await response.json();
+  // Try multiple endpoints with retry logic
+  let lastError: Error | null = null;
+  
+  for (let endpointIndex = 0; endpointIndex < overpassEndpoints.length; endpointIndex++) {
+    const endpoint = overpassEndpoints[endpointIndex];
+    console.log(`🌍 Attempting OSM data fetch from endpoint ${endpointIndex + 1}/${overpassEndpoints.length}...`);
     
-    // Process OSM data with geometry
-    const buildingsData = data.elements
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), (timeout + 5) * 1000);
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        body: `data=${encodeURIComponent(query)}`,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Validate response structure
+      if (!data.elements || !Array.isArray(data.elements)) {
+        throw new Error('Invalid OSM data structure received');
+      }
+
+      console.log(`✅ Successfully fetched ${data.elements.length} OSM elements from ${endpoint}`);
+      
+      // Process OSM data with geometry
+      const buildingsData = data.elements
       .filter((e: any) => e.tags?.building && e.type === 'way')
       .map((e: any) => {
         const nodes = data.elements.filter((n: any) => n.type === 'node' && e.nodes?.includes(n.id));
@@ -164,20 +196,27 @@ export async function fetchOSMData(
         distance: calculateDistance(lat, lng, e.lat, e.lon),
         coordinates: [e.lon, e.lat] as [number, number]
       }))
-      .sort((a, b) => a.distance - b.distance)
-      .slice(0, 10);
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 10);
 
-    return { buildings: buildingsData, roads, amenities, landuse: landuseData, transit };
-  } catch (error) {
-    console.error('Error fetching OSM data:', error);
-    return {
-      buildings: [],
-      roads: 0,
-      amenities: [],
-      landuse: [],
-      transit: []
-    };
+      return { buildings: buildingsData, roads, amenities, landuse: landuseData, transit };
+      
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`⚠️ Failed to fetch from ${endpoint}:`, error);
+      
+      // Try next endpoint if available
+      if (endpointIndex < overpassEndpoints.length - 1) {
+        console.log('Trying next endpoint...');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+        continue;
+      }
+    }
   }
+  
+  // All endpoints failed
+  console.error('❌ All Overpass API endpoints failed:', lastError);
+  throw new Error(`Failed to fetch OSM data: ${lastError?.message || 'All endpoints unavailable'}`);
 }
 
 /**

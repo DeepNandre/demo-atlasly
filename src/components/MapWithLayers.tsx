@@ -31,6 +31,8 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
   const [loading, setLoading] = useState(true);
   const [siteData, setSiteData] = useState<any>(null);
   const [mapData, setMapData] = useState<any>(null);
+  const [osmLoading, setOsmLoading] = useState(false);
+  const [osmError, setOsmError] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -49,38 +51,57 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
       if (error) throw error;
       setSiteData(data);
       
-      // Fetch real OSM data in background - with boundary clipping
+      // Fetch real OSM data in background - with boundary clipping and error handling
       const loadMapData = async () => {
+        setOsmLoading(true);
+        setOsmError(null);
+        
         try {
+          console.log('🔄 Fetching OSM data with boundary clipping...');
           const realData = await fetchRealMapData(
             data.center_lat,
             data.center_lng,
             data.radius_meters || 500,
             data.boundary_geojson // Pass boundary for precise clipping
           );
+          
           if (realData) {
             setMapData(realData);
+            setOsmLoading(false);
             console.log('✅ Loaded CLIPPED OSM data:', realData.stats);
+            
+            toast({
+              title: '✅ Real data loaded',
+              description: `Found ${realData.stats.buildingCount} buildings, ${realData.stats.transitCount} transit stops within boundary`,
+            });
             
             // Update layer counts based on real clipped data
             onLayersChange(layers.map(layer => {
               if (layer.type === 'buildings') {
-                return { ...layer, objectCount: realData.stats.buildingCount };
+                return { ...layer, objectCount: realData.stats.buildingCount, dataSource: 'OpenStreetMap' };
               }
               if (layer.type === 'transit') {
-                return { ...layer, objectCount: realData.stats.transitCount };
+                return { ...layer, objectCount: realData.stats.transitCount, dataSource: 'OpenStreetMap' };
               }
               if (layer.type === 'green') {
                 const greenCount = realData.landuse.features.filter((f: any) => 
                   ['park', 'forest', 'grass', 'meadow'].includes(f.properties?.type)
                 ).length;
-                return { ...layer, objectCount: greenCount };
+                return { ...layer, objectCount: greenCount, dataSource: 'OpenStreetMap' };
               }
               return layer;
             }));
           }
-        } catch (err) {
-          console.warn('Failed to load OSM data:', err);
+        } catch (err: any) {
+          console.error('❌ Failed to load OSM data:', err);
+          setOsmLoading(false);
+          setOsmError(err.message || 'Failed to load map data');
+          
+          toast({
+            title: '⚠️ Using demo data',
+            description: 'Unable to load real-time OpenStreetMap data. Showing placeholder layers.',
+            variant: 'destructive'
+          });
         }
       };
       loadMapData();
@@ -811,8 +832,23 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
       <div ref={mapContainer} className="absolute inset-0" />
       
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm">
+        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-20">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      )}
+      
+      {/* OSM Data Loading Indicator */}
+      {osmLoading && !loading && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-background/95 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg border border-border/50 flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          <span className="text-sm text-foreground">Loading real map data...</span>
+        </div>
+      )}
+      
+      {/* OSM Error Warning */}
+      {osmError && !osmLoading && !loading && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-destructive/10 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg border border-destructive/50 flex items-center gap-2 max-w-md">
+          <span className="text-sm text-destructive">⚠️ Using demo data - OpenStreetMap temporarily unavailable</span>
         </div>
       )}
     </div>

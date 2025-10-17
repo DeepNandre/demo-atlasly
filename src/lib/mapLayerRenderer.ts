@@ -183,9 +183,9 @@ export const fetchRealMapData = async (
         landuseTypes: [...new Set(landuseGeoJSON.features.map((l: any) => l.properties?.type))]
       }
     };
-  } catch (error) {
-    console.error('Error fetching map data:', error);
-    return null;
+  } catch (error: any) {
+    console.error('❌ Error fetching and clipping map data:', error);
+    throw new Error(error.message || 'Failed to fetch map data');
   }
 };
 
