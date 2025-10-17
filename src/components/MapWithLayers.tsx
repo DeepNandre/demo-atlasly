@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import { fetchRealMapData, getLanduseColor } from '@/lib/mapLayerRenderer';
 import { useToast } from '@/hooks/use-toast';
-import { MapStyleToggle } from './MapStyleToggle';
+import { MapStyleSelector, MapStyleType } from './MapStyleSelector';
 
 interface MapLayer {
   id: string;
@@ -27,7 +27,7 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
   const [loading, setLoading] = useState(true);
   const [siteData, setSiteData] = useState<any>(null);
   const [mapData, setMapData] = useState<any>(null);
-  const [mapStyle, setMapStyle] = useState<'standard' | 'satellite'>('standard');
+  const [mapStyle, setMapStyle] = useState<MapStyleType>('default');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -77,51 +77,94 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
   useEffect(() => {
     if (!mapContainer.current || !siteData) return;
 
-    const getMapStyle = (styleType: 'standard' | 'satellite') => {
-      if (styleType === 'satellite') {
-        return {
-          version: 8,
-          sources: {
-            'satellite': {
-              type: 'raster',
-              tiles: [
-                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-              ],
-              tileSize: 256,
-              attribution: '© Esri'
-            }
-          },
-          layers: [
-            {
-              id: 'satellite',
-              type: 'raster',
-              source: 'satellite',
-              minzoom: 0,
-              maxzoom: 19
-            }
-          ]
-        };
-      } else {
-        return {
-          version: 8,
-          sources: {
-            'osm-tiles': {
-              type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256,
-              attribution: '© OpenStreetMap contributors'
-            }
-          },
-          layers: [
-            {
-              id: 'osm-tiles',
-              type: 'raster',
-              source: 'osm-tiles',
-              minzoom: 0,
-              maxzoom: 19
-            }
-          ]
-        };
+    const getMapStyle = (styleType: MapStyleType) => {
+      const baseConfig = { version: 8, glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf' };
+      
+      switch (styleType) {
+        case 'satellite':
+          return {
+            ...baseConfig,
+            sources: {
+              'satellite': {
+                type: 'raster',
+                tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+                tileSize: 256,
+                attribution: '© Esri'
+              }
+            },
+            layers: [{ id: 'satellite', type: 'raster', source: 'satellite', minzoom: 0, maxzoom: 19 }]
+          };
+        
+        case 'simple':
+          return {
+            ...baseConfig,
+            sources: {
+              'carto': {
+                type: 'raster',
+                tiles: ['https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© CARTO'
+              }
+            },
+            layers: [{ id: 'carto', type: 'raster', source: 'carto', minzoom: 0, maxzoom: 19 }]
+          };
+        
+        case 'dark':
+          return {
+            ...baseConfig,
+            sources: {
+              'dark': {
+                type: 'raster',
+                tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© CARTO'
+              }
+            },
+            layers: [{ id: 'dark', type: 'raster', source: 'dark', minzoom: 0, maxzoom: 19 }]
+          };
+        
+        case 'terrain':
+          return {
+            ...baseConfig,
+            sources: {
+              'terrain': {
+                type: 'raster',
+                tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© OpenTopoMap'
+              }
+            },
+            layers: [{ id: 'terrain', type: 'raster', source: 'terrain', minzoom: 0, maxzoom: 17 }]
+          };
+        
+        case 'streets':
+          return {
+            ...baseConfig,
+            sources: {
+              'streets': {
+                type: 'raster',
+                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© OpenStreetMap'
+              }
+            },
+            layers: [{ id: 'streets', type: 'raster', source: 'streets', minzoom: 0, maxzoom: 19 }]
+          };
+        
+        case 'default':
+        default:
+          return {
+            ...baseConfig,
+            sources: {
+              'osm': {
+                type: 'raster',
+                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© OpenStreetMap'
+              }
+            },
+            layers: [{ id: 'osm', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 19 }]
+          };
       }
     };
 
@@ -184,7 +227,7 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
   }, [siteData, mapStyle, mapData]);
 
   // Handle map style changes
-  const handleStyleChange = (newStyle: 'standard' | 'satellite') => {
+  const handleStyleChange = (newStyle: MapStyleType) => {
     setMapStyle(newStyle);
   };
 
@@ -665,7 +708,7 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange }: MapWith
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="absolute inset-0" />
       
-      <MapStyleToggle style={mapStyle} onStyleChange={handleStyleChange} />
+      <MapStyleSelector currentStyle={mapStyle} onStyleChange={handleStyleChange} />
       
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm">
