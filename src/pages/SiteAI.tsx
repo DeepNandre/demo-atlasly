@@ -64,9 +64,9 @@ interface MapLayer {
 }
 
 const defaultLayers: MapLayer[] = [
-  { id: 'buildings', name: 'Buildings', visible: true, color: '#FFD700', type: 'buildings' },
-  { id: 'landuse', name: 'Land Use', visible: true, color: '#00FF00', type: 'landuse' },
-  { id: 'transit', name: 'Transit', visible: true, color: '#1E90FF', type: 'transit' },
+  { id: 'buildings', name: 'Buildings', visible: false, color: '#FFD700', type: 'buildings' },
+  { id: 'landuse', name: 'Land Use', visible: false, color: '#00FF00', type: 'landuse' },
+  { id: 'transit', name: 'Transit', visible: false, color: '#1E90FF', type: 'transit' },
   { id: 'green', name: 'Green Spaces', visible: false, color: '#228B22', type: 'green' },
   { id: 'population', name: 'Population', visible: false, color: '#FF4500', type: 'population' }
 ];

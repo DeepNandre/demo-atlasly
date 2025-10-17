@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { fetchRealMapData } from '@/lib/mapLayerRenderer';
 import { useToast } from '@/hooks/use-toast';
 import { MapStyleType } from './MapStyleSelector';
+import { toast as sonnerToast } from 'sonner';
 
 interface MapLayer {
   id: string;
@@ -299,6 +300,9 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
             id: 'buildings-fill',
             type: 'fill',
             source: 'buildings',
+            layout: {
+              visibility: 'none'
+            },
             paint: {
               'fill-color': '#FFD700',
               'fill-opacity': 0.6
@@ -309,6 +313,9 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
             id: 'buildings-layer',
             type: 'line',
             source: 'buildings',
+            layout: {
+              visibility: 'none'
+            },
             paint: {
               'line-color': '#FFA500',
               'line-width': 2
@@ -338,6 +345,9 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
             id: 'landuse-fill',
             type: 'fill',
             source: 'landuse',
+            layout: {
+              visibility: 'none'
+            },
             paint: {
               'fill-color': [
                 'match',
@@ -355,6 +365,9 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
             id: 'landuse-layer',
             type: 'line',
             source: 'landuse',
+            layout: {
+              visibility: 'none'
+            },
             paint: {
               'line-color': '#999999',
               'line-width': 1
@@ -383,6 +396,9 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
             id: 'green-spaces-fill',
             type: 'fill',
             source: 'green-spaces',
+            layout: {
+              visibility: 'none'
+            },
             paint: {
               'fill-color': '#00FF00',
               'fill-opacity': 0.5
@@ -393,6 +409,9 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
             id: 'green-spaces-outline',
             type: 'line',
             source: 'green-spaces',
+            layout: {
+              visibility: 'none'
+            },
             paint: {
               'line-color': '#006400',
               'line-width': 2
@@ -416,6 +435,9 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
             id: 'transit-layer',
             type: 'circle',
             source: 'transit',
+            layout: {
+              visibility: 'none'
+            },
             paint: {
               'circle-radius': 6,
               'circle-color': '#1E90FF',
@@ -470,6 +492,9 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
               id: 'population-heatmap',
               type: 'heatmap',
               source: 'population',
+              layout: {
+                visibility: 'none'
+              },
               paint: {
                 'heatmap-weight': 0.5,
                 'heatmap-intensity': 1,
@@ -500,6 +525,8 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
 
       console.log('🎨 Updating layer visibility:', layers.map(l => `${l.type}:${l.visible}`));
 
+      let changesApplied = false;
+
       layers.forEach(layer => {
         const visibility = layer.visible ? 'visible' : 'none';
         const layerIds: string[] = [];
@@ -526,6 +553,7 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
           if (map.current?.getLayer(layerId)) {
             map.current.setLayoutProperty(layerId, 'visibility', visibility);
             console.log(`✅ ${layerId} → ${visibility}`);
+            changesApplied = true;
           } else {
             console.warn(`⚠️ Layer not found: ${layerId}`);
           }
@@ -533,6 +561,13 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
       });
 
       map.current?.triggerRepaint();
+      
+      if (changesApplied) {
+        const visibleCount = layers.filter(l => l.visible).length;
+        sonnerToast.success(`Layers updated: ${visibleCount}/${layers.length} visible`, {
+          duration: 2000
+        });
+      }
     }, [layers]);
 
     if (!siteData) {

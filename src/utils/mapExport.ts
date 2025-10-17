@@ -6,17 +6,38 @@
 import jsPDF from 'jspdf';
 import maplibregl from 'maplibre-gl';
 
-const waitForMapIdle = (map: maplibregl.Map): Promise<void> => {
+const waitForAllTilesLoaded = (map: maplibregl.Map, timeout = 10000): Promise<void> => {
   return new Promise((resolve) => {
-    if (map.loaded() && !map.isMoving()) {
-      // Wait a bit more to ensure tiles are rendered
-      setTimeout(resolve, 1500);
+    const startTime = Date.now();
+    
+    const checkTiles = () => {
+      if (map.areTilesLoaded() && map.loaded() && !map.isMoving()) {
+        console.log('✅ All tiles loaded and map is idle');
+        // Wait additional 500ms for final render
+        setTimeout(resolve, 500);
+      } else if (Date.now() - startTime > timeout) {
+        console.warn('⚠️ Timeout waiting for tiles, proceeding anyway');
+        resolve();
+      } else {
+        console.log('⏳ Waiting for tiles...', {
+          tilesLoaded: map.areTilesLoaded(),
+          mapLoaded: map.loaded(),
+          isMoving: map.isMoving()
+        });
+        requestAnimationFrame(checkTiles);
+      }
+    };
+    
+    if (map.loaded()) {
+      map.once('idle', () => {
+        checkTiles();
+      });
     } else {
-      const onIdle = () => {
-        map.off('idle', onIdle);
-        setTimeout(resolve, 1500);
-      };
-      map.once('idle', onIdle);
+      map.once('load', () => {
+        map.once('idle', () => {
+          checkTiles();
+        });
+      });
     }
   });
 };
@@ -27,8 +48,8 @@ export const exportMapToPNG = async (
   try {
     console.log('🖼️ Starting PNG export...');
     
-    // Wait for map to be completely idle
-    await waitForMapIdle(map);
+    // Wait for all tiles to be loaded
+    await waitForAllTilesLoaded(map);
     
     // Get the map canvas - MapLibre uses preserveDrawingBuffer
     const canvas = map.getCanvas();
@@ -61,8 +82,8 @@ export const exportMapToPDF = async (
   try {
     console.log('📄 Starting PDF export...');
     
-    // Wait for map to be completely idle
-    await waitForMapIdle(map);
+    // Wait for all tiles to be loaded
+    await waitForAllTilesLoaded(map);
     
     const canvas = map.getCanvas();
     
