@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Send, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AnalysisCard } from './AnalysisCard';
+import { EnvironmentalDataCard } from './EnvironmentalDataCard';
 
 interface AnalysisResult {
   title: string;
@@ -27,6 +28,7 @@ interface Message {
   content: string;
   timestamp: Date;
   analysisCards?: AnalysisResult[];
+  environmentalData?: any;
 }
 
 interface ConversationalAnalysisProps {
@@ -111,6 +113,15 @@ const ConversationalAnalysis = ({
         layerData: data.layers?.[idx] // AI can generate layer data
       }));
       
+      // Extract environmental/chart data if available
+      let environmentalChartData = null;
+      if (data.layers && data.layers.length > 0) {
+        const layerWithCharts = data.layers.find((l: any) => l.chartData);
+        if (layerWithCharts) {
+          environmentalChartData = layerWithCharts.chartData;
+        }
+      }
+      
       // Create layers from analysis results
       if (onLayerCreated && completedCards.length > 0) {
         completedCards.forEach((card) => {
@@ -133,7 +144,8 @@ const ConversationalAnalysis = ({
         role: 'assistant',
         content: data.response,
         timestamp: new Date(),
-        analysisCards: completedCards.length > 0 ? completedCards : undefined
+        analysisCards: completedCards.length > 0 ? completedCards : undefined,
+        environmentalData: environmentalChartData
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -264,6 +276,15 @@ const ConversationalAnalysis = ({
                     {msg.analysisCards.map((card, idx) => (
                       <AnalysisCard key={idx} {...card} />
                     ))}
+                  </div>
+                )}
+                
+                {msg.environmentalData && (
+                  <div className="ml-9 mt-2">
+                    <EnvironmentalDataCard 
+                      environmentalData={msg.environmentalData}
+                      dataSource="Open-Meteo API"
+                    />
                   </div>
                 )}
               </div>

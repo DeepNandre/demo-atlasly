@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.conversational-analysis]
 verify_jwt = true
+
+[functions.fetch-environmental-data]
+verify_jwt = false

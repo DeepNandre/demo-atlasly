@@ -4,13 +4,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProjectSelector from '@/components/ai/ProjectSelector';
 import ConversationalAnalysis from '@/components/ConversationalAnalysis';
 import { MapWithLayers } from '@/components/MapWithLayers';
-import { MapLayerControls } from '@/components/MapLayerControls';
+import { EnhancedLayerPanel } from '@/components/EnhancedLayerPanel';
+import { AnalysisProgressPanel } from '@/components/AnalysisProgressPanel';
 import { AnalysisTemplates } from '@/components/AnalysisTemplates';
 import { Button } from '@/components/ui/button';
-import { Plus, Layers, ChevronDown } from 'lucide-react';
+import { Plus, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const SiteIQLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
@@ -246,22 +246,13 @@ const SiteAI = () => {
               onLayersChange={setLayers}
             />
             
-            {/* Floating Layer Controls */}
-            <div className="absolute top-4 right-4 z-10">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="secondary" size="sm" className="shadow-lg">
-                    <Layers className="w-4 h-4 mr-2" />
-                    Layers
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-0" align="end">
-                  <MapLayerControls
-                    layers={layers}
-                    onLayerToggle={handleLayerToggle}
-                  />
-                </PopoverContent>
-              </Popover>
+            {/* Floating Panels */}
+            <div className="absolute top-4 right-4 z-10 space-y-3 max-w-sm">
+              <EnhancedLayerPanel
+                layers={layers}
+                onLayersChange={setLayers}
+              />
+              <AnalysisProgressPanel siteRequestId={selectedSite.id} />
             </div>
           </div>
         </div>
