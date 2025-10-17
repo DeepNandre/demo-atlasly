@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
-import { fetchRealMapData, getLanduseColor } from '@/lib/mapLayerRenderer';
+import { fetchRealMapData } from '@/lib/mapLayerRenderer';
 import { useToast } from '@/hooks/use-toast';
 import { MapStyleType } from './MapStyleSelector';
 
@@ -32,9 +32,9 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
   const [siteData, setSiteData] = useState<any>(null);
   const [mapData, setMapData] = useState<any>(null);
   const [osmLoading, setOsmLoading] = useState(false);
-  const [osmError, setOsmError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Load site data
   useEffect(() => {
     loadSiteData();
   }, [siteRequestId]);
@@ -51,85 +51,8 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
       if (error) throw error;
       setSiteData(data);
       
-      // Fetch real OSM data with robust retry logic
-      const loadMapData = async (retryCount = 0) => {
-        const maxRetries = 3;
-        setOsmLoading(true);
-        setOsmError(null);
-        
-        try {
-          console.log(`🔄 Fetching OSM data (attempt ${retryCount + 1}/${maxRetries + 1})...`);
-          const realData = await fetchRealMapData(
-            data.center_lat,
-            data.center_lng,
-            data.radius_meters || 500,
-            data.boundary_geojson
-          );
-          
-          if (realData) {
-            setMapData(realData);
-            setOsmLoading(false);
-            console.log('✅ Successfully loaded OSM data:', {
-              buildings: realData.stats.buildingCount,
-              landuse: realData.landuse.features.length,
-              transit: realData.stats.transitCount,
-              amenities: realData.stats.amenityCount
-            });
-            
-            // Count green spaces
-            const greenCount = realData.landuse.features.filter((f: any) => 
-              ['park', 'forest', 'grass', 'meadow', 'recreation_ground', 'garden'].includes(f.properties?.type)
-            ).length;
-            
-            const landuseCount = realData.landuse.features.length - greenCount;
-            
-            toast({
-              title: '✅ Map data loaded',
-              description: `${realData.stats.buildingCount} buildings, ${landuseCount} landuse areas, ${greenCount} green spaces, ${realData.stats.transitCount} transit stops`,
-            });
-            
-            // Update layer counts with real data
-            onLayersChange(layers.map(layer => {
-              switch (layer.type) {
-                case 'buildings':
-                  return { ...layer, objectCount: realData.stats.buildingCount, dataSource: 'OpenStreetMap' };
-                case 'landuse':
-                  return { ...layer, objectCount: landuseCount, dataSource: 'OpenStreetMap' };
-                case 'transit':
-                  return { ...layer, objectCount: realData.stats.transitCount, dataSource: 'OpenStreetMap' };
-                case 'green':
-                  return { ...layer, objectCount: greenCount, dataSource: 'OpenStreetMap' };
-                case 'population':
-                  return { ...layer, objectCount: realData.stats.buildingCount, dataSource: 'Derived from Buildings' };
-                default:
-                  return layer;
-              }
-            }));
-          }
-        } catch (err: any) {
-          console.error(`❌ OSM data fetch failed (attempt ${retryCount + 1}):`, err);
-          
-          if (retryCount < maxRetries) {
-            const delay = Math.min(1000 * Math.pow(2, retryCount), 8000); // Exponential backoff
-            console.log(`⏳ Retrying in ${delay}ms...`);
-            toast({
-              title: '⏳ Loading map data...',
-              description: `Retrying (${retryCount + 1}/${maxRetries})`,
-            });
-            setTimeout(() => loadMapData(retryCount + 1), delay);
-          } else {
-            setOsmLoading(false);
-            setOsmError(err.message || 'Failed to load map data');
-            toast({
-              title: '⚠️ Map data unavailable',
-              description: 'OpenStreetMap servers are temporarily busy. Layers will appear when data loads.',
-              variant: 'destructive'
-            });
-          }
-        }
-      };
-      
-      loadMapData();
+      // Fetch OSM data with retry logic
+      fetchOSMData(data);
     } catch (error) {
       console.error('Error loading site data:', error);
       toast({
@@ -141,125 +64,171 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
     }
   };
 
+  const fetchOSMData = async (siteData: any, retryCount = 0) => {
+    const maxRetries = 3;
+    setOsmLoading(true);
+    
+    try {
+      console.log(`🔄 Fetching OSM data (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+      const realData = await fetchRealMapData(
+        siteData.center_lat,
+        siteData.center_lng,
+        siteData.radius_meters || 500,
+        siteData.boundary_geojson
+      );
+      
+      if (realData) {
+        console.log('✅ OSM data loaded successfully:', {
+          buildings: realData.stats.buildingCount,
+          landuse: realData.landuse.features.length,
+          transit: realData.stats.transitCount
+        });
+        
+        setMapData(realData);
+        setOsmLoading(false);
+        
+        // Update layer counts
+        const greenCount = realData.landuse.features.filter((f: any) => 
+          ['park', 'forest', 'grass', 'meadow', 'recreation_ground', 'garden'].includes(f.properties?.type)
+        ).length;
+        const landuseCount = realData.landuse.features.length - greenCount;
+        
+        onLayersChange(layers.map(layer => {
+          switch (layer.type) {
+            case 'buildings':
+              return { ...layer, objectCount: realData.stats.buildingCount, dataSource: 'OpenStreetMap' };
+            case 'landuse':
+              return { ...layer, objectCount: landuseCount, dataSource: 'OpenStreetMap' };
+            case 'transit':
+              return { ...layer, objectCount: realData.stats.transitCount, dataSource: 'OpenStreetMap' };
+            case 'green':
+              return { ...layer, objectCount: greenCount, dataSource: 'OpenStreetMap' };
+            case 'population':
+              return { ...layer, objectCount: realData.stats.buildingCount, dataSource: 'Derived' };
+            default:
+              return layer;
+          }
+        }));
+        
+        toast({
+          title: '✅ Map data loaded',
+          description: `${realData.stats.buildingCount} buildings, ${realData.stats.transitCount} transit stops`,
+        });
+      }
+    } catch (err: any) {
+      console.error(`❌ OSM fetch failed (attempt ${retryCount + 1}):`, err);
+      
+      if (retryCount < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
+        console.log(`⏳ Retrying in ${delay}ms...`);
+        setTimeout(() => fetchOSMData(siteData, retryCount + 1), delay);
+      } else {
+        setOsmLoading(false);
+        toast({
+          title: '⚠️ Unable to load map layers',
+          description: 'OpenStreetMap is temporarily unavailable. Please try again later.',
+          variant: 'destructive'
+        });
+      }
+    }
+  };
+
+  // Initialize map
   useEffect(() => {
     if (!mapContainer.current || !siteData) return;
 
     const getMapStyle = (styleType: MapStyleType) => {
-      const baseConfig = { version: 8, glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf' };
+      const baseConfig = { 
+        version: 8, 
+        glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf'
+      };
       
-      switch (styleType) {
-        case 'satellite':
-          return {
-            ...baseConfig,
-            sources: {
-              'satellite': {
-                type: 'raster',
-                tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-                tileSize: 256,
-                attribution: '© Esri'
-              }
-            },
-            layers: [{ id: 'satellite', type: 'raster', source: 'satellite', minzoom: 0, maxzoom: 19 }]
-          };
-        
-        case 'simple':
-          return {
-            ...baseConfig,
-            sources: {
-              'carto': {
-                type: 'raster',
-                tiles: ['https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                attribution: '© CARTO'
-              }
-            },
-            layers: [{ id: 'carto', type: 'raster', source: 'carto', minzoom: 0, maxzoom: 19 }]
-          };
-        
-        case 'dark':
-          return {
-            ...baseConfig,
-            sources: {
-              'dark': {
-                type: 'raster',
-                tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                attribution: '© CARTO'
-              }
-            },
-            layers: [{ id: 'dark', type: 'raster', source: 'dark', minzoom: 0, maxzoom: 19 }]
-          };
-        
-        case 'terrain':
-          return {
-            ...baseConfig,
-            sources: {
-              'terrain': {
-                type: 'raster',
-                tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                attribution: '© OpenTopoMap'
-              }
-            },
-            layers: [{ id: 'terrain', type: 'raster', source: 'terrain', minzoom: 0, maxzoom: 17 }]
-          };
-        
-        case 'streets':
-          return {
-            ...baseConfig,
-            sources: {
-              'streets': {
-                type: 'raster',
-                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                attribution: '© OpenStreetMap'
-              }
-            },
-            layers: [{ id: 'streets', type: 'raster', source: 'streets', minzoom: 0, maxzoom: 19 }]
-          };
-        
-        case 'default':
-        default:
-          return {
-            ...baseConfig,
-            sources: {
-              'osm': {
-                type: 'raster',
-                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                attribution: '© OpenStreetMap'
-              }
-            },
-            layers: [{ id: 'osm', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 19 }]
-          };
-      }
+      const styles = {
+        satellite: {
+          ...baseConfig,
+          sources: {
+            'satellite': {
+              type: 'raster',
+              tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+              tileSize: 256
+            }
+          },
+          layers: [{ id: 'satellite', type: 'raster', source: 'satellite' }]
+        },
+        simple: {
+          ...baseConfig,
+          sources: {
+            'carto': {
+              type: 'raster',
+              tiles: ['https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'],
+              tileSize: 256
+            }
+          },
+          layers: [{ id: 'carto', type: 'raster', source: 'carto' }]
+        },
+        dark: {
+          ...baseConfig,
+          sources: {
+            'dark': {
+              type: 'raster',
+              tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'],
+              tileSize: 256
+            }
+          },
+          layers: [{ id: 'dark', type: 'raster', source: 'dark' }]
+        },
+        terrain: {
+          ...baseConfig,
+          sources: {
+            'terrain': {
+              type: 'raster',
+              tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'],
+              tileSize: 256
+            }
+          },
+          layers: [{ id: 'terrain', type: 'raster', source: 'terrain' }]
+        },
+        streets: {
+          ...baseConfig,
+          sources: {
+            'streets': {
+              type: 'raster',
+              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              tileSize: 256
+            }
+          },
+          layers: [{ id: 'streets', type: 'raster', source: 'streets' }]
+        },
+        default: {
+          ...baseConfig,
+          sources: {
+            'osm': {
+              type: 'raster',
+              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              tileSize: 256
+            }
+          },
+          layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
+        }
+      };
+
+      return styles[styleType] || styles.default;
     };
 
-    // Initialize map
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: getMapStyle(mapStyle) as any,
       center: [siteData.center_lng, siteData.center_lat],
       zoom: 15,
-      pitch: 0
-    } as any); // Type assertion to allow preserveDrawingBuffer in next line
-    
-    // Enable preserveDrawingBuffer for export functionality (must be set after creation)
-    if (map.current) {
-      const canvas = map.current.getCanvas();
-      const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
-      if (gl) {
-        // Already created, but set for future reference
-        (map.current as any)._preserveDrawingBuffer = true;
-      }
-    }
+      preserveDrawingBuffer: true
+    } as any);
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
     map.current.on('load', () => {
       setLoading(false);
       
-      // Add boundary outline
+      // Add boundary
       if (siteData.boundary_geojson && map.current) {
         map.current.addSource('boundary', {
           type: 'geojson',
@@ -271,7 +240,7 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
           type: 'fill',
           source: 'boundary',
           paint: {
-            'fill-color': 'hsl(75, 40%, 35%)',
+            'fill-color': '#8BC34A',
             'fill-opacity': 0.1
           }
         });
@@ -281,20 +250,16 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
           type: 'line',
           source: 'boundary',
           paint: {
-            'line-color': 'hsl(75, 40%, 35%)',
+            'line-color': '#8BC34A',
             'line-width': 3
           }
         });
       }
-
-      // Add real data layers when available
-      if (mapData) {
-        console.log('🗺️ Adding real data layers on map load...');
-        addRealDataLayers();
-      }
       
-      // Add custom AI-generated layers
-      addCustomLayers();
+      // Add OSM data layers if available
+      if (mapData) {
+        addAllLayers();
+      }
     });
 
     return () => {
@@ -303,272 +268,43 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
     };
   }, [siteData, mapStyle]);
 
-  // Separate effect to add layers when mapData becomes available
+  // Add layers when OSM data loads
   useEffect(() => {
     if (!map.current || !map.current.loaded() || !mapData) return;
     
-    console.log('🗺️ Map data updated, adding/updating layers...');
-    addRealDataLayers();
+    console.log('🗺️ Adding OSM data layers...');
+    addAllLayers();
   }, [mapData]);
 
-  // Function to add custom AI-generated layers
-  const addCustomLayers = () => {
-    if (!map.current) return;
-    
-    layers.forEach(layer => {
-      if (layer.type === 'ai-generated' && layer.geojson) {
-        const sourceId = `custom-${layer.id}`;
-        const layerId = `custom-layer-${layer.id}`;
-        
-        // Remove existing layer and source if they exist
-        if (map.current!.getLayer(layerId)) {
-          map.current!.removeLayer(layerId);
-        }
-        if (map.current!.getLayer(`${layerId}-outline`)) {
-          map.current!.removeLayer(`${layerId}-outline`);
-        }
-        if (map.current!.getSource(sourceId)) {
-          map.current!.removeSource(sourceId);
-        }
-        
-        // Add new source
-        map.current!.addSource(sourceId, {
-          type: 'geojson',
-          data: layer.geojson
-        });
-        
-        // Determine layer type from geometry
-        const geometryType = layer.geojson.features?.[0]?.geometry?.type;
-        
-        if (geometryType === 'Point') {
-          map.current!.addLayer({
-            id: layerId,
-            type: 'circle',
-            source: sourceId,
-            paint: {
-              'circle-radius': 6,
-              'circle-color': layer.color,
-              'circle-opacity': 0.8,
-              'circle-stroke-width': 2,
-              'circle-stroke-color': '#ffffff'
-            },
-            layout: {
-              visibility: layer.visible ? 'visible' : 'none'
-            }
-          });
-        } else if (geometryType === 'Polygon' || geometryType === 'MultiPolygon') {
-          map.current!.addLayer({
-            id: layerId,
-            type: 'fill',
-            source: sourceId,
-            paint: {
-              'fill-color': layer.color,
-              'fill-opacity': 0.4
-            },
-            layout: {
-              visibility: layer.visible ? 'visible' : 'none'
-            }
-          });
-          
-          map.current!.addLayer({
-            id: `${layerId}-outline`,
-            type: 'line',
-            source: sourceId,
-            paint: {
-              'line-color': layer.color,
-              'line-width': 2
-            },
-            layout: {
-              visibility: layer.visible ? 'visible' : 'none'
-            }
-          });
-        }
-      }
-    });
-  };
+  const addAllLayers = () => {
+    if (!map.current || !mapData) {
+      console.warn('Cannot add layers: map or data not ready');
+      return;
+    }
 
-  // Update layer visibility when layers prop changes - OPTIMIZED for instant response
-  useEffect(() => {
-    if (!map.current || !map.current.loaded()) return;
-
-    // Batch all visibility changes for better performance
-    requestAnimationFrame(() => {
-      layers.forEach(layer => {
-        // Map layer types to actual layer IDs
-        let layerIds: string[] = [];
-        
-        switch (layer.type) {
-          case 'buildings':
-            layerIds = ['buildings-layer', 'buildings-layer-fill'];
-            break;
-          case 'landuse':
-            layerIds = ['landuse-layer', 'landuse-layer-fill'];
-            break;
-          case 'transit':
-            layerIds = ['transit-layer'];
-            break;
-          case 'green':
-            layerIds = ['green-spaces-fill', 'green-spaces-outline'];
-            break;
-          case 'population':
-            layerIds = ['population-heatmap'];
-            break;
-          case 'ai-generated':
-            const customLayerId = `custom-layer-${layer.id}`;
-            layerIds = [customLayerId, `${customLayerId}-outline`];
-            break;
-        }
-        
-        const visibility = layer.visible ? 'visible' : 'none';
-        
-        layerIds.forEach(layerId => {
-          try {
-            if (map.current?.getLayer(layerId)) {
-              map.current.setLayoutProperty(layerId, 'visibility', visibility);
-            }
-          } catch (error) {
-            console.warn(`Failed to toggle layer ${layerId}:`, error);
-          }
-        });
-      });
-      
-      // Re-add custom layers if they don't exist yet
-      addCustomLayers();
-    });
-  }, [layers]);
-
-  const addMockBuildingsLayer = () => {
-    if (!map.current || !siteData) return;
-
-    // Mock building data (yellow polygons like AINO)
-    const buildings = {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[
-              [siteData.center_lng - 0.001, siteData.center_lat - 0.001],
-              [siteData.center_lng - 0.001, siteData.center_lat + 0.0005],
-              [siteData.center_lng - 0.0005, siteData.center_lat + 0.0005],
-              [siteData.center_lng - 0.0005, siteData.center_lat - 0.001],
-              [siteData.center_lng - 0.001, siteData.center_lat - 0.001]
-            ]]
-          },
-          properties: { height: 12 }
-        },
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[
-              [siteData.center_lng + 0.0005, siteData.center_lat - 0.0005],
-              [siteData.center_lng + 0.0005, siteData.center_lat + 0.001],
-              [siteData.center_lng + 0.001, siteData.center_lat + 0.001],
-              [siteData.center_lng + 0.001, siteData.center_lat - 0.0005],
-              [siteData.center_lng + 0.0005, siteData.center_lat - 0.0005]
-            ]]
-          },
-          properties: { height: 8 }
-        }
-      ]
-    };
-
-    map.current.addSource('buildings', {
-      type: 'geojson',
-      data: buildings as any
+    console.log('📍 Adding layers with data:', {
+      buildings: mapData.buildings.features.length,
+      landuse: mapData.landuse.features.length,
+      transit: mapData.transit.features.length
     });
 
-    map.current.addLayer({
-      id: 'buildings-layer-fill',
-      type: 'fill',
-      source: 'buildings',
-      paint: {
-        'fill-color': '#FFD700',
-        'fill-opacity': 0.5
-      }
-    });
-
-    map.current.addLayer({
-      id: 'buildings-layer',
-      type: 'line',
-      source: 'buildings',
-      paint: {
-        'line-color': '#FFD700',
-        'line-width': 2
-      }
-    });
-  };
-
-  const addMockLanduseLayer = () => {
-    if (!map.current || !siteData) return;
-
-    // Mock landuse (green for parks, pink for residential)
-    const landuse = {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[
-              [siteData.center_lng - 0.002, siteData.center_lat - 0.002],
-              [siteData.center_lng - 0.002, siteData.center_lat - 0.001],
-              [siteData.center_lng - 0.001, siteData.center_lat - 0.001],
-              [siteData.center_lng - 0.001, siteData.center_lat - 0.002],
-              [siteData.center_lng - 0.002, siteData.center_lat - 0.002]
-            ]]
-          },
-          properties: { type: 'park' }
-        }
-      ]
-    };
-
-    map.current.addSource('landuse', {
-      type: 'geojson',
-      data: landuse as any
-    });
-
-    map.current.addLayer({
-      id: 'landuse-layer-fill',
-      type: 'fill',
-      source: 'landuse',
-      paint: {
-        'fill-color': ['match', ['get', 'type'], 'park', '#00FF00', '#FF69B4'],
-        'fill-opacity': 0.3
-      }
-    });
-
-    map.current.addLayer({
-      id: 'landuse-layer',
-      type: 'line',
-      source: 'landuse',
-      paint: {
-        'line-color': ['match', ['get', 'type'], 'park', '#00FF00', '#FF69B4'],
-        'line-width': 1
-      }
-    });
-  };
-
-  const addRealDataLayers = () => {
-    if (!map.current || !mapData) return;
-
-    // Add buildings layer
+    // Buildings
     if (mapData.buildings.features.length > 0) {
-      if (!map.current.getSource('buildings')) {
+      if (map.current.getSource('buildings')) {
+        (map.current.getSource('buildings') as any).setData(mapData.buildings);
+      } else {
         map.current.addSource('buildings', {
           type: 'geojson',
           data: mapData.buildings
         });
 
         map.current.addLayer({
-          id: 'buildings-layer-fill',
+          id: 'buildings-fill',
           type: 'fill',
           source: 'buildings',
           paint: {
             'fill-color': '#FFD700',
-            'fill-opacity': 0.5
+            'fill-opacity': 0.6
           }
         });
 
@@ -581,44 +317,29 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
             'line-width': 2
           }
         });
+        
+        console.log('✅ Buildings layer added');
       }
     }
 
-    // Separate green spaces from landuse data
-    const greenSpaceTypes = ['park', 'forest', 'grass', 'meadow', 'recreation_ground', 'garden'];
-    const greenSpaces = {
-      type: 'FeatureCollection',
-      features: mapData.landuse.features.filter((f: any) => 
-        greenSpaceTypes.includes(f.properties?.type)
-      )
-    };
-
+    // Landuse (non-green)
+    const greenTypes = ['park', 'forest', 'grass', 'meadow', 'recreation_ground', 'garden'];
     const urbanLanduse = {
       type: 'FeatureCollection',
-      features: mapData.landuse.features.filter((f: any) => 
-        !greenSpaceTypes.includes(f.properties?.type)
-      )
+      features: mapData.landuse.features.filter((f: any) => !greenTypes.includes(f.properties?.type))
     };
 
-    // Add landuse layer (excluding green spaces) - WITH VALIDATION
     if (urbanLanduse.features.length > 0) {
-      // Filter out any features with invalid geometry
-      const validLanduse = {
-        type: 'FeatureCollection',
-        features: urbanLanduse.features.filter((f: any) => {
-          const coords = f.geometry?.coordinates?.[0];
-          return coords && Array.isArray(coords) && coords.length >= 4; // Valid polygon
-        })
-      };
-
-      if (validLanduse.features.length > 0 && !map.current.getSource('landuse')) {
+      if (map.current.getSource('landuse')) {
+        (map.current.getSource('landuse') as any).setData(urbanLanduse);
+      } else {
         map.current.addSource('landuse', {
           type: 'geojson',
-          data: validLanduse as any
+          data: urbanLanduse as any
         });
 
         map.current.addLayer({
-          id: 'landuse-layer-fill',
+          id: 'landuse-fill',
           type: 'fill',
           source: 'landuse',
           paint: {
@@ -628,11 +349,9 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
               'residential', '#FF69B4',
               'commercial', '#4169E1',
               'industrial', '#A9A9A9',
-              'retail', '#87CEEB',
-              'farmland', '#F0E68C',
               '#CCCCCC'
             ],
-            'fill-opacity': 0.3
+            'fill-opacity': 0.4
           }
         });
 
@@ -641,25 +360,25 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
           type: 'line',
           source: 'landuse',
           paint: {
-            'line-color': [
-              'match',
-              ['get', 'type'],
-              'residential', '#FF1493',
-              'commercial', '#0000CD',
-              'industrial', '#696969',
-              'retail', '#4682B4',
-              'farmland', '#DAA520',
-              '#999999'
-            ],
-            'line-width': 1.5
+            'line-color': '#999999',
+            'line-width': 1
           }
         });
+        
+        console.log('✅ Landuse layer added');
       }
     }
 
-    // Add green spaces layer
+    // Green spaces
+    const greenSpaces = {
+      type: 'FeatureCollection',
+      features: mapData.landuse.features.filter((f: any) => greenTypes.includes(f.properties?.type))
+    };
+
     if (greenSpaces.features.length > 0) {
-      if (!map.current.getSource('green-spaces')) {
+      if (map.current.getSource('green-spaces')) {
+        (map.current.getSource('green-spaces') as any).setData(greenSpaces);
+      } else {
         map.current.addSource('green-spaces', {
           type: 'geojson',
           data: greenSpaces as any
@@ -670,17 +389,7 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
           type: 'fill',
           source: 'green-spaces',
           paint: {
-            'fill-color': [
-              'match',
-              ['get', 'type'],
-              'park', '#00FF00',
-              'forest', '#228B22',
-              'grass', '#90EE90',
-              'meadow', '#98FB98',
-              'recreation_ground', '#7CFC00',
-              'garden', '#ADFF2F',
-              '#00FF00'
-            ],
+            'fill-color': '#00FF00',
             'fill-opacity': 0.5
           }
         });
@@ -694,12 +403,16 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
             'line-width': 2
           }
         });
+        
+        console.log('✅ Green spaces layer added');
       }
     }
 
-    // Add transit layer
+    // Transit
     if (mapData.transit.features.length > 0) {
-      if (!map.current.getSource('transit')) {
+      if (map.current.getSource('transit')) {
+        (map.current.getSource('transit') as any).setData(mapData.transit);
+      } else {
         map.current.addSource('transit', {
           type: 'geojson',
           data: mapData.transit
@@ -716,148 +429,109 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
             'circle-stroke-color': '#FFFFFF'
           }
         });
+        
+        console.log('✅ Transit layer added');
       }
     }
 
-    // Add population density heatmap (using building density as proxy - NOT real population data)
+    // Population heatmap (based on building density)
     if (mapData.buildings.features.length > 0) {
-      // Create point data from building centroids with proper validation
       const buildingPoints = {
         type: 'FeatureCollection',
-        features: mapData.buildings.features
-          .map((f: any) => {
-            const coords = f.geometry?.coordinates?.[0];
-            if (!coords || !Array.isArray(coords) || coords.length === 0) return null;
-            
-            // Calculate proper centroid
-            let sumLng = 0, sumLat = 0, validPoints = 0;
-            coords.forEach((coord: number[]) => {
-              if (Array.isArray(coord) && coord.length >= 2) {
-                sumLng += coord[0];
-                sumLat += coord[1];
-                validPoints++;
-              }
-            });
-            
-            if (validPoints === 0) return null;
-            
-            return {
-              type: 'Feature',
-              geometry: {
-                type: 'Point',
-                coordinates: [sumLng / validPoints, sumLat / validPoints]
-              },
-              properties: {
-                // Use building levels/height as density indicator
-                density: Math.max(1, f.properties?.levels || f.properties?.height / 3 || 1)
-              }
-            };
-          })
-          .filter((f: any) => f !== null)
+        features: mapData.buildings.features.map((f: any) => {
+          const coords = f.geometry?.coordinates?.[0];
+          if (!coords || !Array.isArray(coords)) return null;
+          
+          let sumLng = 0, sumLat = 0, count = 0;
+          coords.forEach((coord: number[]) => {
+            if (Array.isArray(coord) && coord.length >= 2) {
+              sumLng += coord[0];
+              sumLat += coord[1];
+              count++;
+            }
+          });
+          
+          if (count === 0) return null;
+          
+          return {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [sumLng / count, sumLat / count]
+            },
+            properties: { density: 1 }
+          };
+        }).filter((f: any) => f !== null)
       };
 
-      if (buildingPoints.features.length > 0 && !map.current.getSource('population')) {
-        map.current.addSource('population', {
-          type: 'geojson',
-          data: buildingPoints as any
-        });
+      if (buildingPoints.features.length > 0) {
+        if (map.current.getSource('population')) {
+          (map.current.getSource('population') as any).setData(buildingPoints);
+        } else {
+          map.current.addSource('population', {
+            type: 'geojson',
+            data: buildingPoints as any
+          });
 
-        map.current.addLayer({
-          id: 'population-heatmap',
-          type: 'heatmap',
-          source: 'population',
-          paint: {
-            'heatmap-weight': [
-              'interpolate',
-              ['linear'],
-              ['get', 'density'],
-              1, 0.3,
-              5, 0.7,
-              10, 1
-            ],
-            'heatmap-intensity': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              12, 0.5,
-              14, 1,
-              16, 1.5
-            ],
-            'heatmap-color': [
-              'interpolate',
-              ['linear'],
-              ['heatmap-density'],
-              0, 'rgba(33,102,172,0)',
-              0.2, 'rgb(103,169,207)',
-              0.4, 'rgb(209,229,240)',
-              0.6, 'rgb(253,219,199)',
-              0.8, 'rgb(239,138,98)',
-              1, 'rgb(178,24,43)'
-            ],
-            'heatmap-radius': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              12, 10,
-              14, 20,
-              16, 30
-            ],
-            'heatmap-opacity': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              12, 0.7,
-              16, 0.5
-            ]
-          }
-        });
+          map.current.addLayer({
+            id: 'population-heatmap',
+            type: 'heatmap',
+            source: 'population',
+            paint: {
+              'heatmap-weight': 0.5,
+              'heatmap-intensity': 1,
+              'heatmap-color': [
+                'interpolate',
+                ['linear'],
+                ['heatmap-density'],
+                0, 'rgba(33,102,172,0)',
+                0.5, 'rgb(103,169,207)',
+                1, 'rgb(178,24,43)'
+              ],
+              'heatmap-radius': 20,
+              'heatmap-opacity': 0.7
+            }
+          });
+          
+          console.log('✅ Population heatmap added');
+        }
       }
     }
   };
 
-  const addMockTransitLayer = () => {
-    if (!map.current || !siteData) return;
+  // Update layer visibility
+  useEffect(() => {
+    if (!map.current || !map.current.loaded()) return;
 
-    // Mock transit stops (blue circles)
-    const transit = {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [siteData.center_lng + 0.0015, siteData.center_lat + 0.0015]
-          },
-          properties: { name: 'Transit Stop 1' }
-        },
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [siteData.center_lng - 0.0015, siteData.center_lat + 0.001]
-          },
-          properties: { name: 'Transit Stop 2' }
-        }
-      ]
-    };
-
-    map.current.addSource('transit', {
-      type: 'geojson',
-      data: transit as any
-    });
-
-    map.current.addLayer({
-      id: 'transit-layer',
-      type: 'circle',
-      source: 'transit',
-      paint: {
-        'circle-radius': 6,
-        'circle-color': '#1E90FF',
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#FFFFFF'
+    layers.forEach(layer => {
+      const visibility = layer.visible ? 'visible' : 'none';
+      const layerIds: string[] = [];
+      
+      switch (layer.type) {
+        case 'buildings':
+          layerIds.push('buildings-fill', 'buildings-layer');
+          break;
+        case 'landuse':
+          layerIds.push('landuse-fill', 'landuse-layer');
+          break;
+        case 'transit':
+          layerIds.push('transit-layer');
+          break;
+        case 'green':
+          layerIds.push('green-spaces-fill', 'green-spaces-outline');
+          break;
+        case 'population':
+          layerIds.push('population-heatmap');
+          break;
       }
+      
+      layerIds.forEach(layerId => {
+        if (map.current?.getLayer(layerId)) {
+          map.current.setLayoutProperty(layerId, 'visibility', visibility);
+        }
+      });
     });
-  };
+  }, [layers]);
 
   if (!siteData) {
     return (
@@ -877,18 +551,10 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
         </div>
       )}
       
-      {/* OSM Data Loading Indicator */}
       {osmLoading && !loading && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-background/95 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg border border-border/50 flex items-center gap-2">
           <Loader2 className="w-4 h-4 animate-spin text-primary" />
-          <span className="text-sm text-foreground">Loading real map data...</span>
-        </div>
-      )}
-      
-      {/* OSM Error Warning */}
-      {osmError && !osmLoading && !loading && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-destructive/10 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg border border-destructive/50 flex items-center gap-2 max-w-md">
-          <span className="text-sm text-destructive">⚠️ Using demo data - OpenStreetMap temporarily unavailable</span>
+          <span className="text-sm text-foreground">Loading map layers...</span>
         </div>
       )}
     </div>

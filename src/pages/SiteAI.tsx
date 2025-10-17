@@ -12,13 +12,12 @@ import { MapLayerToggle } from '@/components/MapLayerToggle';
 import { Button } from '@/components/ui/button';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Plus, ChevronDown, Download, Loader2 } from 'lucide-react';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { fetchRealMapData } from '@/lib/mapLayerRenderer';
+import { exportMapToPNG, exportMapToPDF, downloadBlob } from '@/utils/mapExport';
 
 const SiteIQLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
@@ -643,12 +642,14 @@ EOF`;
               </div>
               
               {/* Map View */}
-              <MapWithLayers
-                siteRequestId={selectedSite.id}
-                layers={layers}
-                onLayersChange={setLayers}
-                mapStyle={mapStyle}
-              />
+              <div data-map-container className="h-full">
+                <MapWithLayers
+                  siteRequestId={selectedSite.id}
+                  layers={layers}
+                  onLayersChange={setLayers}
+                  mapStyle={mapStyle}
+                />
+              </div>
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
