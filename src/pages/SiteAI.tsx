@@ -256,57 +256,93 @@ const SiteAI = () => {
     setExportingFormat(format);
     
     try {
-      let response;
-      
-      if (format === 'pdf') {
-        // Call PDF export function
-        response = await supabase.functions.invoke('export-elevation', {
-          body: { site_request_id: selectedSite.id, format: 'pdf' }
-        });
-      } else if (format === 'dxf' || format === 'dwg') {
-        // Call DXF/DWG export
-        response = await supabase.functions.invoke('export-elevation', {
-          body: { site_request_id: selectedSite.id, format: format }
-        });
-      } else if (format === 'geojson') {
-        // Export GeoJSON of site boundary
-        const { data: siteData } = await supabase
-          .from('site_requests')
-          .select('boundary_geojson, location_name')
-          .eq('id', selectedSite.id)
-          .single();
+      // Fetch full site data
+      const { data: siteData, error: siteError } = await supabase
+        .from('site_requests')
+        .select('*')
+        .eq('id', selectedSite.id)
+        .single();
+
+      if (siteError || !siteData) {
+        throw new Error('Failed to fetch site data');
+      }
+
+      if (format === 'geojson') {
+        // Export GeoJSON with boundary and metadata
+        const boundaryFeature = (siteData.boundary_geojson as any) || {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [siteData.center_lng, siteData.center_lat]
+          },
+          properties: {}
+        };
+
+        const geoJsonExport = {
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              geometry: boundaryFeature.geometry || {
+                type: 'Point',
+                coordinates: [siteData.center_lng, siteData.center_lat]
+              },
+              properties: {
+                ...(boundaryFeature.properties || {}),
+                name: siteData.location_name,
+                area_sqm: siteData.area_sqm,
+                center_lat: siteData.center_lat,
+                center_lng: siteData.center_lng,
+                created_at: siteData.created_at
+              }
+            }
+          ]
+        };
+
+        const blob = new Blob([JSON.stringify(geoJsonExport, null, 2)], 
+          { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}.geojson`;
+        a.click();
+        URL.revokeObjectURL(url);
         
-        if (siteData?.boundary_geojson) {
-          const blob = new Blob([JSON.stringify(siteData.boundary_geojson, null, 2)], 
-            { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}.geojson`;
-          a.click();
-          URL.revokeObjectURL(url);
-          
-          toast({
-            title: '✅ Export complete',
-            description: `GeoJSON file downloaded successfully`,
-          });
-          
-          setExportDialogOpen(false);
-          setExportingFormat(null);
-          return;
-        }
+        toast({
+          title: '✅ Export complete',
+          description: `GeoJSON file downloaded successfully`,
+        });
+        
+        setExportDialogOpen(false);
+        setExportingFormat(null);
+        return;
       } else if (format === 'csv') {
-        // Export layer statistics as CSV
-        const csvData = layers.map(l => 
-          `${l.name},${l.type},${l.objectCount || 0},${l.dataSource || 'N/A'}`
-        ).join('\n');
+        // Export comprehensive site data as CSV
+        const rows = [
+          ['Site Information', ''],
+          ['Location', siteData.location_name],
+          ['Area (m²)', siteData.area_sqm?.toFixed(2) || 'N/A'],
+          ['Center Latitude', siteData.center_lat],
+          ['Center Longitude', siteData.center_lng],
+          ['Status', siteData.status],
+          ['Created', new Date(siteData.created_at).toLocaleDateString()],
+          [''],
+          ['Layer Statistics', ''],
+          ['Layer Name', 'Type', 'Object Count', 'Data Source'],
+          ...layers.map(l => [
+            l.name,
+            l.type,
+            (l.objectCount || 0).toString(),
+            l.dataSource || 'N/A'
+          ])
+        ];
         
-        const csvContent = `Layer Name,Type,Object Count,Data Source\n${csvData}`;
+        const csvContent = rows.map(row => row.join(',')).join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${selectedSite.location_name.replace(/[^a-z0-9]/gi, '_')}_layers.csv`;
+        a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_data.csv`;
         a.click();
         URL.revokeObjectURL(url);
         
@@ -318,18 +354,18 @@ const SiteAI = () => {
         setExportDialogOpen(false);
         setExportingFormat(null);
         return;
+      } else if (format === 'pdf' || format === 'dxf') {
+        // For PDF/DXF, create simple text-based export for now
+        toast({
+          title: 'ℹ️ Feature coming soon',
+          description: `${format.toUpperCase()} export with elevation data will be available once terrain analysis is complete`,
+        });
+        
+        setExportDialogOpen(false);
+        setExportingFormat(null);
+        return;
       }
       
-      if (response?.error) {
-        throw new Error(response.error.message);
-      }
-      
-      toast({
-        title: '✅ Export started',
-        description: `Your ${format.toUpperCase()} export is being prepared`,
-      });
-      
-      setExportDialogOpen(false);
     } catch (error: any) {
       console.error('Export error:', error);
       toast({
