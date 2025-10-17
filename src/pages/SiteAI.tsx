@@ -354,11 +354,166 @@ const SiteAI = () => {
         setExportDialogOpen(false);
         setExportingFormat(null);
         return;
-      } else if (format === 'pdf' || format === 'dxf') {
-        // For PDF/DXF, create simple text-based export for now
+      } else if (format === 'pdf') {
+        // Generate HTML report and download
+        const htmlReport = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Site Analysis Report - ${siteData.location_name}</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
+    h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
+    h2 { color: #475569; margin-top: 30px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    th { background-color: #f1f5f9; font-weight: 600; }
+    .metric { display: inline-block; margin: 10px 20px 10px 0; }
+    .metric-label { color: #64748b; font-size: 14px; }
+    .metric-value { font-size: 24px; font-weight: bold; color: #1e293b; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Site Analysis Report</h1>
+  
+  <h2>Site Information</h2>
+  <table>
+    <tr><th>Location</th><td>${siteData.location_name}</td></tr>
+    <tr><th>Area</th><td>${(siteData.area_sqm || 0).toFixed(2)} m²</td></tr>
+    <tr><th>Center Coordinates</th><td>${siteData.center_lat.toFixed(6)}, ${siteData.center_lng.toFixed(6)}</td></tr>
+    <tr><th>Status</th><td>${siteData.status}</td></tr>
+    <tr><th>Created</th><td>${new Date(siteData.created_at).toLocaleDateString()}</td></tr>
+  </table>
+
+  <h2>Layer Statistics</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Layer</th>
+        <th>Type</th>
+        <th>Objects</th>
+        <th>Data Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${layers.map(l => `
+        <tr>
+          <td>${l.name}</td>
+          <td>${l.type}</td>
+          <td>${l.objectCount || 0}</td>
+          <td>${l.dataSource || 'N/A'}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <p>Report generated on ${new Date().toLocaleString()}</p>
+    <p>SiteIQ - Intelligent Site Analysis Platform</p>
+  </div>
+</body>
+</html>`;
+
+        const blob = new Blob([htmlReport], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_report.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
         toast({
-          title: 'ℹ️ Feature coming soon',
-          description: `${format.toUpperCase()} export with elevation data will be available once terrain analysis is complete`,
+          title: '✅ Report downloaded',
+          description: 'HTML report downloaded successfully. Open in browser and print to PDF.',
+        });
+        
+        setExportDialogOpen(false);
+        setExportingFormat(null);
+        return;
+      } else if (format === 'dxf') {
+        // Generate simple DXF with boundary
+        const boundary = (siteData.boundary_geojson as any);
+        const coords = boundary?.geometry?.coordinates?.[0] || [[siteData.center_lng, siteData.center_lat]];
+        
+        let dxfContent = `0
+SECTION
+2
+HEADER
+9
+$ACADVER
+1
+AC1015
+0
+ENDSEC
+0
+SECTION
+2
+TABLES
+0
+TABLE
+2
+LAYER
+0
+LAYER
+2
+BOUNDARY
+70
+0
+62
+7
+6
+CONTINUOUS
+0
+ENDTAB
+0
+ENDSEC
+0
+SECTION
+2
+ENTITIES
+`;
+
+        // Add boundary polyline
+        coords.forEach((coord: number[], i: number) => {
+          if (i < coords.length - 1) {
+            dxfContent += `0
+LINE
+8
+BOUNDARY
+10
+${coord[0]}
+20
+${coord[1]}
+30
+0.0
+11
+${coords[i + 1][0]}
+21
+${coords[i + 1][1]}
+31
+0.0
+`;
+          }
+        });
+
+        dxfContent += `0
+ENDSEC
+0
+EOF`;
+
+        const blob = new Blob([dxfContent], { type: 'application/dxf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_boundary.dxf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: '✅ DXF downloaded',
+          description: 'Site boundary DXF file downloaded successfully',
         });
         
         setExportDialogOpen(false);
