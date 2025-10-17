@@ -9,10 +9,11 @@ import { AnalysisProgressPanel } from '@/components/AnalysisProgressPanel';
 import { AnalysisTemplates } from '@/components/AnalysisTemplates';
 import { MapStyleSelector, type MapStyleType } from '@/components/MapStyleSelector';
 import { MapLayerToggle } from '@/components/MapLayerToggle';
-import { Scene3D } from '@/components/Scene3D';
 import { Button } from '@/components/ui/button';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { Plus, ChevronDown, Box, Map as MapIcon, Download, Loader2 } from 'lucide-react';
+import { Plus, ChevronDown, Download, Loader2 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -80,12 +81,8 @@ const SiteAI = () => {
   const [layers, setLayers] = useState<MapLayer[]>(defaultLayers);
   const [templateQuery, setTemplateQuery] = useState<string | null>(null);
   const [mapStyle, setMapStyle] = useState<MapStyleType>('simple');
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<string | null>(null);
-  const [scene3DData, setScene3DData] = useState<any>(null);
-  const [loading3D, setLoading3D] = useState(false);
-  const [siteData, setSiteData] = useState<any>(null);
 
   useEffect(() => {
     if (!user) {
@@ -163,71 +160,6 @@ const SiteAI = () => {
     setSites(data || []);
   };
 
-  // Load 3D data when switching to 3D view
-  useEffect(() => {
-    if (viewMode === '3d' && selectedSite && !scene3DData) {
-      load3DData();
-    }
-  }, [viewMode, selectedSite]);
-
-  // Reset 3D data when site changes
-  useEffect(() => {
-    setScene3DData(null);
-  }, [selectedSite]);
-
-  const load3DData = async () => {
-    if (!selectedSite) return;
-    
-    setLoading3D(true);
-    try {
-      // Fetch site data
-      const { data: site, error } = await supabase
-        .from('site_requests')
-        .select('*')
-        .eq('id', selectedSite.id)
-        .single();
-
-      if (error) throw error;
-      setSiteData(site);
-
-      // Fetch OSM data with boundary clipping
-      const osmData = await fetchRealMapData(
-        site.center_lat,
-        site.center_lng,
-        site.radius_meters || 500,
-        site.boundary_geojson
-      );
-
-      if (osmData) {
-        setScene3DData({
-          buildings: osmData.buildings.features || [],
-          roads: osmData.transit.features || [],
-          terrain: [], // Terrain data would come from elevation analysis
-          aoiBounds: {
-            minLat: site.center_lat - 0.005,
-            maxLat: site.center_lat + 0.005,
-            minLng: site.center_lng - 0.005,
-            maxLng: site.center_lng + 0.005,
-          }
-        });
-        
-        toast({
-          title: '✅ 3D data loaded',
-          description: `Loaded ${osmData.buildings.features.length} buildings for 3D visualization`,
-        });
-      }
-    } catch (error) {
-      console.error('Error loading 3D data:', error);
-      toast({
-        title: '❌ Failed to load 3D data',
-        description: 'Could not fetch visualization data',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading3D(false);
-    }
-  };
-
   const handleLayerToggle = (layerId: string) => {
     setLayers(prev =>
       prev.map(layer =>
@@ -256,7 +188,6 @@ const SiteAI = () => {
     setExportingFormat(format);
     
     try {
-      // Fetch full site data
       const { data: siteData, error: siteError } = await supabase
         .from('site_requests')
         .select('*')
@@ -267,7 +198,73 @@ const SiteAI = () => {
         throw new Error('Failed to fetch site data');
       }
 
-      if (format === 'geojson') {
+      if (format === 'image') {
+        const mapElement = document.querySelector('.maplibregl-map') as HTMLElement;
+        if (!mapElement) {
+          throw new Error('Map not found');
+        }
+
+        const canvas = await html2canvas(mapElement, {
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          scale: 2
+        });
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_map.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        });
+
+        toast({
+          title: '✅ Image exported',
+          description: 'Map image downloaded successfully',
+        });
+
+        setExportDialogOpen(false);
+        setExportingFormat(null);
+        return;
+      } else if (format === 'pdf') {
+        const mapElement = document.querySelector('.maplibregl-map') as HTMLElement;
+        if (!mapElement) {
+          throw new Error('Map not found');
+        }
+
+        const canvas = await html2canvas(mapElement, {
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          scale: 2
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_map.pdf`);
+
+        toast({
+          title: '✅ PDF exported',
+          description: 'Map PDF downloaded successfully',
+        });
+
+        setExportDialogOpen(false);
+        setExportingFormat(null);
+        return;
+      } else if (format === 'geojson') {
         // Export GeoJSON with boundary and metadata
         const boundaryFeature = (siteData.boundary_geojson as any) || {
           type: 'Feature',
@@ -349,84 +346,6 @@ const SiteAI = () => {
         toast({
           title: '✅ Export complete',
           description: `CSV file downloaded successfully`,
-        });
-        
-        setExportDialogOpen(false);
-        setExportingFormat(null);
-        return;
-      } else if (format === 'pdf') {
-        // Generate HTML report and download
-        const htmlReport = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Site Analysis Report - ${siteData.location_name}</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
-    h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
-    h2 { color: #475569; margin-top: 30px; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-    th { background-color: #f1f5f9; font-weight: 600; }
-    .metric { display: inline-block; margin: 10px 20px 10px 0; }
-    .metric-label { color: #64748b; font-size: 14px; }
-    .metric-value { font-size: 24px; font-weight: bold; color: #1e293b; }
-    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <h1>Site Analysis Report</h1>
-  
-  <h2>Site Information</h2>
-  <table>
-    <tr><th>Location</th><td>${siteData.location_name}</td></tr>
-    <tr><th>Area</th><td>${(siteData.area_sqm || 0).toFixed(2)} m²</td></tr>
-    <tr><th>Center Coordinates</th><td>${siteData.center_lat.toFixed(6)}, ${siteData.center_lng.toFixed(6)}</td></tr>
-    <tr><th>Status</th><td>${siteData.status}</td></tr>
-    <tr><th>Created</th><td>${new Date(siteData.created_at).toLocaleDateString()}</td></tr>
-  </table>
-
-  <h2>Layer Statistics</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Layer</th>
-        <th>Type</th>
-        <th>Objects</th>
-        <th>Data Source</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${layers.map(l => `
-        <tr>
-          <td>${l.name}</td>
-          <td>${l.type}</td>
-          <td>${l.objectCount || 0}</td>
-          <td>${l.dataSource || 'N/A'}</td>
-        </tr>
-      `).join('')}
-    </tbody>
-  </table>
-
-  <div class="footer">
-    <p>Report generated on ${new Date().toLocaleString()}</p>
-    <p>SiteIQ - Intelligent Site Analysis Platform</p>
-  </div>
-</body>
-</html>`;
-
-        const blob = new Blob([htmlReport], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${siteData.location_name.replace(/[^a-z0-9]/gi, '_')}_report.html`;
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        toast({
-          title: '✅ Report downloaded',
-          description: 'HTML report downloaded successfully. Open in browser and print to PDF.',
         });
         
         setExportDialogOpen(false);
@@ -622,17 +541,6 @@ EOF`;
                   layers={layers}
                   onToggleLayer={handleLayerToggle}
                 />
-                
-                {/* 3D View Toggle */}
-                <Button
-                  size="sm"
-                  variant={viewMode === '3d' ? 'default' : 'outline'}
-                  onClick={() => setViewMode(viewMode === '2d' ? '3d' : '2d')}
-                  className="w-full gap-2"
-                >
-                  {viewMode === '2d' ? <Box className="w-4 h-4" /> : <MapIcon className="w-4 h-4" />}
-                  {viewMode === '2d' ? '3D View' : '2D View'}
-                </Button>
               </div>
               
               {/* Export Button - Top Right Corner (above progress) */}
@@ -654,13 +562,24 @@ EOF`;
                     <div className="grid grid-cols-2 gap-3 py-4">
                       <Button
                         variant="outline"
+                        onClick={() => handleExport('image')}
+                        disabled={!!exportingFormat}
+                        className="h-20 flex flex-col gap-2"
+                      >
+                        {exportingFormat === 'image' && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span className="text-lg">🖼️</span>
+                        <span className="text-sm">PNG Image</span>
+                      </Button>
+
+                      <Button
+                        variant="outline"
                         onClick={() => handleExport('pdf')}
                         disabled={!!exportingFormat}
                         className="h-20 flex flex-col gap-2"
                       >
                         {exportingFormat === 'pdf' && <Loader2 className="w-4 h-4 animate-spin" />}
                         <span className="text-lg">📄</span>
-                        <span className="text-sm">PDF Report</span>
+                        <span className="text-sm">PDF Map</span>
                       </Button>
                       
                       <Button
@@ -702,71 +621,13 @@ EOF`;
                 <AnalysisProgressPanel siteRequestId={selectedSite.id} />
               </div>
               
-              {/* Render 2D or 3D View */}
-              {viewMode === '2d' ? (
-                <MapWithLayers
-                  siteRequestId={selectedSite.id}
-                  layers={layers}
-                  onLayersChange={setLayers}
-                  mapStyle={mapStyle}
-                />
-              ) : loading3D ? (
-                <div className="w-full h-full flex items-center justify-center bg-muted/20">
-                  <div className="text-center space-y-4">
-                    <Loader2 className="w-16 h-16 mx-auto text-primary animate-spin" />
-                    <div>
-                      <h3 className="text-lg font-semibold">Loading 3D View</h3>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Fetching buildings and terrain data...
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : scene3DData ? (
-                <div className="w-full h-full relative">
-                  <Scene3D
-                    buildings={scene3DData.buildings}
-                    roads={scene3DData.roads}
-                    terrain={scene3DData.terrain}
-                    layers={{
-                      buildings: layers.find(l => l.id === 'buildings')?.visible ?? true,
-                      roads: layers.find(l => l.id === 'transit')?.visible ?? true,
-                      terrain: true
-                    }}
-                    aoiBounds={scene3DData.aoiBounds}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setViewMode('2d')}
-                    className="absolute top-4 left-4 z-10 bg-background/95 backdrop-blur"
-                  >
-                    <MapIcon className="w-4 h-4 mr-2" />
-                    Back to 2D View
-                  </Button>
-                </div>
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-muted/20">
-                  <div className="text-center space-y-4">
-                    <Box className="w-16 h-16 mx-auto text-primary" />
-                    <div>
-                      <h3 className="text-lg font-semibold">No 3D Data</h3>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Unable to load 3D visualization data
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setViewMode('2d')}
-                        className="mt-4"
-                      >
-                        <MapIcon className="w-4 h-4 mr-2" />
-                        Back to 2D View
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Map View */}
+              <MapWithLayers
+                siteRequestId={selectedSite.id}
+                layers={layers}
+                onLayersChange={setLayers}
+                mapStyle={mapStyle}
+              />
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>

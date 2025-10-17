@@ -78,8 +78,8 @@ export async function fetchOSMData(
     'https://overpass.openstreetmap.ru/api/interpreter'
   ];
   
-  // Reduced timeout for faster response
-  const timeout = 15;
+  // Increased timeout for better reliability
+  const timeout = 30;
   
   // Overpass QL query - use bounding box if available, otherwise circular radius
   const query = boundary 
@@ -119,7 +119,7 @@ export async function fetchOSMData(
     
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), (timeout + 5) * 1000);
+      const timeoutId = setTimeout(() => controller.abort(), (timeout + 10) * 1000);
       
       const response = await fetch(endpoint, {
         method: 'POST',
