@@ -65,23 +65,42 @@ export interface SiteContext {
 /**
  * Fetch OpenStreetMap data for a location
  */
-export async function fetchOSMData(lat: number, lng: number, radius: number = 500): Promise<OSMData> {
+export async function fetchOSMData(
+  lat: number, 
+  lng: number, 
+  radius: number = 500,
+  boundary?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+): Promise<OSMData> {
   const overpassUrl = 'https://overpass-api.de/api/interpreter';
   
-  // Overpass QL query for buildings, roads, amenities, etc.
-  const query = `
-    [out:json][timeout:25];
-    (
-      way["building"](around:${radius},${lat},${lng});
-      way["highway"](around:${radius},${lat},${lng});
-      node["amenity"](around:${radius},${lat},${lng});
-      way["landuse"](around:${radius},${lat},${lng});
-      node["public_transport"](around:${radius},${lat},${lng});
-    );
-    out body;
-    >;
-    out skel qt;
-  `;
+  // Overpass QL query - use bounding box if available, otherwise circular radius
+  const query = boundary 
+    ? `
+      [out:json][timeout:25];
+      (
+        way["building"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        way["highway"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        node["amenity"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        way["landuse"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        node["public_transport"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+      );
+      out body;
+      >;
+      out skel qt;
+    `
+    : `
+      [out:json][timeout:25];
+      (
+        way["building"](around:${radius},${lat},${lng});
+        way["highway"](around:${radius},${lat},${lng});
+        node["amenity"](around:${radius},${lat},${lng});
+        way["landuse"](around:${radius},${lat},${lng});
+        node["public_transport"](around:${radius},${lat},${lng});
+      );
+      out body;
+      >;
+      out skel qt;
+    `;
 
   try {
     const response = await fetch(overpassUrl, {

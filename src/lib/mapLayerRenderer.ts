@@ -1,4 +1,5 @@
 import { fetchOSMData } from './dataFusion';
+import { clipFeaturesToBoundary } from './boundaryClipping';
 
 export interface LayerStyle {
   fillColor: string;
@@ -58,12 +59,32 @@ export const layerStyles = {
   }
 };
 
-export const fetchRealMapData = async (lat: number, lng: number, radius: number = 500) => {
+export const fetchRealMapData = async (
+  lat: number, 
+  lng: number, 
+  radius: number = 500,
+  boundaryPolygon?: any
+) => {
   try {
-    const osmData = await fetchOSMData(lat, lng, radius);
+    // Calculate bounding box from polygon if provided
+    let bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number } | undefined;
+    if (boundaryPolygon?.geometry?.coordinates?.[0]) {
+      const coords = boundaryPolygon.geometry.coordinates[0];
+      const lngs = coords.map((c: number[]) => c[0]);
+      const lats = coords.map((c: number[]) => c[1]);
+      bbox = {
+        minLng: Math.min(...lngs),
+        maxLng: Math.max(...lngs),
+        minLat: Math.min(...lats),
+        maxLat: Math.max(...lats)
+      };
+      console.log('🗺️ Using boundary box:', bbox);
+    }
+
+    const osmData = await fetchOSMData(lat, lng, radius, bbox);
     
     // Transform buildings to GeoJSON
-    const buildingsGeoJSON = {
+    let buildingsGeoJSON = {
       type: 'FeatureCollection',
       features: osmData.buildings.map(building => ({
         type: 'Feature',
@@ -80,7 +101,7 @@ export const fetchRealMapData = async (lat: number, lng: number, radius: number 
     };
 
     // Transform landuse to GeoJSON with type-based styling
-    const landuseGeoJSON = {
+    let landuseGeoJSON = {
       type: 'FeatureCollection',
       features: osmData.landuse.map(land => ({
         type: 'Feature',
@@ -96,7 +117,7 @@ export const fetchRealMapData = async (lat: number, lng: number, radius: number 
     };
 
     // Transform transit stops to GeoJSON points
-    const transitGeoJSON = {
+    let transitGeoJSON = {
       type: 'FeatureCollection',
       features: osmData.transit.map(stop => ({
         type: 'Feature',
@@ -112,7 +133,7 @@ export const fetchRealMapData = async (lat: number, lng: number, radius: number 
     };
 
     // Transform amenities to GeoJSON points
-    const amenitiesGeoJSON = {
+    let amenitiesGeoJSON = {
       type: 'FeatureCollection',
       features: osmData.amenities.map(amenity => ({
         type: 'Feature',
@@ -127,16 +148,39 @@ export const fetchRealMapData = async (lat: number, lng: number, radius: number 
       }))
     };
 
+    // CLIP ALL LAYERS to boundary polygon for precise filtering
+    if (boundaryPolygon && bbox) {
+      console.log('🔪 Clipping features to boundary polygon...');
+      console.log('Before clipping:', {
+        buildings: buildingsGeoJSON.features.length,
+        landuse: landuseGeoJSON.features.length,
+        transit: transitGeoJSON.features.length,
+        amenities: amenitiesGeoJSON.features.length
+      });
+      
+      buildingsGeoJSON.features = clipFeaturesToBoundary(buildingsGeoJSON.features, bbox);
+      landuseGeoJSON.features = clipFeaturesToBoundary(landuseGeoJSON.features, bbox);
+      transitGeoJSON.features = clipFeaturesToBoundary(transitGeoJSON.features, bbox);
+      amenitiesGeoJSON.features = clipFeaturesToBoundary(amenitiesGeoJSON.features, bbox);
+      
+      console.log('✅ After clipping (within boundary):', {
+        buildings: buildingsGeoJSON.features.length,
+        landuse: landuseGeoJSON.features.length,
+        transit: transitGeoJSON.features.length,
+        amenities: amenitiesGeoJSON.features.length
+      });
+    }
+
     return {
       buildings: buildingsGeoJSON,
       landuse: landuseGeoJSON,
       transit: transitGeoJSON,
       amenities: amenitiesGeoJSON,
       stats: {
-        buildingCount: osmData.buildings.length,
-        transitCount: osmData.transit.length,
-        amenityCount: osmData.amenities.length,
-        landuseTypes: [...new Set(osmData.landuse.map(l => l.type))]
+        buildingCount: buildingsGeoJSON.features.length,
+        transitCount: transitGeoJSON.features.length,
+        amenityCount: amenitiesGeoJSON.features.length,
+        landuseTypes: [...new Set(landuseGeoJSON.features.map((l: any) => l.properties?.type))]
       }
     };
   } catch (error) {

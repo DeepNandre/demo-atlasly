@@ -49,17 +49,35 @@ export const MapWithLayers = ({ siteRequestId, layers, onLayersChange, mapStyle 
       if (error) throw error;
       setSiteData(data);
       
-      // Fetch real OSM data in background - optimized
+      // Fetch real OSM data in background - with boundary clipping
       const loadMapData = async () => {
         try {
           const realData = await fetchRealMapData(
             data.center_lat,
             data.center_lng,
-            data.radius_meters || 500
+            data.radius_meters || 500,
+            data.boundary_geojson // Pass boundary for precise clipping
           );
           if (realData) {
             setMapData(realData);
-            console.log('Loaded OSM data:', realData.stats);
+            console.log('✅ Loaded CLIPPED OSM data:', realData.stats);
+            
+            // Update layer counts based on real clipped data
+            onLayersChange(layers.map(layer => {
+              if (layer.type === 'buildings') {
+                return { ...layer, objectCount: realData.stats.buildingCount };
+              }
+              if (layer.type === 'transit') {
+                return { ...layer, objectCount: realData.stats.transitCount };
+              }
+              if (layer.type === 'green') {
+                const greenCount = realData.landuse.features.filter((f: any) => 
+                  ['park', 'forest', 'grass', 'meadow'].includes(f.properties?.type)
+                ).length;
+                return { ...layer, objectCount: greenCount };
+              }
+              return layer;
+            }));
           }
         } catch (err) {
           console.warn('Failed to load OSM data:', err);
