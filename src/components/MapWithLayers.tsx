@@ -34,11 +34,12 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
   ({ siteRequestId, layers, onLayersChange, mapStyle = 'simple' }, ref) => {
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<maplibregl.Map | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [siteData, setSiteData] = useState<any>(null);
-    const [mapData, setMapData] = useState<any>(null);
-    const [osmLoading, setOsmLoading] = useState(false);
-    const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [siteData, setSiteData] = useState<any>(null);
+  const [mapData, setMapData] = useState<any>(null);
+  const [osmLoading, setOsmLoading] = useState(false);
+  const [layersAdded, setLayersAdded] = useState(false);
+  const { toast } = useToast();
 
     useImperativeHandle(ref, () => ({
       getMap: () => map.current
@@ -269,10 +270,19 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
     }, [siteData, mapStyle]);
 
     useEffect(() => {
-      if (!map.current || !map.current.loaded() || !mapData) return;
+      if (!map.current || !map.current.loaded() || !mapData) {
+        console.log('⚠️ Cannot add layers yet:', { 
+          mapExists: !!map.current, 
+          mapLoaded: map.current?.loaded(), 
+          dataExists: !!mapData 
+        });
+        return;
+      }
       
       console.log('🗺️ Adding OSM data layers...');
       addAllLayers();
+      setLayersAdded(true);
+      console.log('✅ All layers added and ready for toggle');
     }, [mapData]);
 
     const addAllLayers = () => {
@@ -523,6 +533,11 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
         return;
       }
 
+      if (!layersAdded) {
+        console.log('⚠️ Layers not added yet, waiting for OSM data...');
+        return;
+      }
+
       console.log('🎨 Updating layer visibility:', layers.map(l => `${l.type}:${l.visible}`));
 
       let changesApplied = false;
@@ -560,15 +575,14 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
         });
       });
 
-      map.current?.triggerRepaint();
-      
       if (changesApplied) {
+        map.current?.triggerRepaint();
         const visibleCount = layers.filter(l => l.visible).length;
-        sonnerToast.success(`Layers updated: ${visibleCount}/${layers.length} visible`, {
-          duration: 2000
+        sonnerToast.success(`${visibleCount} layer${visibleCount !== 1 ? 's' : ''} active`, {
+          duration: 1500
         });
       }
-    }, [layers]);
+    }, [layers, layersAdded]);
 
     if (!siteData) {
       return (
