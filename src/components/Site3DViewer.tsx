@@ -48,54 +48,97 @@ function latLngToLocal(lat: number, lng: number, center: { lat: number; lng: num
 }
 
 function Buildings({ buildings, center }: { buildings: ModelData['buildings']; center: ModelData['center'] }) {
-  if (!buildings || !Array.isArray(buildings)) return null;
+  if (!buildings || !Array.isArray(buildings)) {
+    console.warn('No buildings data to render');
+    return null;
+  }
+  
+  console.log(`Rendering ${buildings.length} buildings`);
   
   return (
     <group>
       {buildings.map((building, idx) => {
         if (!building?.footprint || building.footprint.length < 3) return null;
 
-        // Convert lat/lng to local coordinates
-        const localPoints = building.footprint.map(([lng, lat]) => {
-          const { x, y } = latLngToLocal(lat, lng, center);
-          return new THREE.Vector2(x, y);
-        });
+        try {
+          // Convert lat/lng to local coordinates
+          const localPoints = building.footprint.map(([lng, lat]) => {
+            const { x, y } = latLngToLocal(lat, lng, center);
+            return new THREE.Vector2(x, y);
+          });
 
-        // Create shape for extrusion
-        const shape = new THREE.Shape(localPoints);
-        const extrudeSettings = {
-          depth: building.height,
-          bevelEnabled: false
-        };
+          // Create shape for extrusion
+          const shape = new THREE.Shape(localPoints);
+          const extrudeSettings = {
+            depth: building.height,
+            bevelEnabled: false
+          };
 
-        return (
-          <mesh key={idx} position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <extrudeGeometry args={[shape, extrudeSettings]} />
-            <meshStandardMaterial 
-              color="#e0e0e0" 
-              roughness={0.8}
-              metalness={0.2}
-            />
-          </mesh>
-        );
+          return (
+            <mesh 
+              key={idx} 
+              position={[0, 0, 0]} 
+              rotation={[-Math.PI / 2, 0, 0]}
+              castShadow
+            >
+              <extrudeGeometry args={[shape, extrudeSettings]} />
+              <meshStandardMaterial 
+                color="#e0e0e0" 
+                roughness={0.8}
+                metalness={0.2}
+              />
+            </mesh>
+          );
+        } catch (error) {
+          console.error('Error rendering building', idx, error);
+          return null;
+        }
       })}
     </group>
   );
 }
 
 function Terrain({ terrain, center }: { terrain: ModelData['terrain']; center: ModelData['center'] }) {
-  if (!terrain || !Array.isArray(terrain) || terrain.length === 0) return null;
+  if (!terrain || !Array.isArray(terrain) || terrain.length === 0) {
+    console.warn('No terrain data to render');
+    return null;
+  }
   
   const geometry = new THREE.BufferGeometry();
   
-  const gridSize = Math.sqrt(terrain.length);
+  const gridSize = Math.ceil(Math.sqrt(terrain.length));
   const vertices: number[] = [];
   const indices: number[] = [];
+  const colors: number[] = [];
   
-  // Create vertices
+  // Find elevation range for coloring
+  const elevations = terrain.map(p => p.elevation);
+  const minElevation = Math.min(...elevations);
+  const maxElevation = Math.max(...elevations);
+  const elevationRange = maxElevation - minElevation || 1;
+  
+  console.log('Terrain stats:', {
+    points: terrain.length,
+    gridSize,
+    minElevation,
+    maxElevation,
+    center
+  });
+  
+  // Create vertices with colors based on elevation
   terrain.forEach(point => {
     const { x, y } = latLngToLocal(point.lat, point.lng, center);
     vertices.push(x, point.elevation, y);
+    
+    // Color gradient: low = brown, mid = green, high = white
+    const normalized = (point.elevation - minElevation) / elevationRange;
+    if (normalized < 0.3) {
+      colors.push(0.55, 0.45, 0.33); // Brown
+    } else if (normalized < 0.7) {
+      colors.push(0.34, 0.54, 0.27); // Green
+    } else {
+      colors.push(0.9, 0.9, 0.9); // Light gray/white
+    }
   });
 
   // Create faces
@@ -106,19 +149,22 @@ function Terrain({ terrain, center }: { terrain: ModelData['terrain']; center: M
       const c = (i + 1) * gridSize + j;
       const d = (i + 1) * gridSize + j + 1;
 
-      indices.push(a, c, b);
-      indices.push(b, c, d);
+      if (a < terrain.length && b < terrain.length && c < terrain.length && d < terrain.length) {
+        indices.push(a, c, b);
+        indices.push(b, c, d);
+      }
     }
   }
 
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
 
   return (
-    <mesh geometry={geometry}>
+    <mesh geometry={geometry} receiveShadow>
       <meshStandardMaterial 
-        color="#8b7355"
+        vertexColors
         roughness={0.9}
         metalness={0.1}
         side={THREE.DoubleSide}
@@ -128,29 +174,39 @@ function Terrain({ terrain, center }: { terrain: ModelData['terrain']; center: M
 }
 
 function Roads({ roads, center }: { roads: ModelData['roads']; center: ModelData['center'] }) {
-  if (!roads || !Array.isArray(roads)) return null;
+  if (!roads || !Array.isArray(roads)) {
+    console.warn('No roads data to render');
+    return null;
+  }
+  
+  console.log(`Rendering ${roads.length} roads`);
   
   return (
     <group>
       {roads.map((road, idx) => {
         if (!road?.points || road.points.length < 2) return null;
 
-        const points = road.points.map(([lng, lat]) => {
-          const { x, y } = latLngToLocal(lat, lng, center);
-          return new THREE.Vector3(x, 0.1, y);
-        });
+        try {
+          const points = road.points.map(([lng, lat]) => {
+            const { x, y } = latLngToLocal(lat, lng, center);
+            return new THREE.Vector3(x, 0.5, y); // Slightly elevated above terrain
+          });
 
-        const curve = new THREE.CatmullRomCurve3(points);
-        const tubeGeometry = new THREE.TubeGeometry(curve, 64, 0.5, 8, false);
+          const curve = new THREE.CatmullRomCurve3(points);
+          const tubeGeometry = new THREE.TubeGeometry(curve, 64, 1, 8, false); // Slightly thicker roads
 
-        return (
-          <mesh key={idx} geometry={tubeGeometry}>
-            <meshStandardMaterial 
-              color="#555555"
-              roughness={0.9}
-            />
-          </mesh>
-        );
+          return (
+            <mesh key={idx} geometry={tubeGeometry}>
+              <meshStandardMaterial 
+                color="#333333"
+                roughness={0.9}
+              />
+            </mesh>
+          );
+        } catch (error) {
+          console.error('Error rendering road', idx, error);
+          return null;
+        }
       })}
     </group>
   );
@@ -211,12 +267,27 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
       setLoading(true);
       setError(null);
 
+      console.log('Fetching 3D model data for site:', siteId);
+
       const { data, error: functionError } = await supabase.functions.invoke('get-3d-model-data', {
         body: { siteId }
       });
 
-      if (functionError) throw functionError;
-      if (!data) throw new Error('No data received');
+      if (functionError) {
+        console.error('Function error:', functionError);
+        throw functionError;
+      }
+      if (!data) {
+        console.error('No data received from function');
+        throw new Error('No data received');
+      }
+
+      console.log('3D model data received:', {
+        buildings: data.buildings?.length || 0,
+        roads: data.roads?.length || 0,
+        terrain: data.terrain?.length || 0,
+        center: data.center
+      });
 
       setModelData(data);
     } catch (err) {
@@ -266,9 +337,9 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
   return (
     <div className="w-full h-full relative">
       <Canvas
-        camera={{ position: [100, 100, 100], fov: 50 }}
+        camera={{ position: [200, 150, 200], fov: 60 }}
         shadows
-        className="w-full h-full"
+        className="w-full h-full bg-sky-200"
       >
         <Suspense fallback={null}>
           <Scene modelData={modelData} />

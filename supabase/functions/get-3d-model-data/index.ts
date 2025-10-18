@@ -85,6 +85,13 @@ serve(async (req) => {
       fetchElevationData(bbox)
     ]);
 
+    console.log('OSM Data fetched:', {
+      buildings: osmData.buildings?.length || 0,
+      roads: osmData.roads?.length || 0,
+      water: osmData.water?.length || 0
+    });
+    console.log('Elevation Data fetched:', elevationData?.length || 0, 'points');
+
     // Process and return structured 3D data with safe defaults
     const modelData = {
       buildings: (osmData.buildings || []).map((b: any) => ({
@@ -106,6 +113,12 @@ serve(async (req) => {
         lng: siteData.center_lng
       }
     };
+
+    console.log('Model data prepared:', {
+      buildings: modelData.buildings.length,
+      roads: modelData.roads.length,
+      terrain: modelData.terrain.length
+    });
 
     return new Response(
       JSON.stringify(modelData),
@@ -209,7 +222,7 @@ async function fetchOSMData(bbox: BoundingBox) {
 }
 
 async function fetchElevationData(bbox: BoundingBox) {
-  const gridSize = 20;
+  const gridSize = 30; // Increased for more detail
   const latStep = (bbox.maxLat - bbox.minLat) / gridSize;
   const lngStep = (bbox.maxLng - bbox.minLng) / gridSize;
   
@@ -224,25 +237,35 @@ async function fetchElevationData(bbox: BoundingBox) {
   }
 
   try {
-    const response = await fetch('https://api.open-elevation.com/api/v1/lookup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locations })
-    });
+    // Split into smaller batches to avoid API limits
+    const batchSize = 100;
+    const allResults = [];
+    
+    for (let i = 0; i < locations.length; i += batchSize) {
+      const batch = locations.slice(i, i + batchSize);
+      const response = await fetch('https://api.open-elevation.com/api/v1/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locations: batch })
+      });
 
-    if (!response.ok) {
-      console.warn('Elevation API failed, using flat terrain');
-      return locations.map(loc => ({ ...loc, elevation: 0 }));
+      if (!response.ok) {
+        console.warn(`Elevation API batch ${i} failed, using flat terrain`);
+        allResults.push(...batch.map(loc => ({ lat: loc.latitude, lng: loc.longitude, elevation: 0 })));
+      } else {
+        const data = await response.json();
+        allResults.push(...data.results.map((r: any) => ({
+          lat: r.latitude,
+          lng: r.longitude,
+          elevation: r.elevation || 0
+        })));
+      }
     }
 
-    const data = await response.json();
-    return data.results.map((r: any) => ({
-      lat: r.latitude,
-      lng: r.longitude,
-      elevation: r.elevation
-    }));
+    console.log('Elevation data fetched successfully:', allResults.length, 'points');
+    return allResults;
   } catch (error) {
     console.warn('Elevation fetch error:', error);
-    return locations.map(loc => ({ ...loc, elevation: 0 }));
+    return locations.map(loc => ({ lat: loc.latitude, lng: loc.longitude, elevation: 0 }));
   }
 }
