@@ -8,6 +8,7 @@ import { MapLayerSelector } from '@/components/MapLayerSelector';
 import { AnalysisProgressPanel } from '@/components/AnalysisProgressPanel';
 import { AnalysisTemplates } from '@/components/AnalysisTemplates';
 import { MapStyleSelector, type MapStyleType } from '@/components/MapStyleSelector';
+import { Terrain3DViewer } from '@/components/Terrain3DViewer';
 import { SolarAnalyzerTab } from '@/components/SolarAnalyzerTab';
 import { ClimateTab } from '@/components/ClimateTab';
 import { Button } from '@/components/ui/button';
@@ -86,6 +87,8 @@ const SiteAI = () => {
   const [mapStyle, setMapStyle] = useState<MapStyleType>('simple');
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<string | null>(null);
+  const [elevationGrid, setElevationGrid] = useState<any>(null);
+  const [loadingElevation, setLoadingElevation] = useState(false);
   const [siteData, setSiteData] = useState<any>(null);
 
   useEffect(() => {
@@ -179,8 +182,30 @@ const SiteAI = () => {
         }
       };
       loadFullSiteData();
+      loadElevationData();
     }
   }, [selectedSite]);
+
+  const loadElevationData = async () => {
+    if (!selectedSite) return;
+    
+    setLoadingElevation(true);
+    try {
+      const { data: gridData, error } = await supabase.functions.invoke('get-elevation-grid', {
+        body: { site_id: selectedSite.id },
+      });
+
+      if (error) throw error;
+      if (gridData) {
+        setElevationGrid(gridData);
+        console.log('✅ Elevation grid loaded for 3D view');
+      }
+    } catch (error: any) {
+      console.error('Failed to load elevation:', error);
+    } finally {
+      setLoadingElevation(false);
+    }
+  };
 
   const handleLayerToggle = (layerId: string) => {
     setLayers(prev =>
@@ -411,139 +436,162 @@ const SiteAI = () => {
                 </TabsList>
               </div>
 
-              <TabsContent value="map" className="flex-1 m-0 relative">
-                {/* Map Controls - Top Left */}
-                <div className="absolute top-4 left-4 z-10 flex gap-2">
-                  <MapStyleSelector 
-                    currentStyle={mapStyle}
-                    onStyleChange={setMapStyle}
-                  />
-                  <MapLayerSelector
-                    layers={layers}
-                    onLayersChange={setLayers}
-                  />
-                </div>
-                
-                {/* Export & Share Buttons - Top Right Corner */}
-                <div className="absolute top-4 right-4 z-10 flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="gap-2 bg-card/95 backdrop-blur-sm"
-                    onClick={() => {
-                      const url = `${window.location.origin}/site-ai?project=${selectedSite.id}`;
-                      navigator.clipboard.writeText(url);
-                      toast({ title: "Link copied!", description: "Share this analysis with your team" });
-                    }}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                    </svg>
-                    Share
-                  </Button>
+              <TabsContent value="map" className="flex-1 m-0 relative overflow-auto">
+                <div className="flex flex-col h-full">
+                  {/* Map Controls - Top Left */}
+                  <div className="absolute top-4 left-4 z-10 flex gap-2">
+                    <MapStyleSelector 
+                      currentStyle={mapStyle}
+                      onStyleChange={setMapStyle}
+                    />
+                    <MapLayerSelector
+                      layers={layers}
+                      onLayersChange={setLayers}
+                    />
+                  </div>
                   
-                  <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="default" size="sm" className="gap-2">
-                        <Download className="w-4 h-4" />
-                        Export
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Export Site Data</DialogTitle>
-                        <DialogDescription>
-                          Choose the format for exporting {selectedSite.location_name} data
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid grid-cols-2 gap-3 py-4">
-                        <Button
-                          variant="outline"
-                          onClick={() => handleExport('image')}
-                          disabled={!!exportingFormat}
-                          className="h-20 flex flex-col gap-2"
-                        >
-                          {exportingFormat === 'image' && <Loader2 className="w-4 h-4 animate-spin" />}
-                          <span className="text-lg">🖼️</span>
-                          <span className="text-sm">PNG Image</span>
+                  {/* Export & Share Buttons - Top Right Corner */}
+                  <div className="absolute top-4 right-4 z-10 flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2 bg-card/95 backdrop-blur-sm"
+                      onClick={() => {
+                        const url = `${window.location.origin}/site-ai?project=${selectedSite.id}`;
+                        navigator.clipboard.writeText(url);
+                        toast({ title: "Link copied!", description: "Share this analysis with your team" });
+                      }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                      </svg>
+                      Share
+                    </Button>
+                    
+                    <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="default" size="sm" className="gap-2">
+                          <Download className="w-4 h-4" />
+                          Export
                         </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Export Site Data</DialogTitle>
+                          <DialogDescription>
+                            Choose the format for exporting {selectedSite.location_name} data
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid grid-cols-2 gap-3 py-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => handleExport('image')}
+                            disabled={!!exportingFormat}
+                            className="h-20 flex flex-col gap-2"
+                          >
+                            {exportingFormat === 'image' && <Loader2 className="w-4 h-4 animate-spin" />}
+                            <span className="text-lg">🖼️</span>
+                            <span className="text-sm">PNG Image</span>
+                          </Button>
 
-                        <Button
-                          variant="outline"
-                          onClick={() => handleExport('pdf')}
-                          disabled={!!exportingFormat}
-                          className="h-20 flex flex-col gap-2"
-                        >
-                          {exportingFormat === 'pdf' && <Loader2 className="w-4 h-4 animate-spin" />}
-                          <span className="text-lg">📄</span>
-                          <span className="text-sm">PDF Map</span>
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          onClick={() => handleExport('dxf')}
-                          disabled={!!exportingFormat}
-                          className="h-20 flex flex-col gap-2"
-                        >
-                          {exportingFormat === 'dxf' && <Loader2 className="w-4 h-4 animate-spin" />}
-                          <span className="text-lg">📐</span>
-                          <span className="text-sm">DXF (CAD)</span>
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          onClick={() => handleExport('geojson')}
-                          disabled={!!exportingFormat}
-                          className="h-20 flex flex-col gap-2"
-                        >
-                          {exportingFormat === 'geojson' && <Loader2 className="w-4 h-4 animate-spin" />}
-                          <span className="text-lg">🗺️</span>
-                          <span className="text-sm">GeoJSON</span>
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          onClick={() => handleExport('csv')}
-                          disabled={!!exportingFormat}
-                          className="h-20 flex flex-col gap-2"
-                        >
-                          {exportingFormat === 'csv' && <Loader2 className="w-4 h-4 animate-spin" />}
-                          <span className="text-lg">📊</span>
-                          <span className="text-sm">CSV Data</span>
-                        </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => handleExport('pdf')}
+                            disabled={!!exportingFormat}
+                            className="h-20 flex flex-col gap-2"
+                          >
+                            {exportingFormat === 'pdf' && <Loader2 className="w-4 h-4 animate-spin" />}
+                            <span className="text-lg">📄</span>
+                            <span className="text-sm">PDF Map</span>
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            onClick={() => handleExport('dxf')}
+                            disabled={!!exportingFormat}
+                            className="h-20 flex flex-col gap-2"
+                          >
+                            {exportingFormat === 'dxf' && <Loader2 className="w-4 h-4 animate-spin" />}
+                            <span className="text-lg">📐</span>
+                            <span className="text-sm">DXF (CAD)</span>
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            onClick={() => handleExport('geojson')}
+                            disabled={!!exportingFormat}
+                            className="h-20 flex flex-col gap-2"
+                          >
+                            {exportingFormat === 'geojson' && <Loader2 className="w-4 h-4 animate-spin" />}
+                            <span className="text-lg">🗺️</span>
+                            <span className="text-sm">GeoJSON</span>
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            onClick={() => handleExport('csv')}
+                            disabled={!!exportingFormat}
+                            className="h-20 flex flex-col gap-2"
+                          >
+                            {exportingFormat === 'csv' && <Loader2 className="w-4 h-4 animate-spin" />}
+                            <span className="text-lg">📊</span>
+                            <span className="text-sm">CSV Data</span>
+                          </Button>
 
-                        <Button
-                          variant="default"
-                          onClick={async () => {
-                            const formats = ['image', 'pdf', 'dxf', 'geojson', 'csv'];
-                            for (const format of formats) {
-                              await handleExport(format);
-                              await new Promise(resolve => setTimeout(resolve, 1000));
-                            }
-                          }}
-                          disabled={!!exportingFormat}
-                          className="h-20 flex flex-col gap-2 col-span-2"
-                        >
-                          {exportingFormat && <Loader2 className="w-4 h-4 animate-spin" />}
-                          <span className="text-lg">📦</span>
-                          <span className="text-sm font-semibold">Export All Formats</span>
-                        </Button>
+                          <Button
+                            variant="default"
+                            onClick={async () => {
+                              const formats = ['image', 'pdf', 'dxf', 'geojson', 'csv'];
+                              for (const format of formats) {
+                                await handleExport(format);
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                              }
+                            }}
+                            disabled={!!exportingFormat}
+                            className="h-20 flex flex-col gap-2 col-span-2"
+                          >
+                            {exportingFormat && <Loader2 className="w-4 h-4 animate-spin" />}
+                            <span className="text-lg">📦</span>
+                            <span className="text-sm font-semibold">Export All Formats</span>
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                    
+                    <AnalysisProgressPanel siteRequestId={selectedSite.id} />
+                  </div>
+                  
+                  {/* Map View */}
+                  <div data-map-container className="h-[50%] min-h-[400px] relative">
+                    <MapWithLayers
+                      ref={mapRef}
+                      siteRequestId={selectedSite.id}
+                      layers={layers}
+                      onLayersChange={setLayers}
+                      mapStyle={mapStyle}
+                    />
+                  </div>
+
+                  {/* 3D Terrain View */}
+                  <div className="h-[50%] min-h-[400px] p-4">
+                    {elevationGrid ? (
+                      <Terrain3DViewer
+                        elevationGrid={elevationGrid}
+                        height="h-full"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full border border-dashed rounded-lg">
+                        {loadingElevation ? (
+                          <div className="text-center space-y-2">
+                            <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground">Loading 3D terrain...</p>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">3D terrain view will appear here</p>
+                        )}
                       </div>
-                    </DialogContent>
-                  </Dialog>
-                  
-                  <AnalysisProgressPanel siteRequestId={selectedSite.id} />
-                </div>
-                
-                {/* Map View */}
-                <div data-map-container className="h-full">
-                  <MapWithLayers
-                    ref={mapRef}
-                    siteRequestId={selectedSite.id}
-                    layers={layers}
-                    onLayersChange={setLayers}
-                    mapStyle={mapStyle}
-                  />
+                    )}
+                  </div>
                 </div>
               </TabsContent>
 

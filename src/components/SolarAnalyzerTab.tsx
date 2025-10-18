@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { supabase } from '@/integrations/supabase/client';
+import { Terrain3DViewer } from './Terrain3DViewer';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -773,82 +772,15 @@ export function SolarAnalyzerTab({ siteId, centerLat, centerLng }: SolarAnalyzer
 
       {/* 3D Visualization */}
       {terrainGeometry && (
-        <Card className="h-[600px] relative overflow-hidden">
-          <div className="absolute top-2 right-2 z-10 bg-background/90 backdrop-blur-sm rounded-lg p-3 text-xs space-y-1.5 shadow-lg">
-            {currentSunPos && (
-              <>
-                <div className="flex items-center gap-2">
-                  <Sun className="w-4 h-4 text-yellow-500" />
-                  <span className="font-semibold">Sun Position</span>
-                </div>
-                <div className="text-muted-foreground">
-                  Altitude: {currentSunPos.altitude.toFixed(1)}°
-                </div>
-                <div className="text-muted-foreground">
-                  Azimuth: {currentSunPos.azimuth.toFixed(1)}°
-                </div>
-                {shadowResult && (
-                  <div className="text-muted-foreground pt-1 border-t border-border/50">
-                    {analysisMode === 'instant' 
-                      ? `${shadowResult.percentShaded.toFixed(1)}% shaded`
-                      : `${(shadowResult.cells.reduce((s, c) => s + (c.sunHours || 0), 0) / shadowResult.cells.length).toFixed(1)}h avg sun`
-                    }
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          
-          <Canvas shadows camera={{ position: [70, 60, 70], fov: 50 }}>
-            <PerspectiveCamera makeDefault position={[70, 60, 70]} />
-            <OrbitControls 
-              enableDamping 
-              dampingFactor={0.08}
-              minDistance={30}
-              maxDistance={250}
-              maxPolarAngle={Math.PI / 2.1}
-            />
-            
-            {/* Lighting */}
-            <ambientLight intensity={0.3} />
-            <directionalLight 
-              position={[50, 80, 30]} 
-              intensity={1.5}
-              castShadow
-              shadow-mapSize-width={2048}
-              shadow-mapSize-height={2048}
-            />
-            
-            {/* Terrain */}
-            <mesh geometry={terrainGeometry} castShadow receiveShadow>
-              <meshStandardMaterial 
-                color="#8b7355"
-                roughness={0.95}
-                metalness={0.05}
-              />
-            </mesh>
-            
-            {/* Shadow overlay */}
-            {shadowVisualization && (
-              <mesh geometry={shadowVisualization} position={[0, 0.5, 0]}>
-                <meshBasicMaterial 
-                  vertexColors
-                  transparent
-                  side={THREE.DoubleSide}
-                  depthWrite={false}
-                />
-              </mesh>
-            )}
-            
-            {/* Ground plane */}
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
-              <planeGeometry args={[300, 300]} />
-              <shadowMaterial opacity={0.15} />
-            </mesh>
-            
-            <fog attach="fog" args={['#f0f0f0', 100, 300]} />
-          </Canvas>
-        </Card>
+        <Terrain3DViewer
+          elevationGrid={elevationGrid}
+          shadowVisualization={shadowVisualization}
+          buildings={buildings}
+          currentSunPos={currentSunPos}
+          shadowResult={shadowResult}
+          analysisMode={analysisMode}
+          showSunInfo={true}
+        />
       )}
 
       {/* Results */}

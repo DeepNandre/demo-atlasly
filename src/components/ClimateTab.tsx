@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { ClimateViewer } from './ClimateViewer';
+import { Terrain3DViewer } from './Terrain3DViewer';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Download, CloudSun } from 'lucide-react';
@@ -16,10 +17,13 @@ export function ClimateTab({ siteRequestId, centerLat, centerLng }: ClimateTabPr
   const [climateData, setClimateData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [computing, setComputing] = useState(false);
+  const [elevationGrid, setElevationGrid] = useState<any>(null);
+  const [loadingElevation, setLoadingElevation] = useState(false);
 
   // Load existing climate data
   useEffect(() => {
     loadClimateData();
+    loadElevationData();
   }, [siteRequestId]);
 
   const loadClimateData = async () => {
@@ -44,6 +48,25 @@ export function ClimateTab({ siteRequestId, centerLat, centerLng }: ClimateTabPr
       toast.error('Failed to load climate data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadElevationData = async () => {
+    setLoadingElevation(true);
+    try {
+      const { data: gridData, error } = await supabase.functions.invoke('get-elevation-grid', {
+        body: { site_id: siteRequestId },
+      });
+
+      if (error) throw error;
+      if (gridData) {
+        setElevationGrid(gridData);
+        console.log('✅ Elevation grid loaded for 3D view');
+      }
+    } catch (error: any) {
+      console.error('Failed to load elevation:', error);
+    } finally {
+      setLoadingElevation(false);
     }
   };
 
@@ -168,6 +191,14 @@ export function ClimateTab({ siteRequestId, centerLat, centerLng }: ClimateTabPr
       </div>
 
       <ClimateViewer climateData={climateData} />
+
+      {/* 3D Terrain Viewer */}
+      {elevationGrid && (
+        <Terrain3DViewer
+          elevationGrid={elevationGrid}
+          height="h-[500px]"
+        />
+      )}
 
       {climateData.dataSource && (
         <Card className="p-4">
