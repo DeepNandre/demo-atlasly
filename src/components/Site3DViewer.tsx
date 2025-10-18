@@ -26,24 +26,14 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isContainerReady, setIsContainerReady] = useState(false);
-
-  // Check when container becomes available
-  useEffect(() => {
-    if (viewerContainerRef.current && !isContainerReady) {
-      console.log('[Site3DViewer] Container is now ready');
-      setIsContainerReady(true);
-    }
-  }, [isContainerReady]);
 
   useEffect(() => {
-    if (!isContainerReady || !viewerContainerRef.current) {
-      console.log('[Site3DViewer] Waiting for container to be ready');
+    if (!viewerContainerRef.current) {
+      console.log('[Site3DViewer] Container not available, retrying...');
       return;
     }
 
     let viewer: Cesium.Viewer | null = null;
-    let timeoutId: number;
     let mounted = true;
 
     const initializeViewer = async () => {
@@ -52,13 +42,6 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
         setError(null);
 
         console.log('[Site3DViewer] Starting initialization for site:', siteId);
-        
-        // Set 30 second timeout
-        timeoutId = window.setTimeout(() => {
-          console.error('[Site3DViewer] Initialization timeout after 30 seconds');
-          setError('Loading timeout. Please refresh and try again.');
-          setLoading(false);
-        }, 30000);
 
         // Fetch site location data
         console.log('[Site3DViewer] Fetching site data from edge function...');
@@ -168,18 +151,10 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
         });
 
         console.log('[Site3DViewer] ✓ Camera positioned successfully');
-        
-        // Clear timeout on success
-        clearTimeout(timeoutId);
-        
-        // Add a small delay to allow tiles to start loading before hiding loading screen
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
         console.log('[Site3DViewer] ✓✓✓ Cesium viewer initialized successfully');
         setLoading(false);
 
       } catch (err) {
-        clearTimeout(timeoutId);
         if (!mounted) return;
         
         console.error('[Site3DViewer] ❌ Error initializing 3D viewer:', err);
@@ -198,14 +173,13 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
     // Cleanup
     return () => {
       mounted = false;
-      clearTimeout(timeoutId);
       if (viewerRef.current && !viewerRef.current.isDestroyed()) {
         console.log('[Site3DViewer] Cleaning up Cesium viewer');
         viewerRef.current.destroy();
         viewerRef.current = null;
       }
     };
-  }, [siteId, isContainerReady]);
+  }, [siteId]);
 
   if (loading) {
     return (
