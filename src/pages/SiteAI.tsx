@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProjectSelector from '@/components/ai/ProjectSelector';
 import ConversationalAnalysis from '@/components/ConversationalAnalysis';
 import { MapWithLayers, MapWithLayersRef } from '@/components/MapWithLayers';
-import { EnhancedLayerPanel } from '@/components/EnhancedLayerPanel';
+import { MapLayerSelector } from '@/components/MapLayerSelector';
 import { AnalysisProgressPanel } from '@/components/AnalysisProgressPanel';
 import { AnalysisTemplates } from '@/components/AnalysisTemplates';
 import { MapStyleSelector, type MapStyleType } from '@/components/MapStyleSelector';
@@ -398,12 +398,12 @@ const SiteAI = () => {
 
               <TabsContent value="map" className="flex-1 m-0 relative">
                 {/* Map Controls - Top Left */}
-                <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 max-w-sm">
+                <div className="absolute top-4 left-4 z-10 flex gap-2">
                   <MapStyleSelector 
                     currentStyle={mapStyle}
                     onStyleChange={setMapStyle}
                   />
-                  <EnhancedLayerPanel
+                  <MapLayerSelector
                     layers={layers}
                     onLayersChange={setLayers}
                   />
