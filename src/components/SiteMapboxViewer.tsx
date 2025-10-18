@@ -6,7 +6,9 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Download } from 'lucide-react';
+import { generate3dDxf, downloadDxf } from '@/lib/dxfExporter';
+import { toast } from 'sonner';
 
 interface MapLayer {
   id: string;
@@ -44,7 +46,6 @@ export default function SiteMapboxViewer({
   const [layers, setLayers] = useState<MapLayer[]>(defaultLayers);
   const [osmData, setOsmData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [nativeBuildingLayerId, setNativeBuildingLayerId] = useState<string | null>(null);
 
   // Fetch OSM data
   useEffect(() => {
@@ -80,9 +81,9 @@ export default function SiteMapboxViewer({
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/standard',
+      style: 'mapbox://styles/mapbox/light-v11',
       center: [longitude, latitude],
-      zoom: 16.5,
+      zoom: 17.5,
       pitch: 60,
       bearing: -20,
       antialias: true,
@@ -102,40 +103,6 @@ export default function SiteMapboxViewer({
       });
       
       map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
-
-      // Find and store native building layer - enhanced detection
-      const findNativeBuildingLayer = () => {
-        const style = map.getStyle();
-        if (style && style.layers) {
-          // Try multiple patterns to find Mapbox's native 3D buildings
-          const buildingLayer = style.layers.find((layer: any) => 
-            layer.type === 'fill-extrusion' && 
-            (layer.id.includes('building') || 
-             layer.id.includes('3d') || 
-             layer.source === 'composite' ||
-             layer['source-layer'] === 'building')
-          );
-          if (buildingLayer) {
-            setNativeBuildingLayerId(buildingLayer.id);
-            console.log('[SiteMapboxViewer] Found native building layer:', buildingLayer.id);
-            // Initially keep native buildings visible until user toggles
-            return buildingLayer.id;
-          }
-        }
-        return null;
-      };
-
-      // Try to find immediately after style loads
-      map.once('style.load', () => {
-        findNativeBuildingLayer();
-      });
-
-      // Also try after a short delay in case style isn't fully loaded
-      setTimeout(() => {
-        if (!nativeBuildingLayerId) {
-          findNativeBuildingLayer();
-        }
-      }, 1000);
 
       // Add boundary if available with enhanced styling
       if (boundaryGeojson) {
@@ -419,7 +386,7 @@ export default function SiteMapboxViewer({
     console.log('[SiteMapboxViewer] OSM layers added');
   };
 
-  // Smart layer visibility with native building control
+  // Layer visibility control
   useEffect(() => {
     if (!mapRef.current || !osmData) return;
 
@@ -428,42 +395,13 @@ export default function SiteMapboxViewer({
     layers.forEach(layer => {
       const visibility = layer.visible ? 'visible' : 'none';
       
-      // Buildings: SMART SWITCH - control custom + native layers (mutually exclusive)
+      // Buildings: Control custom building layers
       if (layer.id === 'buildings') {
-        // Control custom building layers
         if (map.getLayer('osm-buildings-3d')) {
           map.setLayoutProperty('osm-buildings-3d', 'visibility', visibility);
-          console.log(`[Custom Buildings] osm-buildings-3d → ${visibility}`);
         }
         if (map.getLayer('osm-buildings-outline')) {
           map.setLayoutProperty('osm-buildings-outline', 'visibility', visibility);
-        }
-        
-        // CRITICAL: Hide native buildings when custom buildings are shown
-        // This is the smart switch that makes them mutually exclusive
-        if (nativeBuildingLayerId && map.getLayer(nativeBuildingLayerId)) {
-          const nativeVisibility = layer.visible ? 'none' : 'visible';
-          try {
-            map.setLayoutProperty(nativeBuildingLayerId, 'visibility', nativeVisibility);
-            console.log(`[Native Buildings] ${nativeBuildingLayerId} → ${nativeVisibility} (Smart Switch Active)`);
-          } catch (error) {
-            console.warn('[Native Buildings] Failed to toggle:', error);
-          }
-        } else if (layer.visible) {
-          console.warn('[Native Buildings] Layer not found - searching...');
-          // Try to find it again if it wasn't found initially
-          const style = map.getStyle();
-          if (style && style.layers) {
-            const buildingLayer = style.layers.find((l: any) => 
-              l.type === 'fill-extrusion' && 
-              (l.id.includes('building') || l.source === 'composite')
-            );
-            if (buildingLayer) {
-              setNativeBuildingLayerId(buildingLayer.id);
-              map.setLayoutProperty(buildingLayer.id, 'visibility', 'none');
-              console.log(`[Native Buildings] Found and hidden: ${buildingLayer.id}`);
-            }
-          }
         }
       }
       
@@ -492,7 +430,7 @@ export default function SiteMapboxViewer({
         }
       }
     });
-  }, [layers, osmData, nativeBuildingLayerId]);
+  }, [layers, osmData]);
 
   const toggleLayer = (layerId: string) => {
     setLayers(prev => prev.map(layer => 
@@ -526,6 +464,22 @@ export default function SiteMapboxViewer({
       }
       default:
         return 0;
+    }
+  };
+
+  const handleDownloadDxf = () => {
+    if (!osmData) {
+      toast.error('No site data available to export');
+      return;
+    }
+
+    try {
+      const dxfContent = generate3dDxf(osmData, siteName);
+      downloadDxf(dxfContent, siteName);
+      toast.success('DXF file downloaded successfully');
+    } catch (error) {
+      console.error('DXF export error:', error);
+      toast.error('Failed to generate DXF file');
     }
   };
 
@@ -593,6 +547,17 @@ export default function SiteMapboxViewer({
             </Button>
           </div>
         </div>
+        
+        {/* Download DXF Button */}
+        <Button 
+          onClick={handleDownloadDxf}
+          disabled={loading || !osmData}
+          className="w-full"
+          variant="default"
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Download DXF
+        </Button>
         
         <div className="space-y-3">
           {layers.map(layer => {
