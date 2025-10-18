@@ -22,14 +22,22 @@ interface SiteLocation {
 }
 
 export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
-  const viewerContainerRef = useRef<HTMLDivElement>(null);
+  const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Callback ref to detect when container is attached to DOM
+  const containerRefCallback = (element: HTMLDivElement | null) => {
+    if (element && element !== containerElement) {
+      console.log('[Site3DViewer] Container attached to DOM');
+      setContainerElement(element);
+    }
+  };
+
   useEffect(() => {
-    if (!viewerContainerRef.current) {
-      console.log('[Site3DViewer] Container not available, retrying...');
+    if (!containerElement) {
+      console.log('[Site3DViewer] Waiting for container element...');
       return;
     }
 
@@ -72,7 +80,7 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
         });
         console.log('[Site3DViewer] ✓ Cesium World Terrain loaded successfully');
 
-        viewer = new Cesium.Viewer(viewerContainerRef.current, {
+        viewer = new Cesium.Viewer(containerElement, {
           terrainProvider,
           animation: false,
           timeline: false,
@@ -179,7 +187,7 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
         viewerRef.current = null;
       }
     };
-  }, [siteId]);
+  }, [siteId, containerElement]);
 
   if (loading) {
     return (
@@ -214,7 +222,7 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
   return (
     <div className="w-full h-full relative">
       <div 
-        ref={viewerContainerRef} 
+        ref={containerRefCallback}
         className="w-full h-full"
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />

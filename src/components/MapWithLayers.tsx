@@ -526,16 +526,17 @@ export const MapWithLayers = forwardRef<MapWithLayersRef, MapWithLayersProps>(
         console.log('✅ Population density layer added');
         
         // Fetch real population data if siteData is available
-        if (siteData) {
+        if (siteData && siteData.boundary_geojson?.bbox) {
           (async () => {
             try {
               console.log('Fetching real population density data from Kontur...');
+              const bbox = siteData.boundary_geojson.bbox;
               const response = await supabase.functions.invoke('fetch-population-density', {
                 body: {
-                  minLat: siteData.boundary_geojson.bbox[1],
-                  maxLat: siteData.boundary_geojson.bbox[3],
-                  minLng: siteData.boundary_geojson.bbox[0],
-                  maxLng: siteData.boundary_geojson.bbox[2]
+                  minLat: bbox[1],
+                  maxLat: bbox[3],
+                  minLng: bbox[0],
+                  maxLng: bbox[2]
                 }
               });
 
