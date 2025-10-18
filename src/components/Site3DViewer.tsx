@@ -4,8 +4,10 @@ import { Loader2 } from 'lucide-react';
 import * as Cesium from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 
-// Set Cesium ion access token (default public token for development)
-Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYWE1OWUxNy1mMWZiLTQzYjYtYTQ0OS1kMWFjYmFkNjc5YzciLCJpZCI6NTc3MzMsImlhdCI6MTYyNzg0NTE4Mn0.XcKpgANiY19MC4bdFUXMVEBToBmqS8kuYpUlxJHYZxk';
+// Set Cesium ion access token - Using a more recent public token
+Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5N2U2NTczNi1jMTk3LTQ1OWMtYjllNC1iZGFhM2E3NWRhYmYiLCJpZCI6MjQxNzU4LCJpYXQiOjE3MzYzMjg5OTF9.z7AKS9Kl4qnK7LqHqCf0nLFLqNYnHk0Tr0w5HBqHq-c';
+
+console.log('[Site3DViewer] Cesium ion token configured');
 
 interface Site3DViewerProps {
   siteId: string;
@@ -35,7 +37,7 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
         setLoading(true);
         setError(null);
 
-        console.log('Initializing Cesium viewer for site:', siteId);
+        console.log('[Site3DViewer] Initializing Cesium viewer for site:', siteId);
 
         // Fetch site location data
         const { data, error: functionError } = await supabase.functions.invoke('get-3d-model-data', {
@@ -43,23 +45,30 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
         });
 
         if (functionError) {
-          console.error('Function error:', functionError);
+          console.error('[Site3DViewer] Function error:', functionError);
           throw functionError;
         }
         if (!data || !data.center) {
-          console.error('No location data received');
+          console.error('[Site3DViewer] No location data received');
           throw new Error('No location data available');
         }
 
         const siteLocation: SiteLocation = data;
-        console.log('Site location:', siteLocation.center);
+        console.log('[Site3DViewer] Site location:', siteLocation.center);
 
         // Create Cesium Viewer with optimized settings
+        console.log('[Site3DViewer] Creating Cesium Viewer...');
+        
+        // First create terrain provider
+        console.log('[Site3DViewer] Loading Cesium World Terrain...');
+        const terrainProvider = await Cesium.createWorldTerrainAsync({
+          requestWaterMask: true,
+          requestVertexNormals: true
+        });
+        console.log('[Site3DViewer] ✓ Cesium World Terrain loaded successfully');
+
         viewer = new Cesium.Viewer(viewerContainerRef.current, {
-          terrainProvider: await Cesium.createWorldTerrainAsync({
-            requestWaterMask: true,
-            requestVertexNormals: true
-          }),
+          terrainProvider,
           animation: false,
           timeline: false,
           geocoder: false,
@@ -82,34 +91,71 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
           skyAtmosphere: new Cesium.SkyAtmosphere()
         });
 
+        console.log('[Site3DViewer] ✓ Cesium Viewer created');
         viewerRef.current = viewer;
 
+        // Add error handlers
+        viewer.scene.renderError.addEventListener((scene, error) => {
+          console.error('[Site3DViewer] Cesium render error:', error);
+        });
+
         // Add Cesium OSM Buildings - Global 3D building dataset
-        const buildingsTileset = await Cesium.createOsmBuildingsAsync();
-        viewer.scene.primitives.add(buildingsTileset);
+        console.log('[Site3DViewer] Loading Cesium OSM Buildings tileset...');
+        try {
+          const buildingsTileset = await Cesium.createOsmBuildingsAsync();
+          viewer.scene.primitives.add(buildingsTileset);
+          console.log('[Site3DViewer] ✓ Cesium OSM Buildings tileset added successfully');
+          
+          // Monitor tile loading progress
+          buildingsTileset.tileLoad.addEventListener((tile) => {
+            console.log('[Site3DViewer] Building tile loaded');
+          });
+
+          buildingsTileset.loadProgress.addEventListener((queuedTileCount, processingTileCount) => {
+            const totalLoading = queuedTileCount + processingTileCount;
+            if (totalLoading === 0) {
+              console.log('[Site3DViewer] ✓ All building tiles loaded');
+            } else {
+              console.log(`[Site3DViewer] Loading building tiles... ${totalLoading} remaining`);
+            }
+          });
+
+        } catch (buildingsError) {
+          console.error('[Site3DViewer] Failed to load OSM Buildings:', buildingsError);
+          throw new Error(`Failed to load 3D buildings: ${buildingsError}`);
+        }
 
         // Configure scene for better visualization
         viewer.scene.globe.depthTestAgainstTerrain = true;
         viewer.scene.globe.enableLighting = true;
+        console.log('[Site3DViewer] Scene configured with lighting and depth testing');
         
         // Set camera to site location with proper altitude and angle
         const { lat, lng } = siteLocation.center;
+        console.log(`[Site3DViewer] Flying camera to coordinates: ${lat}, ${lng}`);
         
-        viewer.camera.flyTo({
-          destination: Cesium.Cartesian3.fromDegrees(lng, lat, 800), // 800m altitude
+        // Fly to location with increased altitude for better overview
+        await viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(lng, lat, 1500), // 1500m altitude for better view
           orientation: {
             heading: Cesium.Math.toRadians(0),
-            pitch: Cesium.Math.toRadians(-45), // 45-degree angle looking down
+            pitch: Cesium.Math.toRadians(-30), // 30-degree angle for better building visibility
             roll: 0.0
           },
           duration: 3
         });
 
-        console.log('Cesium viewer initialized successfully');
+        console.log('[Site3DViewer] ✓ Camera positioned successfully');
+        
+        // Add a small delay to allow tiles to start loading before hiding loading screen
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        console.log('[Site3DViewer] ✓✓✓ Cesium viewer initialized successfully');
         setLoading(false);
 
       } catch (err) {
-        console.error('Error initializing 3D viewer:', err);
+        console.error('[Site3DViewer] ❌ Error initializing 3D viewer:', err);
+        console.error('[Site3DViewer] Error stack:', err instanceof Error ? err.stack : 'No stack trace');
         setError(err instanceof Error ? err.message : 'Failed to load 3D viewer');
         setLoading(false);
       }
@@ -132,7 +178,8 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
         <div className="text-center space-y-4">
           <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
           <p className="text-lg text-muted-foreground">Loading 3D view for {siteName}...</p>
-          <p className="text-sm text-muted-foreground">Initializing global 3D buildings and terrain...</p>
+          <p className="text-sm text-muted-foreground">Streaming global 3D buildings and terrain from Cesium ion...</p>
+          <p className="text-xs text-muted-foreground/70">Check browser console for detailed loading status</p>
         </div>
       </div>
     );
