@@ -257,7 +257,7 @@ const Dashboard = () => {
 
           {/* Subscription Info */}
           {user && subscription && (
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-4 gap-4">
               <Card className="p-6 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-medium text-muted-foreground">Current Plan</h3>
@@ -294,7 +294,7 @@ const Dashboard = () => {
                     className="h-2"
                   />
                   <p className="text-xs text-muted-foreground">
-                    {getRemainingQuota()} site packs remaining
+                    {getRemainingQuota()} remaining
                   </p>
                 </div>
               </Card>
@@ -308,6 +308,21 @@ const Dashboard = () => {
                   <p className="text-2xl font-bold">{requests.length}</p>
                   <p className="text-xs text-muted-foreground">
                     {requests.filter(r => r.status === 'completed').length} completed
+                  </p>
+                </div>
+              </Card>
+
+              <Card className="p-6 space-y-3 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-muted-foreground">Time Saved</h3>
+                  <span className="text-2xl">⚡</span>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold text-primary">
+                    {requests.filter(r => r.status === 'completed').length * 4} weeks
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    ~${(requests.filter(r => r.status === 'completed').length * 49951).toLocaleString()} saved
                   </p>
                 </div>
               </Card>

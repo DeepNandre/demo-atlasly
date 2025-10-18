@@ -424,8 +424,24 @@ const SiteAI = () => {
                   />
                 </div>
                 
-                {/* Export Button - Top Right Corner (above progress) */}
-                <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+                {/* Export & Share Buttons - Top Right Corner */}
+                <div className="absolute top-4 right-4 z-10 flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2 bg-card/95 backdrop-blur-sm"
+                    onClick={() => {
+                      const url = `${window.location.origin}/site-ai?project=${selectedSite.id}`;
+                      navigator.clipboard.writeText(url);
+                      toast({ title: "Link copied!", description: "Share this analysis with your team" });
+                    }}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                    Share
+                  </Button>
+                  
                   <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
                     <DialogTrigger asChild>
                       <Button variant="default" size="sm" className="gap-2">
@@ -494,6 +510,23 @@ const SiteAI = () => {
                           {exportingFormat === 'csv' && <Loader2 className="w-4 h-4 animate-spin" />}
                           <span className="text-lg">📊</span>
                           <span className="text-sm">CSV Data</span>
+                        </Button>
+
+                        <Button
+                          variant="default"
+                          onClick={async () => {
+                            const formats = ['image', 'pdf', 'dxf', 'geojson', 'csv'];
+                            for (const format of formats) {
+                              await handleExport(format);
+                              await new Promise(resolve => setTimeout(resolve, 1000));
+                            }
+                          }}
+                          disabled={!!exportingFormat}
+                          className="h-20 flex flex-col gap-2 col-span-2"
+                        >
+                          {exportingFormat && <Loader2 className="w-4 h-4 animate-spin" />}
+                          <span className="text-lg">📦</span>
+                          <span className="text-sm font-semibold">Export All Formats</span>
                         </Button>
                       </div>
                     </DialogContent>
