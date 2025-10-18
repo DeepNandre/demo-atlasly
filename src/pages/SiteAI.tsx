@@ -562,6 +562,8 @@ const SiteAI = () => {
                     latitude={siteData.center_lat}
                     longitude={siteData.center_lng}
                     siteName={selectedSite.location_name}
+                    boundaryGeojson={siteData.boundary_geojson}
+                    radiusMeters={siteData.radius_meters || 500}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-muted-foreground">
