@@ -26,31 +26,51 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const initStartedRef = useRef(false);
 
   useEffect(() => {
-    if (!viewerContainerRef.current) return;
+    // Prevent multiple simultaneous initializations
+    if (initStartedRef.current) {
+      console.log('[Site3DViewer] Initialization already in progress, skipping');
+      return;
+    }
+    
+    if (!viewerContainerRef.current) {
+      console.log('[Site3DViewer] Container ref not ready');
+      return;
+    }
 
+    initStartedRef.current = true;
     let viewer: Cesium.Viewer | null = null;
+    let timeoutId: number;
 
     const initializeViewer = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        console.log('[Site3DViewer] Initializing Cesium viewer for site:', siteId);
+        console.log('[Site3DViewer] Starting initialization for site:', siteId);
+        
+        // Set 30 second timeout
+        timeoutId = window.setTimeout(() => {
+          console.error('[Site3DViewer] Initialization timeout after 30 seconds');
+          setError('Loading timeout. Please refresh and try again.');
+          setLoading(false);
+        }, 30000);
 
         // Fetch site location data
+        console.log('[Site3DViewer] Fetching site data from edge function...');
         const { data, error: functionError } = await supabase.functions.invoke('get-3d-model-data', {
           body: { siteId }
         });
 
         if (functionError) {
-          console.error('[Site3DViewer] Function error:', functionError);
-          throw functionError;
+          console.error('[Site3DViewer] Edge function error:', functionError);
+          throw new Error(`Failed to fetch site data: ${functionError.message}`);
         }
         if (!data || !data.center) {
-          console.error('[Site3DViewer] No location data received');
-          throw new Error('No location data available');
+          console.error('[Site3DViewer] Invalid response - no location data');
+          throw new Error('Site location data not found');
         }
 
         const siteLocation: SiteLocation = data;
@@ -147,6 +167,9 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
 
         console.log('[Site3DViewer] ✓ Camera positioned successfully');
         
+        // Clear timeout on success
+        clearTimeout(timeoutId);
+        
         // Add a small delay to allow tiles to start loading before hiding loading screen
         await new Promise(resolve => setTimeout(resolve, 1000));
         
@@ -154,10 +177,16 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
         setLoading(false);
 
       } catch (err) {
+        clearTimeout(timeoutId);
         console.error('[Site3DViewer] ❌ Error initializing 3D viewer:', err);
-        console.error('[Site3DViewer] Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+        console.error('[Site3DViewer] Error details:', {
+          message: err instanceof Error ? err.message : 'Unknown error',
+          stack: err instanceof Error ? err.stack : 'No stack trace',
+          siteId
+        });
         setError(err instanceof Error ? err.message : 'Failed to load 3D viewer');
         setLoading(false);
+        initStartedRef.current = false; // Allow retry
       }
     };
 
@@ -165,7 +194,10 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
 
     // Cleanup
     return () => {
+      clearTimeout(timeoutId);
+      initStartedRef.current = false;
       if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+        console.log('[Site3DViewer] Cleaning up Cesium viewer');
         viewerRef.current.destroy();
         viewerRef.current = null;
       }
