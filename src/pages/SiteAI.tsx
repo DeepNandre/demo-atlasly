@@ -561,7 +561,6 @@ const SiteAI = () => {
                   latitude={siteData?.center_lat || 0}
                   longitude={siteData?.center_lng || 0}
                   siteName={selectedSite.location_name}
-                  isActive={activeTab === '3d'}
                 />
               </TabsContent>
 
