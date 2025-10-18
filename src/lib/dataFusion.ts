@@ -127,7 +127,7 @@ export async function fetchOSMData(
 
       console.log(`✅ Successfully fetched ${data.elements.length} OSM elements from ${endpoint}`);
       
-      // Process OSM data with geometry
+      // Process OSM data with enhanced building geometry
       const buildingsData = data.elements
       .filter((e: any) => e.tags?.building && e.type === 'way')
       .map((e: any) => {
@@ -144,17 +144,53 @@ export async function fetchOSMData(
           coords.push([...firstCoord]);
         }
         
+        // Parse building height data
+        const levels = parseFloat(e.tags['building:levels']) || 3;
+        const baseHeight = parseFloat(e.tags.height) || levels * 3.5;
+        
+        // Parse roof data
+        const roofShape = e.tags['roof:shape'] || 'flat';
+        const roofHeight = parseFloat(e.tags['roof:height']) || 0;
+        const roofLevels = parseFloat(e.tags['roof:levels']) || 0;
+        const roofDirection = parseFloat(e.tags['roof:direction']) || 0;
+        
+        // Calculate total height including roof
+        const calculatedRoofHeight = roofHeight || (roofLevels * 3.5) || (roofShape !== 'flat' ? baseHeight * 0.2 : 0);
+        const totalHeight = baseHeight + calculatedRoofHeight;
+        
         return {
           type: e.tags.building,
           name: e.tags.name,
-          height: parseFloat(e.tags.height) || (parseFloat(e.tags['building:levels']) || 3) * 3,
-          levels: parseFloat(e.tags['building:levels']) || 3,
+          height: totalHeight,
+          baseHeight: baseHeight,
+          levels: levels,
+          roofShape: roofShape,
+          roofHeight: calculatedRoofHeight,
+          roofDirection: roofDirection,
+          buildingPart: e.tags['building:part'] === 'yes',
           geometry: [coords]
         };
       })
       .filter((b: any) => b !== null);
     
-    const roads = data.elements.filter((e: any) => e.tags?.highway).length;
+    // Process road data with geometry
+    const roadsData = data.elements
+      .filter((e: any) => e.tags?.highway && e.type === 'way')
+      .map((e: any) => {
+        const nodes = data.elements.filter((n: any) => n.type === 'node' && e.nodes?.includes(n.id));
+        if (nodes.length === 0) return null;
+        
+        const coords = nodes.map((n: any) => [n.lon, n.lat]);
+        
+        return {
+          type: e.tags.highway,
+          name: e.tags.name,
+          geometry: coords
+        };
+      })
+      .filter((r: any) => r !== null);
+    
+    const roads = roadsData.length;
     
     const amenities = data.elements
       .filter((e: any) => e.tags?.amenity && e.type === 'node')
@@ -208,7 +244,8 @@ export async function fetchOSMData(
         roads, 
         amenities, 
         landuse: landuseData, 
-        transit 
+        transit,
+        roadsData: roadsData
       };
 
       // Cache the successful result

@@ -32,6 +32,7 @@ const defaultLayers: MapLayer[] = [
   { id: 'green', name: 'Green Spaces', visible: false, color: '#32CD32', type: 'green', dataSource: 'OpenStreetMap' },
   { id: 'transit', name: 'Transit', visible: false, color: '#1E90FF', type: 'transit', dataSource: 'OpenStreetMap' },
   { id: 'landuse', name: 'Land Use', visible: false, color: '#9370DB', type: 'landuse', dataSource: 'OpenStreetMap' },
+  { id: 'roads', name: 'Roads', visible: false, color: '#666666', type: 'population', dataSource: 'OpenStreetMap' },
 ];
 
 export default function SiteMapboxViewer({ 
@@ -205,38 +206,27 @@ export default function SiteMapboxViewer({
           source: 'osm-buildings',
           paint: {
             'fill-extrusion-color': [
-              'interpolate',
-              ['linear'],
-              [
-                'case',
-                ['has', 'height'],
-                ['get', 'height'],
-                [
-                  'case',
-                  ['has', 'levels'],
-                  ['*', ['to-number', ['get', 'levels'], 1], 3.5],
-                  15
-                ]
-              ],
-              0, '#FFA500',    // Short buildings - bright orange
-              30, '#FF8C00',   // Medium buildings - dark orange  
-              60, '#FF6B00'    // Tall buildings - red-orange
-            ],
-            'fill-extrusion-height': [
               'case',
-              ['has', 'height'],
-              ['get', 'height'],
+              // Color by roof shape - pitched roofs get darker colors
+              ['==', ['get', 'roofShape'], 'gabled'], '#FF6B00',
+              ['==', ['get', 'roofShape'], 'hipped'], '#FF8C00',
+              ['==', ['get', 'roofShape'], 'pyramidal'], '#CC5500',
+              // Otherwise color by height
               [
-                'case',
-                ['has', 'levels'],
-                ['*', ['to-number', ['get', 'levels'], 1], 3.5],
-                15
+                'interpolate',
+                ['linear'],
+                ['get', 'height'],
+                0, '#FFA500',    // Short buildings - bright orange
+                30, '#FF8C00',   // Medium buildings - dark orange  
+                60, '#FF6B00'    // Tall buildings - red-orange
               ]
             ],
+            'fill-extrusion-height': ['get', 'height'],
             'fill-extrusion-base': 0,
             'fill-extrusion-opacity': 0.85,
             'fill-extrusion-ambient-occlusion-intensity': 0.3,
-            'fill-extrusion-ambient-occlusion-radius': 3
+            'fill-extrusion-ambient-occlusion-radius': 3,
+            'fill-extrusion-vertical-gradient': true
           },
           layout: {
             visibility: layers.find(l => l.id === 'buildings')?.visible ? 'visible' : 'none'
@@ -383,6 +373,51 @@ export default function SiteMapboxViewer({
       }
     }
 
+    // Add roads as 3D lines draped on terrain
+    if (osmData.roads?.features && osmData.roads.features.length > 0) {
+      if (!map.getSource('roads')) {
+        map.addSource('roads', {
+          type: 'geojson',
+          data: osmData.roads
+        });
+
+        map.addLayer({
+          id: 'roads-line',
+          type: 'line',
+          source: 'roads',
+          paint: {
+            'line-color': [
+              'match',
+              ['get', 'type'],
+              'motorway', '#E892A2',
+              'trunk', '#F9B29C',
+              'primary', '#FCD6A4',
+              'secondary', '#F7FABF',
+              'tertiary', '#FFFFFF',
+              'residential', '#CCCCCC',
+              '#999999'
+            ],
+            'line-width': [
+              'match',
+              ['get', 'type'],
+              'motorway', 6,
+              'trunk', 5,
+              'primary', 4,
+              'secondary', 3,
+              'tertiary', 2,
+              1.5
+            ],
+            'line-opacity': 0.8
+          },
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round',
+            visibility: layers.find(l => l.id === 'roads')?.visible ? 'visible' : 'none'
+          }
+        });
+      }
+    }
+
     console.log('[SiteMapboxViewer] OSM layers added');
   };
 
@@ -429,6 +464,11 @@ export default function SiteMapboxViewer({
           map.setLayoutProperty('transit-markers', 'visibility', visibility);
         }
       }
+
+      // Roads
+      if (layer.id === 'roads' && map.getLayer('roads-line')) {
+        map.setLayoutProperty('roads-line', 'visibility', visibility);
+      }
     });
   }, [layers, osmData]);
 
@@ -462,6 +502,8 @@ export default function SiteMapboxViewer({
         const greenTypes = ['park', 'forest', 'grass', 'meadow', 'recreation_ground', 'garden'];
         return osmData.landuse?.features?.filter((f: any) => !greenTypes.includes(f.properties?.type)).length || 0;
       }
+      case 'roads':
+        return osmData.roads?.features?.length || 0;
       default:
         return 0;
     }

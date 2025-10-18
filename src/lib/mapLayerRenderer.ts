@@ -83,7 +83,7 @@ export const fetchRealMapData = async (
 
     const osmData = await fetchOSMData(lat, lng, radius, bbox);
     
-    // Transform buildings to GeoJSON
+    // Transform buildings to GeoJSON with enhanced properties
     let buildingsGeoJSON = {
       type: 'FeatureCollection',
       features: osmData.buildings.map(building => ({
@@ -95,7 +95,28 @@ export const fetchRealMapData = async (
         properties: {
           name: building.name || 'Unnamed Building',
           height: building.height || 10,
-          levels: building.levels || 3
+          baseHeight: building.baseHeight || (building.height || 10),
+          levels: building.levels || 3,
+          roofShape: building.roofShape || 'flat',
+          roofHeight: building.roofHeight || 0,
+          roofDirection: building.roofDirection || 0,
+          buildingPart: building.buildingPart || false
+        }
+      }))
+    };
+
+    // Transform roads to GeoJSON
+    let roadsGeoJSON = {
+      type: 'FeatureCollection',
+      features: (osmData.roadsData || []).map(road => ({
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: road.geometry || []
+        },
+        properties: {
+          name: road.name || 'Unnamed Road',
+          type: road.type
         }
       }))
     };
@@ -171,15 +192,23 @@ export const fetchRealMapData = async (
       });
     }
 
+    // CLIP roads to boundary
+    if (boundaryPolygon && bbox) {
+      roadsGeoJSON.features = clipFeaturesToBoundary(roadsGeoJSON.features, bbox);
+      console.log('✅ Roads clipped:', roadsGeoJSON.features.length);
+    }
+
     return {
       buildings: buildingsGeoJSON,
       landuse: landuseGeoJSON,
       transit: transitGeoJSON,
       amenities: amenitiesGeoJSON,
+      roads: roadsGeoJSON,
       stats: {
         buildingCount: buildingsGeoJSON.features.length,
         transitCount: transitGeoJSON.features.length,
         amenityCount: amenitiesGeoJSON.features.length,
+        roadsCount: roadsGeoJSON.features.length,
         landuseTypes: [...new Set(landuseGeoJSON.features.map((l: any) => l.properties?.type))]
       }
     };

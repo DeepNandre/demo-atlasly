@@ -57,7 +57,12 @@ export interface OSMBuilding {
   type: string;
   name?: string;
   height?: number;
+  baseHeight?: number;
   levels?: number;
+  roofShape?: string;
+  roofHeight?: number;
+  roofDirection?: number;
+  buildingPart?: boolean;
   geometry: number[][][]; // [lon, lat] coordinate rings
 }
 
@@ -82,12 +87,19 @@ export interface OSMTransit {
   coordinates: [number, number]; // [lon, lat]
 }
 
+export interface OSMRoad {
+  type: string;
+  name?: string;
+  geometry: number[][]; // [lon, lat] coordinate array
+}
+
 export interface OSMMapData {
   buildings: OSMBuilding[];
   roads: number;
   amenities: OSMAmenity[];
   landuse: OSMLanduse[];
   transit: OSMTransit[];
+  roadsData?: OSMRoad[];
 }
 
 // ============= Map Layer Types =============
