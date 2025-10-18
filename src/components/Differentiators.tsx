@@ -1,57 +1,71 @@
-import { Zap, Database, Shield, Code } from "lucide-react";
+import { Rocket, Brain, Shield, Plug } from "lucide-react";
 
 const differentiators = [
   {
-    icon: Zap,
-    title: "10x Faster",
-    description: "What takes weeks of manual work happens in under 30 seconds. Automated data fusion from multiple geospatial sources."
+    icon: Rocket,
+    title: "Speed",
+    stat: "100x Faster",
+    description: "Site analysis that takes consultants 2-4 weeks completes in under 2 minutes. Automated data fusion from satellite, elevation, climate, and OpenStreetMap sources."
   },
   {
-    icon: Database,
-    title: "Proprietary Dataset",
-    description: "Every analysis trains our AI. 10,000+ sites analyzed means better predictions for your next project."
+    icon: Brain,
+    title: "Intelligence",
+    stat: "AI-Powered",
+    description: "Machine learning models trained on thousands of real projects. Get feasibility scores, cost estimates, and risk assessments backed by actual site data."
   },
   {
     icon: Shield,
-    title: "Predictive Intelligence",
-    description: "Feasibility scoring, cost estimates, permit probability, and climate risk projections in one platform."
+    title: "Accuracy",
+    stat: "Verified Data",
+    description: "Every export is validated against source data quality metrics. Terrain accuracy down to 1m resolution, solar calculations validated by NREL standards."
   },
   {
-    icon: Code,
-    title: "API-First Platform",
-    description: "Integrate geospatial intelligence into your apps. Developer docs, SDKs, and usage-based pricing."
+    icon: Plug,
+    title: "Integration",
+    stat: "API-First",
+    description: "RESTful API with comprehensive documentation. Embed site intelligence into construction tech platforms, PropTech apps, and enterprise workflows."
   }
 ];
 
 const Differentiators = () => {
   return (
-    <section id="differentiators" className="py-24 px-6 bg-muted/20">
-      <div className="container mx-auto max-w-5xl">
-        <div className="text-center mb-20">
-          <h2 className="text-5xl md:text-6xl font-serif font-bold leading-tight">
-            Why SiteIQ Wins
+    <section id="differentiators" className="py-24 px-6 bg-gradient-to-b from-muted/20 to-background">
+      <div className="container mx-auto max-w-6xl">
+        <div className="text-center mb-16 space-y-4">
+          <h2 className="text-4xl md:text-5xl font-serif font-bold">
+            Why Leading Firms Choose SiteIQ
           </h2>
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            The competitive advantages that matter for site analysis at scale
+          </p>
         </div>
         
         <div className="grid md:grid-cols-2 gap-8">
           {differentiators.map((point, index) => {
-            const IconComponent = point.icon;
+            const Icon = point.icon;
             
             return (
               <div
                 key={index}
-                className="flex items-start gap-6 p-8 rounded-2xl bg-card border border-border/50 hover:shadow-soft transition-all duration-300"
+                className="relative bg-card rounded-2xl p-8 border border-border/50 hover:border-primary/30 hover:shadow-xl transition-all duration-300 group"
               >
-                <div className="w-14 h-14 bg-muted/50 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <IconComponent className="w-6 h-6 text-foreground" strokeWidth={1.5} />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-serif font-bold">
-                    {point.title}
-                  </h3>
-                  <p className="text-muted-foreground text-lg leading-relaxed">
-                    {point.description}
-                  </p>
+                <div className="flex items-start gap-6">
+                  <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                    <Icon className="w-8 h-8 text-primary" strokeWidth={1.5} />
+                  </div>
+                  <div className="space-y-3 flex-1">
+                    <div>
+                      <div className="text-2xl font-bold text-primary mb-1">
+                        {point.stat}
+                      </div>
+                      <h3 className="text-xl font-serif font-bold">
+                        {point.title}
+                      </h3>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {point.description}
+                    </p>
+                  </div>
                 </div>
               </div>
             );
