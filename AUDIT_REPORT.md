@@ -209,10 +209,10 @@ export async function fetchOSMData(lat, lng, radius, boundary) {
 8. ✅ **Integrate Climate Data** → Added ClimateTab to SiteAI
 9. ✅ **Create tabbed UI** → Map | Solar | Climate tabs in SiteAI
 
-### 🔄 IN PROGRESS (Phase 3)
-10. ⬜ **Implement DXF export** → CAD-compatible building/terrain export
-11. ⬜ **Implement GeoJSON export** → Export all layers with metadata
-12. ⬜ **Implement CSV export** → Export elevation and feature data
+### ✅ COMPLETED (Phase 3)
+10. ✅ **Implement DXF export** → CAD-compatible building/terrain/boundary export with proper layering
+11. ✅ **Implement GeoJSON export** → Export all visible layers with comprehensive metadata
+12. ✅ **Implement CSV export** → Export site summary, elevation, climate, and all layer data as ZIP
 
 ### 📋 TODO (Phase 4+)
 13. ⬜ **Refactor components** → Use new TypeScript types throughout

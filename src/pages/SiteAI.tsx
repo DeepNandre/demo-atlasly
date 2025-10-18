@@ -205,11 +205,13 @@ const SiteAI = () => {
   };
 
   const handleExport = async (format: string) => {
-    if (!selectedSite) return;
+    if (!selectedSite || !siteData) return;
     
     setExportingFormat(format);
     
     try {
+      const timestamp = new Date().toISOString().split('T')[0];
+      
       if (format === 'image' || format === 'pdf') {
         const map = mapRef.current?.getMap();
         if (!map) {
@@ -230,7 +232,7 @@ const SiteAI = () => {
         }
 
         if (blob) {
-          downloadBlob(blob, `site-${selectedSite.id}.${format === 'image' ? 'png' : 'pdf'}`);
+          downloadBlob(blob, `site-${siteData.location_name}-${timestamp}.${format === 'image' ? 'png' : 'pdf'}`);
           toast({
             title: 'Export Complete',
             description: `${format.toUpperCase()} downloaded successfully`,
@@ -239,11 +241,61 @@ const SiteAI = () => {
         } else {
           throw new Error('Failed to generate export');
         }
-      } else {
+      } else if (format === 'dxf') {
         toast({
-          title: 'Coming Soon',
-          description: `${format.toUpperCase()} export will be available soon`,
+          title: 'Exporting DXF...',
+          description: 'Generating CAD-compatible file...',
         });
+        
+        const { generateDXF, downloadFile } = await import('@/lib/exportFormats');
+        const dxfContent = generateDXF(siteData, layers);
+        const blob = new Blob([dxfContent], { type: 'application/dxf' });
+        downloadFile(blob, `site-${siteData.location_name}-${timestamp}.dxf`);
+        
+        toast({
+          title: 'DXF Export Complete',
+          description: 'CAD file downloaded successfully',
+        });
+        setExportDialogOpen(false);
+      } else if (format === 'geojson') {
+        toast({
+          title: 'Exporting GeoJSON...',
+          description: 'Generating geographic data file...',
+        });
+        
+        const { generateGeoJSON, downloadFile } = await import('@/lib/exportFormats');
+        const geojson = generateGeoJSON(siteData, layers);
+        const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/json' });
+        downloadFile(blob, `site-${siteData.location_name}-${timestamp}.geojson`);
+        
+        toast({
+          title: 'GeoJSON Export Complete',
+          description: 'Geographic data file downloaded successfully',
+        });
+        setExportDialogOpen(false);
+      } else if (format === 'csv') {
+        toast({
+          title: 'Exporting CSV...',
+          description: 'Generating data tables...',
+        });
+        
+        const { generateCSV, createZipExport, downloadFile } = await import('@/lib/exportFormats');
+        const csvFiles = generateCSV(siteData, layers);
+        
+        // Create ZIP with all CSV files
+        const files = Object.entries(csvFiles).map(([name, content]) => ({
+          name: `${name}.csv`,
+          content
+        }));
+        
+        const zipBlob = await createZipExport(files);
+        downloadFile(zipBlob, `site-${siteData.location_name}-${timestamp}.zip`);
+        
+        toast({
+          title: 'CSV Export Complete',
+          description: `${files.length} CSV files downloaded as ZIP`,
+        });
+        setExportDialogOpen(false);
       }
     } catch (error: any) {
       console.error('Export error:', error);
