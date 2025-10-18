@@ -557,7 +557,7 @@ const SiteAI = () => {
 
               <TabsContent value="3d" className="flex-1 m-0 relative">
                 <Site3DViewer 
-                  siteId={selectedSite.id} 
+                  siteId={selectedSite.id}
                   siteName={selectedSite.location_name}
                 />
               </TabsContent>
