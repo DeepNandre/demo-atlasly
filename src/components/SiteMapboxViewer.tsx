@@ -103,20 +103,39 @@ export default function SiteMapboxViewer({
       
       map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
 
-      // Find and store native building layer after style loads
-      map.once('style.load', () => {
+      // Find and store native building layer - enhanced detection
+      const findNativeBuildingLayer = () => {
         const style = map.getStyle();
         if (style && style.layers) {
+          // Try multiple patterns to find Mapbox's native 3D buildings
           const buildingLayer = style.layers.find((layer: any) => 
             layer.type === 'fill-extrusion' && 
-            (layer.id.includes('building') || layer.source === 'composite')
+            (layer.id.includes('building') || 
+             layer.id.includes('3d') || 
+             layer.source === 'composite' ||
+             layer['source-layer'] === 'building')
           );
           if (buildingLayer) {
             setNativeBuildingLayerId(buildingLayer.id);
             console.log('[SiteMapboxViewer] Found native building layer:', buildingLayer.id);
+            // Initially keep native buildings visible until user toggles
+            return buildingLayer.id;
           }
         }
+        return null;
+      };
+
+      // Try to find immediately after style loads
+      map.once('style.load', () => {
+        findNativeBuildingLayer();
       });
+
+      // Also try after a short delay in case style isn't fully loaded
+      setTimeout(() => {
+        if (!nativeBuildingLayerId) {
+          findNativeBuildingLayer();
+        }
+      }, 1000);
 
       // Add boundary if available with enhanced styling
       if (boundaryGeojson) {
@@ -409,19 +428,42 @@ export default function SiteMapboxViewer({
     layers.forEach(layer => {
       const visibility = layer.visible ? 'visible' : 'none';
       
-      // Buildings: control custom + native layers
+      // Buildings: SMART SWITCH - control custom + native layers (mutually exclusive)
       if (layer.id === 'buildings') {
+        // Control custom building layers
         if (map.getLayer('osm-buildings-3d')) {
           map.setLayoutProperty('osm-buildings-3d', 'visibility', visibility);
+          console.log(`[Custom Buildings] osm-buildings-3d → ${visibility}`);
         }
         if (map.getLayer('osm-buildings-outline')) {
           map.setLayoutProperty('osm-buildings-outline', 'visibility', visibility);
         }
-        // Hide native buildings when custom buildings are shown
+        
+        // CRITICAL: Hide native buildings when custom buildings are shown
+        // This is the smart switch that makes them mutually exclusive
         if (nativeBuildingLayerId && map.getLayer(nativeBuildingLayerId)) {
           const nativeVisibility = layer.visible ? 'none' : 'visible';
-          map.setLayoutProperty(nativeBuildingLayerId, 'visibility', nativeVisibility);
-          console.log(`[Native Buildings] ${nativeBuildingLayerId} → ${nativeVisibility}`);
+          try {
+            map.setLayoutProperty(nativeBuildingLayerId, 'visibility', nativeVisibility);
+            console.log(`[Native Buildings] ${nativeBuildingLayerId} → ${nativeVisibility} (Smart Switch Active)`);
+          } catch (error) {
+            console.warn('[Native Buildings] Failed to toggle:', error);
+          }
+        } else if (layer.visible) {
+          console.warn('[Native Buildings] Layer not found - searching...');
+          // Try to find it again if it wasn't found initially
+          const style = map.getStyle();
+          if (style && style.layers) {
+            const buildingLayer = style.layers.find((l: any) => 
+              l.type === 'fill-extrusion' && 
+              (l.id.includes('building') || l.source === 'composite')
+            );
+            if (buildingLayer) {
+              setNativeBuildingLayerId(buildingLayer.id);
+              map.setLayoutProperty(buildingLayer.id, 'visibility', 'none');
+              console.log(`[Native Buildings] Found and hidden: ${buildingLayer.id}`);
+            }
+          }
         }
       }
       
@@ -502,15 +544,27 @@ export default function SiteMapboxViewer({
         </div>
       )}
 
-      {/* Site info card */}
-      <div className="absolute top-4 left-4 bg-background/90 backdrop-blur-sm p-4 rounded-lg shadow-lg z-10 max-w-xs">
-        <h3 className="font-semibold text-sm mb-2">{siteName}</h3>
-        <div className="text-xs text-muted-foreground space-y-1">
-          <p>🏗️ {osmData?.stats.buildingCount || 0} Buildings</p>
-          <p>🌳 {osmData?.landuse.features.filter((f: any) => 
-            ['park', 'forest', 'grass', 'meadow'].includes(f.properties?.type)
-          ).length || 0} Green Spaces</p>
-          <p>🚌 {osmData?.stats.transitCount || 0} Transit Stops</p>
+      {/* Site info card with enhanced styling */}
+      <div className="absolute top-4 left-4 bg-background/95 backdrop-blur-md p-4 rounded-lg shadow-xl z-10 max-w-xs border-2">
+        <h3 className="font-semibold text-base mb-3">{siteName}</h3>
+        <div className="text-xs space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-sm bg-[#FFA500]"></div>
+            <span className="font-medium">{osmData?.stats.buildingCount || 0}</span>
+            <span className="text-muted-foreground">Buildings</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-sm bg-[#32CD32]"></div>
+            <span className="font-medium">{osmData?.landuse.features.filter((f: any) => 
+              ['park', 'forest', 'grass', 'meadow'].includes(f.properties?.type)
+            ).length || 0}</span>
+            <span className="text-muted-foreground">Green Spaces</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-[#1E90FF]"></div>
+            <span className="font-medium">{osmData?.stats.transitCount || 0}</span>
+            <span className="text-muted-foreground">Transit Stops</span>
+          </div>
         </div>
       </div>
 
