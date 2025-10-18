@@ -12,6 +12,7 @@ console.log('[Site3DViewer] Cesium ion token configured');
 interface Site3DViewerProps {
   siteId: string;
   siteName: string;
+  isActive: boolean;
 }
 
 interface SiteLocation {
@@ -21,7 +22,7 @@ interface SiteLocation {
   };
 }
 
-export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
+export default function Site3DViewer({ siteId, siteName, isActive }: Site3DViewerProps) {
   const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,8 +37,13 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
   };
 
   useEffect(() => {
+    if (!isActive) {
+      console.log('[Site3DViewer] Tab not active, waiting...');
+      return;
+    }
+
     if (!containerElement) {
-      console.log('[Site3DViewer] Waiting for container element...');
+      console.log('[Site3DViewer] Container not ready, waiting...');
       return;
     }
 
@@ -187,7 +193,7 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
         viewerRef.current = null;
       }
     };
-  }, [siteId, containerElement]);
+  }, [siteId, containerElement, isActive]);
 
   if (loading) {
     return (

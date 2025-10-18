@@ -89,6 +89,7 @@ const SiteAI = () => {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<string | null>(null);
   const [siteData, setSiteData] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<string>('map');
 
   useEffect(() => {
     if (!user) {
@@ -389,7 +390,7 @@ const SiteAI = () => {
 
           {/* Map/Analysis - Resizable */}
           <ResizablePanel defaultSize={75} minSize={60}>
-            <Tabs defaultValue="map" className="h-full flex flex-col">
+            <Tabs defaultValue="map" className="h-full flex flex-col" onValueChange={(value) => setActiveTab(value)}>
               <div className="px-6 pt-4 pb-2 border-b border-border bg-gradient-to-r from-card/50 via-primary/5 to-card/50">
                 <TabsList className="grid w-full grid-cols-4 h-12">
                   <TabsTrigger value="map" className="gap-2 data-[state=active]:bg-primary/10">
@@ -559,6 +560,7 @@ const SiteAI = () => {
                 <Site3DViewer 
                   siteId={selectedSite.id}
                   siteName={selectedSite.location_name}
+                  isActive={activeTab === '3d'}
                 />
               </TabsContent>
 
