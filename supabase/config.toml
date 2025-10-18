@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.generate-3d-site-model]
 verify_jwt = true
+
+[functions.get-3d-model-data]
+verify_jwt = true
