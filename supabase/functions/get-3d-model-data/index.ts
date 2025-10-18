@@ -85,21 +85,21 @@ serve(async (req) => {
       fetchElevationData(bbox)
     ]);
 
-    // Process and return structured 3D data
+    // Process and return structured 3D data with safe defaults
     const modelData = {
-      buildings: osmData.buildings.map((b: any) => ({
-        footprint: b.coordinates,
+      buildings: (osmData.buildings || []).map((b: any) => ({
+        footprint: b.coordinates || [],
         height: b.height || 10,
         name: b.name
       })),
-      roads: osmData.roads.map((r: any) => ({
-        points: r.coordinates,
-        type: r.type
+      roads: (osmData.roads || []).map((r: any) => ({
+        points: r.coordinates || [],
+        type: r.type || 'unknown'
       })),
-      water: osmData.water.map((w: any) => ({
-        points: w.coordinates
+      water: (osmData.water || []).map((w: any) => ({
+        points: w.coordinates || []
       })),
-      terrain: elevationData,
+      terrain: Array.isArray(elevationData) ? elevationData : [],
       bounds: bbox,
       center: {
         lat: siteData.center_lat,

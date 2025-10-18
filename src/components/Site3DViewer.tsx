@@ -48,10 +48,12 @@ function latLngToLocal(lat: number, lng: number, center: { lat: number; lng: num
 }
 
 function Buildings({ buildings, center }: { buildings: ModelData['buildings']; center: ModelData['center'] }) {
+  if (!buildings || !Array.isArray(buildings)) return null;
+  
   return (
     <group>
       {buildings.map((building, idx) => {
-        if (building.footprint.length < 3) return null;
+        if (!building?.footprint || building.footprint.length < 3) return null;
 
         // Convert lat/lng to local coordinates
         const localPoints = building.footprint.map(([lng, lat]) => {
@@ -82,6 +84,8 @@ function Buildings({ buildings, center }: { buildings: ModelData['buildings']; c
 }
 
 function Terrain({ terrain, center }: { terrain: ModelData['terrain']; center: ModelData['center'] }) {
+  if (!terrain || !Array.isArray(terrain) || terrain.length === 0) return null;
+  
   const geometry = new THREE.BufferGeometry();
   
   const gridSize = Math.sqrt(terrain.length);
@@ -124,10 +128,12 @@ function Terrain({ terrain, center }: { terrain: ModelData['terrain']; center: M
 }
 
 function Roads({ roads, center }: { roads: ModelData['roads']; center: ModelData['center'] }) {
+  if (!roads || !Array.isArray(roads)) return null;
+  
   return (
     <group>
       {roads.map((road, idx) => {
-        if (road.points.length < 2) return null;
+        if (!road?.points || road.points.length < 2) return null;
 
         const points = road.points.map(([lng, lat]) => {
           const { x, y } = latLngToLocal(lat, lng, center);
@@ -161,9 +167,9 @@ function Scene({ modelData }: { modelData: ModelData }) {
       />
       <hemisphereLight intensity={0.3} groundColor="#444444" />
       
-      <Terrain terrain={modelData.terrain} center={modelData.center} />
-      <Buildings buildings={modelData.buildings} center={modelData.center} />
-      <Roads roads={modelData.roads} center={modelData.center} />
+      {modelData.terrain && <Terrain terrain={modelData.terrain} center={modelData.center} />}
+      {modelData.buildings && <Buildings buildings={modelData.buildings} center={modelData.center} />}
+      {modelData.roads && <Roads roads={modelData.roads} center={modelData.center} />}
       
       <Grid 
         args={[1000, 1000]} 
@@ -272,9 +278,9 @@ export default function Site3DViewer({ siteId, siteName }: Site3DViewerProps) {
       <div className="absolute top-4 left-4 bg-background/90 backdrop-blur-sm p-4 rounded-lg shadow-lg">
         <h3 className="font-semibold text-sm mb-2">{siteName}</h3>
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>Buildings: {modelData.buildings.length}</p>
-          <p>Roads: {modelData.roads.length}</p>
-          <p>Terrain Points: {modelData.terrain.length}</p>
+          <p>Buildings: {modelData.buildings?.length || 0}</p>
+          <p>Roads: {modelData.roads?.length || 0}</p>
+          <p>Terrain Points: {modelData.terrain?.length || 0}</p>
         </div>
         <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
           <p className="font-medium mb-1">Controls:</p>
