@@ -5,6 +5,7 @@ import { fetchRealMapData } from '@/lib/mapLayerRenderer';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
 interface MapLayer {
@@ -13,6 +14,7 @@ interface MapLayer {
   visible: boolean;
   color: string;
   type: 'buildings' | 'landuse' | 'transit' | 'green' | 'population';
+  dataSource?: string;
 }
 
 interface SiteMapboxViewerProps {
@@ -24,10 +26,10 @@ interface SiteMapboxViewerProps {
 }
 
 const defaultLayers: MapLayer[] = [
-  { id: 'buildings', name: 'Buildings', visible: true, color: '#FFD700', type: 'buildings' },
-  { id: 'green', name: 'Green Spaces', visible: true, color: '#00FF00', type: 'green' },
-  { id: 'transit', name: 'Transit', visible: true, color: '#1E90FF', type: 'transit' },
-  { id: 'landuse', name: 'Land Use', visible: false, color: '#FF69B4', type: 'landuse' },
+  { id: 'buildings', name: 'Buildings', visible: false, color: '#FFA500', type: 'buildings', dataSource: 'OpenStreetMap' },
+  { id: 'green', name: 'Green Spaces', visible: false, color: '#32CD32', type: 'green', dataSource: 'OpenStreetMap' },
+  { id: 'transit', name: 'Transit', visible: false, color: '#1E90FF', type: 'transit', dataSource: 'OpenStreetMap' },
+  { id: 'landuse', name: 'Land Use', visible: false, color: '#9370DB', type: 'landuse', dataSource: 'OpenStreetMap' },
 ];
 
 export default function SiteMapboxViewer({ 
@@ -42,6 +44,7 @@ export default function SiteMapboxViewer({
   const [layers, setLayers] = useState<MapLayer[]>(defaultLayers);
   const [osmData, setOsmData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [nativeBuildingLayerId, setNativeBuildingLayerId] = useState<string | null>(null);
 
   // Fetch OSM data
   useEffect(() => {
@@ -100,30 +103,61 @@ export default function SiteMapboxViewer({
       
       map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
 
-      // Add boundary if available
+      // Find and store native building layer after style loads
+      map.once('style.load', () => {
+        const style = map.getStyle();
+        if (style && style.layers) {
+          const buildingLayer = style.layers.find((layer: any) => 
+            layer.type === 'fill-extrusion' && 
+            (layer.id.includes('building') || layer.source === 'composite')
+          );
+          if (buildingLayer) {
+            setNativeBuildingLayerId(buildingLayer.id);
+            console.log('[SiteMapboxViewer] Found native building layer:', buildingLayer.id);
+          }
+        }
+      });
+
+      // Add boundary if available with enhanced styling
       if (boundaryGeojson) {
         map.addSource('boundary', {
           type: 'geojson',
           data: boundaryGeojson
         });
 
+        // Outer glow
+        map.addLayer({
+          id: 'boundary-glow',
+          type: 'line',
+          source: 'boundary',
+          paint: {
+            'line-color': '#8BC34A',
+            'line-width': 8,
+            'line-opacity': 0.3,
+            'line-blur': 4
+          }
+        });
+
+        // Semi-transparent fill
         map.addLayer({
           id: 'boundary-fill',
           type: 'fill',
           source: 'boundary',
           paint: {
             'fill-color': '#8BC34A',
-            'fill-opacity': 0.1
+            'fill-opacity': 0.15
           }
         });
 
+        // Main outline
         map.addLayer({
           id: 'boundary-outline',
           type: 'line',
           source: 'boundary',
           paint: {
             'line-color': '#8BC34A',
-            'line-width': 3
+            'line-width': 4,
+            'line-opacity': 0.9
           }
         });
       }
@@ -171,7 +205,7 @@ export default function SiteMapboxViewer({
     const map = mapRef.current;
     console.log('[SiteMapboxViewer] Adding OSM layers...');
 
-    // Add buildings as 3D extrusions
+    // Add buildings as enhanced 3D extrusions
     if (osmData.buildings.features.length > 0) {
       if (!map.getSource('osm-buildings')) {
         map.addSource('osm-buildings', {
@@ -184,15 +218,54 @@ export default function SiteMapboxViewer({
           type: 'fill-extrusion',
           source: 'osm-buildings',
           paint: {
-            'fill-extrusion-color': '#FFD700',
+            'fill-extrusion-color': [
+              'interpolate',
+              ['linear'],
+              [
+                'case',
+                ['has', 'height'],
+                ['get', 'height'],
+                [
+                  'case',
+                  ['has', 'levels'],
+                  ['*', ['to-number', ['get', 'levels'], 1], 3.5],
+                  15
+                ]
+              ],
+              0, '#FFA500',    // Short buildings - bright orange
+              30, '#FF8C00',   // Medium buildings - dark orange  
+              60, '#FF6B00'    // Tall buildings - red-orange
+            ],
             'fill-extrusion-height': [
               'case',
               ['has', 'height'],
               ['get', 'height'],
-              15
+              [
+                'case',
+                ['has', 'levels'],
+                ['*', ['to-number', ['get', 'levels'], 1], 3.5],
+                15
+              ]
             ],
             'fill-extrusion-base': 0,
-            'fill-extrusion-opacity': 0.8
+            'fill-extrusion-opacity': 0.85,
+            'fill-extrusion-ambient-occlusion-intensity': 0.3,
+            'fill-extrusion-ambient-occlusion-radius': 3
+          },
+          layout: {
+            visibility: layers.find(l => l.id === 'buildings')?.visible ? 'visible' : 'none'
+          }
+        });
+
+        // Building outlines
+        map.addLayer({
+          id: 'osm-buildings-outline',
+          type: 'line',
+          source: 'osm-buildings',
+          paint: {
+            'line-color': '#FF8C00',
+            'line-width': 1,
+            'line-opacity': 0.6
           },
           layout: {
             visibility: layers.find(l => l.id === 'buildings')?.visible ? 'visible' : 'none'
@@ -220,10 +293,24 @@ export default function SiteMapboxViewer({
           type: 'fill-extrusion',
           source: 'green-spaces',
           paint: {
-            'fill-extrusion-color': '#00FF00',
-            'fill-extrusion-height': 2,
+            'fill-extrusion-color': '#32CD32',
+            'fill-extrusion-height': 1.5,
             'fill-extrusion-base': 0,
-            'fill-extrusion-opacity': 0.6
+            'fill-extrusion-opacity': 0.7
+          },
+          layout: {
+            visibility: layers.find(l => l.id === 'green')?.visible ? 'visible' : 'none'
+          }
+        });
+
+        map.addLayer({
+          id: 'green-spaces-outline',
+          type: 'line',
+          source: 'green-spaces',
+          paint: {
+            'line-color': '#228B22',
+            'line-width': 2,
+            'line-opacity': 0.6
           },
           layout: {
             visibility: layers.find(l => l.id === 'green')?.visible ? 'visible' : 'none'
@@ -267,7 +354,7 @@ export default function SiteMapboxViewer({
       }
     }
 
-    // Add transit stops as 3D markers
+    // Add transit stops with enhanced 3D markers
     if (osmData.transit.features.length > 0) {
       if (!map.getSource('transit')) {
         map.addSource('transit', {
@@ -275,15 +362,33 @@ export default function SiteMapboxViewer({
           data: osmData.transit
         });
 
+        // Outer glow
+        map.addLayer({
+          id: 'transit-glow',
+          type: 'circle',
+          source: 'transit',
+          paint: {
+            'circle-radius': 16,
+            'circle-color': '#1E90FF',
+            'circle-opacity': 0.2,
+            'circle-blur': 0.8
+          },
+          layout: {
+            visibility: layers.find(l => l.id === 'transit')?.visible ? 'visible' : 'none'
+          }
+        });
+
+        // Main marker
         map.addLayer({
           id: 'transit-markers',
           type: 'circle',
           source: 'transit',
           paint: {
-            'circle-radius': 8,
+            'circle-radius': 10,
             'circle-color': '#1E90FF',
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#FFFFFF'
+            'circle-stroke-width': 3,
+            'circle-stroke-color': '#FFFFFF',
+            'circle-opacity': 0.9
           },
           layout: {
             visibility: layers.find(l => l.id === 'transit')?.visible ? 'visible' : 'none'
@@ -295,7 +400,7 @@ export default function SiteMapboxViewer({
     console.log('[SiteMapboxViewer] OSM layers added');
   };
 
-  // Update layer visibility
+  // Smart layer visibility with native building control
   useEffect(() => {
     if (!mapRef.current || !osmData) return;
 
@@ -304,25 +409,82 @@ export default function SiteMapboxViewer({
     layers.forEach(layer => {
       const visibility = layer.visible ? 'visible' : 'none';
       
-      if (layer.id === 'buildings' && map.getLayer('osm-buildings-3d')) {
-        map.setLayoutProperty('osm-buildings-3d', 'visibility', visibility);
+      // Buildings: control custom + native layers
+      if (layer.id === 'buildings') {
+        if (map.getLayer('osm-buildings-3d')) {
+          map.setLayoutProperty('osm-buildings-3d', 'visibility', visibility);
+        }
+        if (map.getLayer('osm-buildings-outline')) {
+          map.setLayoutProperty('osm-buildings-outline', 'visibility', visibility);
+        }
+        // Hide native buildings when custom buildings are shown
+        if (nativeBuildingLayerId && map.getLayer(nativeBuildingLayerId)) {
+          const nativeVisibility = layer.visible ? 'none' : 'visible';
+          map.setLayoutProperty(nativeBuildingLayerId, 'visibility', nativeVisibility);
+          console.log(`[Native Buildings] ${nativeBuildingLayerId} → ${nativeVisibility}`);
+        }
       }
-      if (layer.id === 'green' && map.getLayer('green-spaces-fill')) {
-        map.setLayoutProperty('green-spaces-fill', 'visibility', visibility);
+      
+      // Green spaces
+      if (layer.id === 'green') {
+        if (map.getLayer('green-spaces-fill')) {
+          map.setLayoutProperty('green-spaces-fill', 'visibility', visibility);
+        }
+        if (map.getLayer('green-spaces-outline')) {
+          map.setLayoutProperty('green-spaces-outline', 'visibility', visibility);
+        }
       }
+      
+      // Landuse
       if (layer.id === 'landuse' && map.getLayer('landuse-fill')) {
         map.setLayoutProperty('landuse-fill', 'visibility', visibility);
       }
-      if (layer.id === 'transit' && map.getLayer('transit-markers')) {
-        map.setLayoutProperty('transit-markers', 'visibility', visibility);
+      
+      // Transit (including glow)
+      if (layer.id === 'transit') {
+        if (map.getLayer('transit-glow')) {
+          map.setLayoutProperty('transit-glow', 'visibility', visibility);
+        }
+        if (map.getLayer('transit-markers')) {
+          map.setLayoutProperty('transit-markers', 'visibility', visibility);
+        }
       }
     });
-  }, [layers, osmData]);
+  }, [layers, osmData, nativeBuildingLayerId]);
 
   const toggleLayer = (layerId: string) => {
     setLayers(prev => prev.map(layer => 
       layer.id === layerId ? { ...layer, visible: !layer.visible } : layer
     ));
+  };
+
+  const showAllLayers = () => {
+    setLayers(prev => prev.map(layer => ({ ...layer, visible: true })));
+  };
+
+  const hideAllLayers = () => {
+    setLayers(prev => prev.map(layer => ({ ...layer, visible: false })));
+  };
+
+  const getFeatureCount = (layerId: string): number => {
+    if (!osmData) return 0;
+    
+    switch (layerId) {
+      case 'buildings':
+        return osmData.buildings?.features?.length || 0;
+      case 'green': {
+        const greenTypes = ['park', 'forest', 'grass', 'meadow', 'recreation_ground', 'garden'];
+        return osmData.landuse?.features?.filter((f: any) => greenTypes.includes(f.properties?.type)).length || 0;
+      }
+      case 'transit':
+        return osmData.transit?.features?.length || 0;
+      case 'landuse': {
+        const greenTypes = ['park', 'forest', 'grass', 'meadow', 'recreation_ground', 'garden'];
+        return osmData.landuse?.features?.filter((f: any) => !greenTypes.includes(f.properties?.type)).length || 0;
+      }
+      default:
+        return 0;
+    }
   };
 
   return (
@@ -352,25 +514,67 @@ export default function SiteMapboxViewer({
         </div>
       </div>
 
-      {/* Layer toggles */}
-      <Card className="absolute top-4 right-4 p-4 bg-background/90 backdrop-blur-sm z-10 space-y-3 min-w-[200px]">
-        <h3 className="font-semibold text-sm">3D Layers</h3>
-        {layers.map(layer => (
-          <div key={layer.id} className="flex items-center justify-between">
-            <Label htmlFor={`${layer.id}-toggle`} className="text-sm cursor-pointer flex items-center gap-2">
-              <div 
-                className="w-3 h-3 rounded" 
-                style={{ backgroundColor: layer.color }}
-              />
-              {layer.name}
-            </Label>
-            <Switch
-              id={`${layer.id}-toggle`}
-              checked={layer.visible}
-              onCheckedChange={() => toggleLayer(layer.id)}
-            />
+      {/* Enhanced layer control panel */}
+      <Card className="absolute top-4 right-4 p-4 bg-background/95 backdrop-blur-md z-10 space-y-3 min-w-[260px] shadow-xl border-2">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold text-sm">Site Analysis Layers</h3>
+          <div className="flex gap-1">
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={showAllLayers}
+              disabled={loading}
+              className="h-7 px-2 text-xs"
+            >
+              All
+            </Button>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={hideAllLayers}
+              disabled={loading}
+              className="h-7 px-2 text-xs"
+            >
+              None
+            </Button>
           </div>
-        ))}
+        </div>
+        
+        <div className="space-y-3">
+          {layers.map(layer => {
+            const count = getFeatureCount(layer.id);
+            return (
+              <div key={layer.id} className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label 
+                    htmlFor={`${layer.id}-toggle`} 
+                    className="text-sm cursor-pointer flex items-center gap-2 flex-1"
+                  >
+                    <div 
+                      className="w-4 h-4 rounded-sm border border-white/20 flex-shrink-0" 
+                      style={{ backgroundColor: layer.color }} 
+                    />
+                    <span className="flex-1">{layer.name}</span>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      ({count})
+                    </span>
+                  </Label>
+                  <Switch
+                    id={`${layer.id}-toggle`}
+                    checked={layer.visible}
+                    onCheckedChange={() => toggleLayer(layer.id)}
+                    disabled={loading}
+                  />
+                </div>
+                {layer.dataSource && (
+                  <p className="text-xs text-muted-foreground ml-6">
+                    {layer.dataSource}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </Card>
     </div>
   );
