@@ -1,42 +1,19 @@
 /**
  * Multi-Source Data Fusion Engine
  * Integrates OpenStreetMap, weather, elevation, and other free data sources
+ * 
+ * PERFORMANCE OPTIMIZATIONS:
+ * - In-memory + localStorage caching (30min TTL)
+ * - Reduced timeout (15s per endpoint)
+ * - Request deduplication
  */
 
-export interface LocationContext {
-  lat: number;
-  lng: number;
-  radius?: number;
-}
+import { getCachedData, setCachedData, generateCacheKey } from './osmCache';
+import type { OSMMapData, LocationContext, BoundingBox } from '@/types/site';
 
-export interface OSMData {
-  buildings: Array<{ 
-    type: string; 
-    name?: string; 
-    height?: number;
-    levels?: number;
-    geometry?: number[][][];
-  }>;
-  roads: number;
-  amenities: Array<{ 
-    type: string; 
-    name: string; 
-    distance: number;
-    coordinates: [number, number];
-  }>;
-  landuse: Array<{ 
-    type: string; 
-    name?: string;
-    area: number;
-    geometry?: number[][][];
-  }>;
-  transit: Array<{ 
-    type: string; 
-    name: string; 
-    distance: number;
-    coordinates: [number, number];
-  }>;
-}
+// Legacy export for backwards compatibility
+export type OSMData = OSMMapData;
+export type { LocationContext };
 
 export interface WeatherData {
   climate: string;
@@ -69,8 +46,15 @@ export async function fetchOSMData(
   lat: number, 
   lng: number, 
   radius: number = 500,
-  boundary?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
-): Promise<OSMData> {
+  boundary?: BoundingBox
+): Promise<OSMMapData> {
+  // Check cache first
+  const cacheKey = generateCacheKey(lat, lng, radius, boundary);
+  const cached = getCachedData<OSMMapData>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   // Multiple Overpass API endpoints for fallback
   const overpassEndpoints = [
     'https://overpass-api.de/api/interpreter',
@@ -78,8 +62,8 @@ export async function fetchOSMData(
     'https://overpass.openstreetmap.ru/api/interpreter'
   ];
   
-  // Increased timeout for better reliability
-  const timeout = 30;
+  // Reduced timeout for faster fallback (15s per endpoint = 45s max)
+  const timeout = 15;
   
   // Overpass QL query - use bounding box if available, otherwise circular radius
   const query = boundary 
@@ -219,7 +203,18 @@ export async function fetchOSMData(
         .sort((a, b) => a.distance - b.distance)
         .slice(0, 10);
 
-      return { buildings: buildingsData, roads, amenities, landuse: landuseData, transit };
+      const result: OSMMapData = { 
+        buildings: buildingsData, 
+        roads, 
+        amenities, 
+        landuse: landuseData, 
+        transit 
+      };
+
+      // Cache the successful result
+      setCachedData(cacheKey, result);
+
+      return result;
       
     } catch (error) {
       lastError = error as Error;

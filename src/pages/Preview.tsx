@@ -4,8 +4,7 @@ import { ArrowLeft, Loader2, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LayerToggles } from '@/components/LayerToggles';
-import { ContextLayerToggles } from '@/components/ContextLayerToggles';
+import { SimpleLayerToggles, SimpleContextLayerToggles } from '@/components/SimpleLayerToggles';
 import { DeckGLScene } from '@/components/DeckGLScene';
 import { SiteChat } from '@/components/SiteChat';
 import { ClimateViewer } from '@/components/ClimateViewer';
@@ -278,8 +277,8 @@ const Preview = () => {
             <TabsContent value="3d" className="h-full m-0">
               <div className="relative h-full">
                 <div className="absolute top-16 left-4 z-10 space-y-2">
-                  <LayerToggles layers={layers} onToggle={handleToggle} />
-                  <ContextLayerToggles layers={contextLayers} onToggle={handleContextToggle} />
+                  <SimpleLayerToggles layers={layers} onToggle={handleToggle} />
+                  <SimpleContextLayerToggles layers={contextLayers} onToggle={handleContextToggle} />
                 </div>
                 
                 {siteInfo && (
