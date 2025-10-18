@@ -399,11 +399,11 @@ const Dashboard = () => {
                                   <>
                                     <Button
                                       size="sm"
-                                      variant="outline"
+                                      variant="default"
                                       onClick={() => navigate(`/site-ai?project=${request.id}`)}
                                     >
                                       <MessageSquare className="w-4 h-4 mr-1" />
-                                      AI Analysis
+                                      Open in SiteIQ AI
                                     </Button>
                                     <Button
                                       asChild
@@ -412,11 +412,11 @@ const Dashboard = () => {
                                     >
                                       <a href={`/preview/${request.id}`}>
                                         <Box className="w-4 h-4 mr-1" />
-                                        View 3D
+                                        Details
                                       </a>
                                     </Button>
                                     {request.file_url && (
-                                      <Button asChild size="sm" variant="default">
+                                      <Button asChild size="sm" variant="outline">
                                         <a href={request.file_url} download>
                                           <Download className="w-4 h-4 mr-1" />
                                           Download

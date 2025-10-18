@@ -13,7 +13,7 @@ import { ClimateTab } from '@/components/ClimateTab';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { Plus, ChevronDown, Download, Loader2 } from 'lucide-react';
+import { Plus, ChevronDown, Download, Loader2, MapIcon, Sun, CloudRain } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -388,11 +388,26 @@ const SiteAI = () => {
           {/* Map/Analysis - Resizable */}
           <ResizablePanel defaultSize={75} minSize={60}>
             <Tabs defaultValue="map" className="h-full flex flex-col">
-              <div className="border-b bg-card px-4 py-2">
-                <TabsList>
-                  <TabsTrigger value="map">Map</TabsTrigger>
-                  <TabsTrigger value="solar">Solar Analysis</TabsTrigger>
-                  <TabsTrigger value="climate">Climate Data</TabsTrigger>
+              <div className="px-6 pt-4 pb-2 border-b border-border bg-gradient-to-r from-card/50 via-primary/5 to-card/50">
+                <TabsList className="grid w-full grid-cols-3 h-12">
+                  <TabsTrigger value="map" className="gap-2 data-[state=active]:bg-primary/10">
+                    <div className="flex items-center gap-2">
+                      <MapIcon className="w-4 h-4" />
+                      <span>Map View</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger value="solar" className="gap-2 data-[state=active]:bg-primary/10">
+                    <div className="flex items-center gap-2">
+                      <Sun className="w-4 h-4" />
+                      <span>Solar Analysis</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger value="climate" className="gap-2 data-[state=active]:bg-primary/10">
+                    <div className="flex items-center gap-2">
+                      <CloudRain className="w-4 h-4" />
+                      <span>Climate Data</span>
+                    </div>
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
