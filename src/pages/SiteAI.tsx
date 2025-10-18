@@ -8,7 +8,7 @@ import { MapLayerSelector } from '@/components/MapLayerSelector';
 import { AnalysisProgressPanel } from '@/components/AnalysisProgressPanel';
 import { AnalysisTemplates } from '@/components/AnalysisTemplates';
 import { MapStyleSelector, type MapStyleType } from '@/components/MapStyleSelector';
-import Site3DViewer from '@/components/Site3DViewer';
+import SiteCesiumViewer from '@/components/SiteCesiumViewer';
 import { SolarAnalyzerTab } from '@/components/SolarAnalyzerTab';
 import { ClimateTab } from '@/components/ClimateTab';
 import { Button } from '@/components/ui/button';
@@ -557,8 +557,9 @@ const SiteAI = () => {
               </TabsContent>
 
               <TabsContent value="3d" className="flex-1 m-0 relative">
-                <Site3DViewer 
-                  siteId={selectedSite.id}
+                <SiteCesiumViewer 
+                  latitude={siteData?.center_lat || 0}
+                  longitude={siteData?.center_lng || 0}
                   siteName={selectedSite.location_name}
                   isActive={activeTab === '3d'}
                 />
