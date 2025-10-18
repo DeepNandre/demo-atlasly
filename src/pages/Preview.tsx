@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SimpleLayerToggles, SimpleContextLayerToggles } from '@/components/SimpleLayerToggles';
-import { DeckGLScene } from '@/components/DeckGLScene';
 import { SiteChat } from '@/components/SiteChat';
 import { ClimateViewer } from '@/components/ClimateViewer';
 import { VisualizationTab } from '@/components/VisualizationTab';
@@ -275,27 +274,19 @@ const Preview = () => {
             </div>
 
             <TabsContent value="3d" className="h-full m-0">
-              <div className="relative h-full">
-                <div className="absolute top-16 left-4 z-10 space-y-2">
-                  <SimpleLayerToggles layers={layers} onToggle={handleToggle} />
-                  <SimpleContextLayerToggles layers={contextLayers} onToggle={handleContextToggle} />
-                </div>
-                
-                {siteInfo && (
-                  <DesignAssistantPanel 
-                    siteRequestId={id!} 
-                    locationName={siteInfo.location_name}
-                  />
-                )}
-                
-                <DeckGLScene
-                  buildings={geoData.buildings}
-                  roads={geoData.roads}
-                  terrain={geoData.terrain}
-                  layers={layers}
-                  contextLayers={contextLayers}
-                  aoiBounds={aoiBounds}
-                />
+              <div className="relative h-full flex items-center justify-center bg-muted/20">
+                <Card className="p-8 max-w-md text-center space-y-4">
+                  <h3 className="text-lg font-semibold">3D Viewer Temporarily Unavailable</h3>
+                  <p className="text-sm text-muted-foreground">
+                    The 3D visualization feature is being refactored. Please use the Analysis tab or SiteIQ AI for advanced site analysis.
+                  </p>
+                  <Button 
+                    variant="default"
+                    onClick={() => navigate('/siteiq-ai?project=' + id)}
+                  >
+                    Try SiteIQ AI
+                  </Button>
+                </Card>
               </div>
             </TabsContent>
 

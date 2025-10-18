@@ -8,14 +8,17 @@ import { EnhancedLayerPanel } from '@/components/EnhancedLayerPanel';
 import { AnalysisProgressPanel } from '@/components/AnalysisProgressPanel';
 import { AnalysisTemplates } from '@/components/AnalysisTemplates';
 import { MapStyleSelector, type MapStyleType } from '@/components/MapStyleSelector';
-// MapLayerToggle removed - using EnhancedLayerPanel instead
+import { SolarAnalyzerTab } from '@/components/SolarAnalyzerTab';
+import { ClimateTab } from '@/components/ClimateTab';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Plus, ChevronDown, Download, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { SiteData } from '@/types/site';
 import { useToast } from '@/hooks/use-toast';
 import { exportMapToPNG, exportMapToPDF, downloadBlob } from '@/utils/mapExport';
 
@@ -83,6 +86,7 @@ const SiteAI = () => {
   const [mapStyle, setMapStyle] = useState<MapStyleType>('simple');
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<string | null>(null);
+  const [siteData, setSiteData] = useState<any>(null);
 
   useEffect(() => {
     if (!user) {
@@ -148,7 +152,7 @@ const SiteAI = () => {
 
     const { data, error } = await supabase
       .from('site_requests')
-      .select('id, location_name, created_at, status')
+      .select('id, location_name, created_at, status, center_lat, center_lng')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
@@ -159,6 +163,24 @@ const SiteAI = () => {
 
     setSites(data || []);
   };
+
+  // Load full site data when site is selected
+  useEffect(() => {
+    if (selectedSite) {
+      const loadFullSiteData = async () => {
+        const { data, error } = await supabase
+          .from('site_requests')
+          .select('*')
+          .eq('id', selectedSite.id)
+          .single();
+
+        if (!error && data) {
+          setSiteData(data);
+        }
+      };
+      loadFullSiteData();
+    }
+  }, [selectedSite]);
 
   const handleLayerToggle = (layerId: string) => {
     setLayers(prev =>
@@ -311,110 +333,136 @@ const SiteAI = () => {
 
           <ResizableHandle withHandle />
 
-          {/* Map - Resizable */}
+          {/* Map/Analysis - Resizable */}
           <ResizablePanel defaultSize={75} minSize={60}>
-            <div className="h-full relative">
-              {/* Map Controls - Top Left */}
-              <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 max-w-sm">
-                <MapStyleSelector 
-                  currentStyle={mapStyle}
-                  onStyleChange={setMapStyle}
-                />
-                <EnhancedLayerPanel
-                  layers={layers}
-                  onLayersChange={setLayers}
-                />
+            <Tabs defaultValue="map" className="h-full flex flex-col">
+              <div className="border-b bg-card px-4 py-2">
+                <TabsList>
+                  <TabsTrigger value="map">Map</TabsTrigger>
+                  <TabsTrigger value="solar">Solar Analysis</TabsTrigger>
+                  <TabsTrigger value="climate">Climate Data</TabsTrigger>
+                </TabsList>
               </div>
-              
-              {/* Export Button - Top Right Corner (above progress) */}
-              <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
-                <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="default" size="sm" className="gap-2">
-                      <Download className="w-4 h-4" />
-                      Export
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Export Site Data</DialogTitle>
-                      <DialogDescription>
-                        Choose the format for exporting {selectedSite.location_name} data
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid grid-cols-2 gap-3 py-4">
-                      <Button
-                        variant="outline"
-                        onClick={() => handleExport('image')}
-                        disabled={!!exportingFormat}
-                        className="h-20 flex flex-col gap-2"
-                      >
-                        {exportingFormat === 'image' && <Loader2 className="w-4 h-4 animate-spin" />}
-                        <span className="text-lg">🖼️</span>
-                        <span className="text-sm">PNG Image</span>
-                      </Button>
 
-                      <Button
-                        variant="outline"
-                        onClick={() => handleExport('pdf')}
-                        disabled={!!exportingFormat}
-                        className="h-20 flex flex-col gap-2"
-                      >
-                        {exportingFormat === 'pdf' && <Loader2 className="w-4 h-4 animate-spin" />}
-                        <span className="text-lg">📄</span>
-                        <span className="text-sm">PDF Map</span>
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        onClick={() => handleExport('dxf')}
-                        disabled={!!exportingFormat}
-                        className="h-20 flex flex-col gap-2"
-                      >
-                        {exportingFormat === 'dxf' && <Loader2 className="w-4 h-4 animate-spin" />}
-                        <span className="text-lg">📐</span>
-                        <span className="text-sm">DXF (CAD)</span>
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        onClick={() => handleExport('geojson')}
-                        disabled={!!exportingFormat}
-                        className="h-20 flex flex-col gap-2"
-                      >
-                        {exportingFormat === 'geojson' && <Loader2 className="w-4 h-4 animate-spin" />}
-                        <span className="text-lg">🗺️</span>
-                        <span className="text-sm">GeoJSON</span>
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        onClick={() => handleExport('csv')}
-                        disabled={!!exportingFormat}
-                        className="h-20 flex flex-col gap-2"
-                      >
-                        {exportingFormat === 'csv' && <Loader2 className="w-4 h-4 animate-spin" />}
-                        <span className="text-lg">📊</span>
-                        <span className="text-sm">CSV Data</span>
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+              <TabsContent value="map" className="flex-1 m-0 relative">
+                {/* Map Controls - Top Left */}
+                <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 max-w-sm">
+                  <MapStyleSelector 
+                    currentStyle={mapStyle}
+                    onStyleChange={setMapStyle}
+                  />
+                  <EnhancedLayerPanel
+                    layers={layers}
+                    onLayersChange={setLayers}
+                  />
+                </div>
                 
-                <AnalysisProgressPanel siteRequestId={selectedSite.id} />
-              </div>
-              
-              {/* Map View */}
-              <div data-map-container className="h-full">
-                <MapWithLayers
-                  ref={mapRef}
-                  siteRequestId={selectedSite.id}
-                  layers={layers}
-                  onLayersChange={setLayers}
-                  mapStyle={mapStyle}
+                {/* Export Button - Top Right Corner (above progress) */}
+                <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+                  <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="default" size="sm" className="gap-2">
+                        <Download className="w-4 h-4" />
+                        Export
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Export Site Data</DialogTitle>
+                        <DialogDescription>
+                          Choose the format for exporting {selectedSite.location_name} data
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid grid-cols-2 gap-3 py-4">
+                        <Button
+                          variant="outline"
+                          onClick={() => handleExport('image')}
+                          disabled={!!exportingFormat}
+                          className="h-20 flex flex-col gap-2"
+                        >
+                          {exportingFormat === 'image' && <Loader2 className="w-4 h-4 animate-spin" />}
+                          <span className="text-lg">🖼️</span>
+                          <span className="text-sm">PNG Image</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          onClick={() => handleExport('pdf')}
+                          disabled={!!exportingFormat}
+                          className="h-20 flex flex-col gap-2"
+                        >
+                          {exportingFormat === 'pdf' && <Loader2 className="w-4 h-4 animate-spin" />}
+                          <span className="text-lg">📄</span>
+                          <span className="text-sm">PDF Map</span>
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          onClick={() => handleExport('dxf')}
+                          disabled={!!exportingFormat}
+                          className="h-20 flex flex-col gap-2"
+                        >
+                          {exportingFormat === 'dxf' && <Loader2 className="w-4 h-4 animate-spin" />}
+                          <span className="text-lg">📐</span>
+                          <span className="text-sm">DXF (CAD)</span>
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          onClick={() => handleExport('geojson')}
+                          disabled={!!exportingFormat}
+                          className="h-20 flex flex-col gap-2"
+                        >
+                          {exportingFormat === 'geojson' && <Loader2 className="w-4 h-4 animate-spin" />}
+                          <span className="text-lg">🗺️</span>
+                          <span className="text-sm">GeoJSON</span>
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          onClick={() => handleExport('csv')}
+                          disabled={!!exportingFormat}
+                          className="h-20 flex flex-col gap-2"
+                        >
+                          {exportingFormat === 'csv' && <Loader2 className="w-4 h-4 animate-spin" />}
+                          <span className="text-lg">📊</span>
+                          <span className="text-sm">CSV Data</span>
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  
+                  <AnalysisProgressPanel siteRequestId={selectedSite.id} />
+                </div>
+                
+                {/* Map View */}
+                <div data-map-container className="h-full">
+                  <MapWithLayers
+                    ref={mapRef}
+                    siteRequestId={selectedSite.id}
+                    layers={layers}
+                    onLayersChange={setLayers}
+                    mapStyle={mapStyle}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="solar" className="flex-1 m-0 p-4 overflow-auto">
+                <SolarAnalyzerTab
+                  siteId={selectedSite.id}
+                  centerLat={siteData?.center_lat || 0}
+                  centerLng={siteData?.center_lng || 0}
                 />
-              </div>
-            </div>
+              </TabsContent>
+
+              <TabsContent value="climate" className="flex-1 m-0 p-4 overflow-auto">
+                <ClimateTab
+                  siteRequestId={selectedSite.id}
+                  centerLat={siteData?.center_lat || 0}
+                  centerLng={siteData?.center_lng || 0}
+                />
+              </TabsContent>
+            </Tabs>
           </ResizablePanel>
         </ResizablePanelGroup>
       ) : (

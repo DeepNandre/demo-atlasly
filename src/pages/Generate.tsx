@@ -9,7 +9,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import MapSelector from '@/components/MapSelector';
-import { BoundaryEditor } from '@/components/BoundaryEditor';
 import { supabase } from '@/integrations/supabase/client';
 import { getClientId } from '@/lib/clientId';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -230,18 +229,7 @@ const Generate = () => {
           {/* Step Content */}
           {step === 'location' && (
             <Card className="p-6 space-y-6">
-              <Tabs value={boundaryMode} onValueChange={(v) => setBoundaryMode(v as 'simple' | 'advanced')}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="simple">Simple Circle</TabsTrigger>
-                  <TabsTrigger value="advanced">Advanced Boundary</TabsTrigger>
-                </TabsList>
-                <TabsContent value="simple" className="mt-6">
-                  <MapSelector onBoundarySelected={handleBoundarySelected} />
-                </TabsContent>
-                <TabsContent value="advanced" className="mt-6">
-                  <BoundaryEditor onBoundaryConfirmed={handleBoundarySelected} />
-                </TabsContent>
-              </Tabs>
+              <MapSelector onBoundarySelected={handleBoundarySelected} />
             </Card>
           )}
 
