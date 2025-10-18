@@ -15,6 +15,9 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  define: {
+    CESIUM_BASE_URL: JSON.stringify('/cesium')
+  },
   build: {
     rollupOptions: {
       external: [],
