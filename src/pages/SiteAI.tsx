@@ -8,12 +8,13 @@ import { MapLayerSelector } from '@/components/MapLayerSelector';
 import { AnalysisProgressPanel } from '@/components/AnalysisProgressPanel';
 import { AnalysisTemplates } from '@/components/AnalysisTemplates';
 import { MapStyleSelector, type MapStyleType } from '@/components/MapStyleSelector';
-import { Site3DView } from '@/components/Site3DView';
+import { Site3DModelGenerator } from '@/components/Site3DModelGenerator';
 import { SolarAnalyzerTab } from '@/components/SolarAnalyzerTab';
 import { ClimateTab } from '@/components/ClimateTab';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { Progress } from '@/components/ui/progress';
 import { Plus, ChevronDown, Download, Loader2, MapIcon, Sun, CloudRain, Box } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';
@@ -555,7 +556,10 @@ const SiteAI = () => {
               </TabsContent>
 
               <TabsContent value="3d" className="flex-1 m-0 p-4">
-                <Site3DView siteId={selectedSite.id} />
+                <Site3DModelGenerator 
+                  siteId={selectedSite.id} 
+                  siteName={selectedSite.location_name}
+                />
               </TabsContent>
 
               <TabsContent value="solar" className="flex-1 m-0 p-4 overflow-auto">

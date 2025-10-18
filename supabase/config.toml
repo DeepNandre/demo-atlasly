@@ -56,3 +56,6 @@ verify_jwt = true
 
 [functions.fetch-environmental-data]
 verify_jwt = false
+
+[functions.generate-3d-site-model]
+verify_jwt = true
