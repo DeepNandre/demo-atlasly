@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Layers } from 'lucide-react';
+import { Loader2, Download, Layers, Box, Map as MapIcon } from 'lucide-react';
 import { generate3dDxf, downloadDxf } from '@/lib/dxfExporter';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -51,6 +51,8 @@ export default function SiteMapboxViewer({
   const [loading, setLoading] = useState(true);
   const [layersPanelOpen, setLayersPanelOpen] = useState(false);
   const [isDataReadyForExport, setIsDataReadyForExport] = useState(false);
+  const [viewMode, setViewMode] = useState<'isometric' | 'top'>('isometric');
+  const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street');
 
   // Fetch OSM data
   useEffect(() => {
@@ -103,7 +105,7 @@ export default function SiteMapboxViewer({
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/light-v11',
+      style: mapStyle === 'satellite' ? 'mapbox://styles/mapbox/satellite-streets-v12' : 'mapbox://styles/mapbox/light-v11',
       center: [longitude, latitude],
       zoom: 17.5,
       pitch: 60,
@@ -499,6 +501,45 @@ export default function SiteMapboxViewer({
     ));
   };
 
+  const toggleViewMode = () => {
+    if (!mapRef.current) return;
+    
+    const newMode = viewMode === 'isometric' ? 'top' : 'isometric';
+    setViewMode(newMode);
+    
+    if (newMode === 'top') {
+      mapRef.current.easeTo({
+        pitch: 0,
+        bearing: 0,
+        duration: 1000
+      });
+    } else {
+      mapRef.current.easeTo({
+        pitch: 60,
+        bearing: -20,
+        duration: 1000
+      });
+    }
+  };
+
+  const toggleMapStyle = () => {
+    if (!mapRef.current) return;
+    
+    const newStyle = mapStyle === 'street' ? 'satellite' : 'street';
+    setMapStyle(newStyle);
+    
+    const styleUrl = newStyle === 'satellite' 
+      ? 'mapbox://styles/mapbox/satellite-streets-v12' 
+      : 'mapbox://styles/mapbox/light-v11';
+    
+    mapRef.current.setStyle(styleUrl);
+    
+    // Re-add custom layers after style loads
+    mapRef.current.once('style.load', () => {
+      addOSMLayers();
+    });
+  };
+
   const showAllLayers = () => {
     setLayers(prev => prev.map(layer => ({ ...layer, visible: true })));
   };
@@ -695,49 +736,85 @@ export default function SiteMapboxViewer({
         </div>
       )}
 
-      {/* Site info card with enhanced styling */}
-      <div className="absolute top-4 left-4 bg-background/95 backdrop-blur-md p-4 rounded-lg shadow-xl z-10 max-w-xs border-2">
-        <h3 className="font-semibold text-base mb-3">{siteName}</h3>
-        <div className="text-xs space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-sm bg-[#FFA500]"></div>
-            <span className="font-medium">{osmData?.stats.buildingCount || 0}</span>
-            <span className="text-muted-foreground">Buildings</span>
+      {/* Compact site info card */}
+      <div className="absolute top-4 left-4 bg-background/90 backdrop-blur-md px-3 py-2 rounded-md shadow-lg z-10 max-w-[200px] border">
+        <h3 className="font-medium text-xs mb-1.5 truncate" title={siteName}>{siteName}</h3>
+        <div className="flex items-center gap-3 text-[10px]">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-sm bg-[#FFA500]"></div>
+            <span className="font-semibold">{osmData?.stats.buildingCount || 0}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-sm bg-[#32CD32]"></div>
-            <span className="font-medium">{osmData?.landuse.features.filter((f: any) => 
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-sm bg-[#32CD32]"></div>
+            <span className="font-semibold">{osmData?.landuse.features.filter((f: any) => 
               ['park', 'forest', 'grass', 'meadow'].includes(f.properties?.type)
             ).length || 0}</span>
-            <span className="text-muted-foreground">Green Spaces</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-[#1E90FF]"></div>
-            <span className="font-medium">{osmData?.stats.transitCount || 0}</span>
-            <span className="text-muted-foreground">Transit Stops</span>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-[#1E90FF]"></div>
+            <span className="font-semibold">{osmData?.stats.transitCount || 0}</span>
           </div>
         </div>
       </div>
 
-      {/* Minimal Toggle Button */}
-      {!layersPanelOpen && (
+      {/* View and style controls */}
+      <div className="absolute top-4 right-4 z-10 flex gap-2">
+        {/* View mode toggle */}
         <Button
-          onClick={() => setLayersPanelOpen(true)}
+          onClick={toggleViewMode}
           variant="outline"
+          size="sm"
           className={cn(
-            "absolute top-4 right-4 z-10",
-            "h-10 px-4",
+            "h-9 px-3 gap-2",
             "bg-background/95 backdrop-blur-md",
             "border border-border/50",
             "shadow-lg",
             "hover:bg-background hover:border-border",
-            "transition-all duration-200",
-            "flex items-center gap-2"
+            "transition-all duration-200"
           )}
         >
-          <Layers className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">Site Layers</span>
-          <span className="text-sm font-semibold text-primary">
+          {viewMode === 'isometric' ? <Box className="h-3.5 w-3.5" /> : <MapIcon className="h-3.5 w-3.5" />}
+          <span className="text-xs font-medium">{viewMode === 'isometric' ? 'Isometric' : 'Top View'}</span>
+        </Button>
+
+        {/* Map style toggle */}
+        <Button
+          onClick={toggleMapStyle}
+          variant="outline"
+          size="sm"
+          className={cn(
+            "h-9 px-3 gap-2",
+            "bg-background/95 backdrop-blur-md",
+            "border border-border/50",
+            "shadow-lg",
+            "hover:bg-background hover:border-border",
+            "transition-all duration-200"
+          )}
+        >
+          <Layers className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">{mapStyle === 'street' ? 'Street' : 'Satellite'}</span>
+        </Button>
+      </div>
+
+      {/* Site layers toggle button */}
+      {!layersPanelOpen && (
+        <Button
+          onClick={() => setLayersPanelOpen(true)}
+          variant="outline"
+          size="sm"
+          className={cn(
+            "absolute bottom-4 right-4 z-10",
+            "h-9 px-3 gap-2",
+            "bg-background/95 backdrop-blur-md",
+            "border border-border/50",
+            "shadow-lg",
+            "hover:bg-background hover:border-border",
+            "transition-all duration-200"
+          )}
+        >
+          <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium text-foreground">Site Layers</span>
+          <span className="text-xs font-semibold text-primary">
             {layers.filter(l => l.visible).length}/{layers.length}
           </span>
         </Button>
@@ -746,10 +823,10 @@ export default function SiteMapboxViewer({
       {/* Site Analysis Layers Panel */}
       {layersPanelOpen && (
         <Card className={cn(
-          "absolute top-4 right-4 z-10 p-0",
+          "absolute bottom-4 right-4 z-10 p-0",
           "bg-background/98 backdrop-blur-xl shadow-2xl border-2 border-border/50",
           "min-w-[300px] overflow-hidden",
-          "animate-in slide-in-from-right-5 duration-300"
+          "animate-in slide-in-from-bottom-5 duration-300"
         )}>
           {/* Header */}
           <div className="bg-gradient-to-r from-background via-card to-background p-4 border-b border-border/50">
