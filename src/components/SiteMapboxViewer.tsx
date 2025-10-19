@@ -518,12 +518,37 @@ export default function SiteMapboxViewer({
     }
 
     try {
-      const dxfContent = generate3dDxf(osmData, siteName);
+      // Get visibility state of each layer
+      const visibleLayers = {
+        buildings: layers.find(l => l.id === 'buildings')?.visible || false,
+        green: layers.find(l => l.id === 'green')?.visible || false,
+        transit: layers.find(l => l.id === 'transit')?.visible || false,
+        landuse: layers.find(l => l.id === 'landuse')?.visible || false,
+        roads: layers.find(l => l.id === 'roads')?.visible || false,
+      };
+      
+      // Count visible layers
+      const visibleCount = Object.values(visibleLayers).filter(Boolean).length;
+      
+      if (visibleCount === 0) {
+        toast.error('Please enable at least one layer to export');
+        return;
+      }
+      
+      console.log('[DXF Export] Starting export with layers:', visibleLayers);
+      
+      // Generate DXF with only visible layers
+      const dxfContent = generate3dDxf(osmData, siteName, visibleLayers);
       downloadDxf(dxfContent, siteName);
-      toast.success('DXF file downloaded successfully');
+      
+      toast.success(`DXF file exported with ${visibleCount} layer${visibleCount > 1 ? 's' : ''}`, {
+        description: 'Compatible with SketchUp, AutoCAD, and Rhino'
+      });
     } catch (error) {
       console.error('DXF export error:', error);
-      toast.error('Failed to generate DXF file');
+      toast.error('Failed to generate DXF file', {
+        description: 'Please try again or contact support'
+      });
     }
   };
 
