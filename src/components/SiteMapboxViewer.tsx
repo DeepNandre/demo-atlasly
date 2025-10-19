@@ -396,7 +396,7 @@ export default function SiteMapboxViewer({
       }
     }
 
-    // Add roads as 3D lines draped on terrain
+    // Add roads with enhanced detail and accuracy
     if (osmData.roads?.features && osmData.roads.features.length > 0) {
       if (!map.getSource('roads')) {
         map.addSource('roads', {
@@ -404,6 +404,32 @@ export default function SiteMapboxViewer({
           data: osmData.roads
         });
 
+        // Add road casing (outline) for better visibility
+        map.addLayer({
+          id: 'roads-casing',
+          type: 'line',
+          source: 'roads',
+          paint: {
+            'line-color': '#333333',
+            'line-width': [
+              'match',
+              ['get', 'category'],
+              'major', 8,
+              'medium', 6,
+              'minor', 4,
+              'pedestrian', 2,
+              3
+            ],
+            'line-opacity': 0.6
+          },
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round',
+            visibility: layers.find(l => l.id === 'roads')?.visible ? 'visible' : 'none'
+          }
+        });
+
+        // Add main road lines with accurate widths based on OSM data
         map.addLayer({
           id: 'roads-line',
           type: 'line',
@@ -411,30 +437,44 @@ export default function SiteMapboxViewer({
           paint: {
             'line-color': [
               'match',
-              ['get', 'type'],
-              'motorway', '#E892A2',
-              'trunk', '#F9B29C',
-              'primary', '#FCD6A4',
-              'secondary', '#F7FABF',
-              'tertiary', '#FFFFFF',
-              'residential', '#CCCCCC',
-              '#999999'
+              ['get', 'category'],
+              'major', '#FFA500',
+              'medium', '#FFD700',
+              'minor', '#FFFFFF',
+              'pedestrian', '#90EE90',
+              '#CCCCCC'
             ],
             'line-width': [
               'match',
-              ['get', 'type'],
-              'motorway', 6,
-              'trunk', 5,
-              'primary', 4,
-              'secondary', 3,
-              'tertiary', 2,
-              1.5
+              ['get', 'category'],
+              'major', 6,
+              'medium', 4,
+              'minor', 2.5,
+              'pedestrian', 1.5,
+              2
             ],
-            'line-opacity': 0.8
+            'line-opacity': 0.9
           },
           layout: {
             'line-cap': 'round',
             'line-join': 'round',
+            visibility: layers.find(l => l.id === 'roads')?.visible ? 'visible' : 'none'
+          }
+        });
+
+        // Add center line for multi-lane roads
+        map.addLayer({
+          id: 'roads-centerline',
+          type: 'line',
+          source: 'roads',
+          filter: ['>', ['get', 'lanes'], 1],
+          paint: {
+            'line-color': '#FFFFFF',
+            'line-width': 0.5,
+            'line-dasharray': [4, 4],
+            'line-opacity': 0.7
+          },
+          layout: {
             visibility: layers.find(l => l.id === 'roads')?.visible ? 'visible' : 'none'
           }
         });
@@ -488,9 +528,14 @@ export default function SiteMapboxViewer({
         }
       }
 
-      // Roads
-      if (layer.id === 'roads' && map.getLayer('roads-line')) {
-        map.setLayoutProperty('roads-line', 'visibility', visibility);
+      // Roads - control all road layers together
+      if (layer.id === 'roads') {
+        const roadLayers = ['roads-casing', 'roads-line', 'roads-centerline'];
+        roadLayers.forEach(layerId => {
+          if (map.getLayer(layerId)) {
+            map.setLayoutProperty(layerId, 'visibility', visibility);
+          }
+        });
       }
     });
   }, [layers, osmData]);

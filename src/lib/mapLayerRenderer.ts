@@ -105,7 +105,7 @@ export const fetchRealMapData = async (
       }))
     };
 
-    // Transform roads to GeoJSON
+    // Transform roads to GeoJSON with enhanced properties
     let roadsGeoJSON = {
       type: 'FeatureCollection',
       features: (osmData.roadsData || []).map(road => ({
@@ -116,7 +116,13 @@ export const fetchRealMapData = async (
         },
         properties: {
           name: road.name || 'Unnamed Road',
-          type: road.type
+          type: road.type,
+          lanes: road.lanes || 1,
+          width: road.width || 3.5,
+          surface: road.surface || 'asphalt',
+          maxspeed: road.maxspeed,
+          oneway: road.oneway || false,
+          category: road.category || 'minor'
         }
       }))
     };

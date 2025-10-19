@@ -65,12 +65,13 @@ export async function fetchOSMData(
   // Reduced timeout for faster fallback (15s per endpoint = 45s max)
   const timeout = 15;
   
-  // Overpass QL query - use bounding box if available, otherwise circular radius
+  // Enhanced Overpass QL query with detailed geometry and metadata
   const query = boundary 
     ? `
       [out:json][timeout:${timeout}];
       (
         way["building"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        relation["building"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
         way["highway"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
         node["amenity"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
         way["landuse"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
@@ -84,6 +85,7 @@ export async function fetchOSMData(
       [out:json][timeout:${timeout}];
       (
         way["building"](around:${radius},${lat},${lng});
+        relation["building"](around:${radius},${lat},${lng});
         way["highway"](around:${radius},${lat},${lng});
         node["amenity"](around:${radius},${lat},${lng});
         way["landuse"](around:${radius},${lat},${lng});
@@ -173,7 +175,7 @@ export async function fetchOSMData(
       })
       .filter((b: any) => b !== null);
     
-    // Process road data with geometry
+    // Process road data with enhanced geometry and properties
     const roadsData = data.elements
       .filter((e: any) => e.tags?.highway && e.type === 'way')
       .map((e: any) => {
@@ -182,10 +184,26 @@ export async function fetchOSMData(
         
         const coords = nodes.map((n: any) => [n.lon, n.lat]);
         
+        // Parse road properties for accurate representation
+        const lanes = parseInt(e.tags.lanes) || (e.tags.highway === 'motorway' ? 4 : e.tags.highway === 'primary' ? 2 : 1);
+        const width = parseFloat(e.tags.width) || (lanes * 3.5); // Default 3.5m per lane
+        const surface = e.tags.surface || 'asphalt';
+        const maxspeed = e.tags.maxspeed;
+        const oneway = e.tags.oneway === 'yes';
+        
+        // Determine road category for styling
+        const category = getRoadCategory(e.tags.highway);
+        
         return {
           type: e.tags.highway,
-          name: e.tags.name,
-          geometry: coords
+          name: e.tags.name || e.tags.ref || 'Unnamed Road',
+          geometry: coords,
+          lanes: lanes,
+          width: width,
+          surface: surface,
+          maxspeed: maxspeed,
+          oneway: oneway,
+          category: category
         };
       })
       .filter((r: any) => r !== null);
@@ -287,6 +305,32 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c;
+}
+
+/**
+ * Get road category for styling
+ */
+function getRoadCategory(highway: string): string {
+  const categories: { [key: string]: string } = {
+    'motorway': 'major',
+    'motorway_link': 'major',
+    'trunk': 'major',
+    'trunk_link': 'major',
+    'primary': 'major',
+    'primary_link': 'major',
+    'secondary': 'medium',
+    'secondary_link': 'medium',
+    'tertiary': 'medium',
+    'tertiary_link': 'medium',
+    'residential': 'minor',
+    'living_street': 'minor',
+    'service': 'minor',
+    'pedestrian': 'pedestrian',
+    'footway': 'pedestrian',
+    'path': 'pedestrian',
+    'cycleway': 'pedestrian'
+  };
+  return categories[highway] || 'minor';
 }
 
 /**

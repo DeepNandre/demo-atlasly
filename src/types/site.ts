@@ -91,6 +91,12 @@ export interface OSMRoad {
   type: string;
   name?: string;
   geometry: number[][]; // [lon, lat] coordinate array
+  lanes?: number;
+  width?: number;
+  surface?: string;
+  maxspeed?: string;
+  oneway?: boolean;
+  category?: string;
 }
 
 export interface OSMMapData {
