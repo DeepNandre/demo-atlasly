@@ -65,31 +65,76 @@ export async function fetchOSMData(
   // Reduced timeout for faster fallback (15s per endpoint = 45s max)
   const timeout = 15;
   
-  // Enhanced Overpass QL query with detailed geometry and metadata
+  // COMPREHENSIVE Overpass QL query - fetch ALL features with maximum detail
+  // Increase timeout for comprehensive data
+  const comprehensiveTimeout = 25;
+  
   const query = boundary 
     ? `
-      [out:json][timeout:${timeout}];
+      [out:json][timeout:${comprehensiveTimeout}];
       (
+        /* ALL building types for complete coverage */
         way["building"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
         relation["building"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
-        way["highway"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
-        node["amenity"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        way["building:part"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        
+        /* ALL highway/road types - no filtering for complete road network */
+        way["highway"~"motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|service|pedestrian|footway|cycleway|path|track|road|busway"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        
+        /* ALL landuse including green spaces */
         way["landuse"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        relation["landuse"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        
+        /* ALL leisure areas (parks, gardens, playgrounds) */
+        way["leisure"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        relation["leisure"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        
+        /* ALL natural features (woods, trees, grassland) */
+        way["natural"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        
+        /* ALL amenities */
+        node["amenity"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        way["amenity"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        
+        /* ALL transit stops */
         node["public_transport"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        node["railway"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
+        node["highway"="bus_stop"](${boundary.minLat},${boundary.minLng},${boundary.maxLat},${boundary.maxLng});
       );
       out body;
       >;
       out skel qt;
     `
     : `
-      [out:json][timeout:${timeout}];
+      [out:json][timeout:${comprehensiveTimeout}];
       (
+        /* ALL building types for complete coverage */
         way["building"](around:${radius},${lat},${lng});
         relation["building"](around:${radius},${lat},${lng});
-        way["highway"](around:${radius},${lat},${lng});
-        node["amenity"](around:${radius},${lat},${lng});
+        way["building:part"](around:${radius},${lat},${lng});
+        
+        /* ALL highway/road types - no filtering for complete road network */
+        way["highway"~"motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|service|pedestrian|footway|cycleway|path|track|road|busway"](around:${radius},${lat},${lng});
+        
+        /* ALL landuse including green spaces */
         way["landuse"](around:${radius},${lat},${lng});
+        relation["landuse"](around:${radius},${lat},${lng});
+        
+        /* ALL leisure areas (parks, gardens, playgrounds) */
+        way["leisure"](around:${radius},${lat},${lng});
+        relation["leisure"](around:${radius},${lat},${lng});
+        
+        /* ALL natural features (woods, trees, grassland) */
+        way["natural"](around:${radius},${lat},${lng});
+        
+        /* ALL amenities */
+        node["amenity"](around:${radius},${lat},${lng});
+        way["amenity"](around:${radius},${lat},${lng});
+        
+        /* ALL transit stops */
         node["public_transport"](around:${radius},${lat},${lng});
+        node["railway"](around:${radius},${lat},${lng});
+        node["highway"="bus_stop"](around:${radius},${lat},${lng});
       );
       out body;
       >;

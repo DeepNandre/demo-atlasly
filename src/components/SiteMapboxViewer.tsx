@@ -839,16 +839,13 @@ export default function SiteMapboxViewer({
           <Layers className="h-3.5 w-3.5" />
           <span className="text-xs font-medium">{mapStyle === 'street' ? 'Street' : 'Satellite'}</span>
         </Button>
-      </div>
 
-      {/* Site layers toggle button */}
-      {!layersPanelOpen && (
+        {/* Site Layers toggle */}
         <Button
-          onClick={() => setLayersPanelOpen(true)}
+          onClick={() => setLayersPanelOpen(!layersPanelOpen)}
           variant="outline"
           size="sm"
           className={cn(
-            "absolute bottom-4 right-4 z-10",
             "h-9 px-3 gap-2",
             "bg-background/95 backdrop-blur-md",
             "border border-border/50",
@@ -857,13 +854,14 @@ export default function SiteMapboxViewer({
             "transition-all duration-200"
           )}
         >
-          <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium text-foreground">Site Layers</span>
+          <Layers className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">Site Layers</span>
           <span className="text-xs font-semibold text-primary">
             {layers.filter(l => l.visible).length}/{layers.length}
           </span>
         </Button>
-      )}
+      </div>
+
 
       {/* Site Analysis Layers Panel */}
       {layersPanelOpen && (
