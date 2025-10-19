@@ -33,7 +33,7 @@ const Differentiators = () => {
       <div className="container mx-auto max-w-6xl">
         <div className="text-center mb-16 space-y-4">
           <h2 className="text-4xl md:text-5xl font-serif font-bold">
-            Why Leading Firms Choose SiteIQ
+            Why Leading Firms Choose Atlasly
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             The competitive advantages that matter for site analysis at scale

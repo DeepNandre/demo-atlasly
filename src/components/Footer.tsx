@@ -7,7 +7,7 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
             <Layers className="w-5 h-5 text-primary" />
-            <span className="font-serif font-bold">SiteIQ</span>
+            <span className="font-serif font-bold">Atlasly</span>
           </div>
           
           <nav className="flex flex-wrap justify-center gap-6">
@@ -23,7 +23,7 @@ const Footer = () => {
           </nav>
           
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} SiteIQ. All rights reserved.
+            © {new Date().getFullYear()} Atlasly. All rights reserved.
           </p>
         </div>
       </div>

@@ -142,7 +142,7 @@ export function APIKeyManager() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">API Keys</h2>
-          <p className="text-muted-foreground">Manage your API keys for accessing SiteIQ programmatically</p>
+          <p className="text-muted-foreground">Manage your API keys for accessing Atlasly programmatically</p>
         </div>
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -238,7 +238,7 @@ export function APIKeyManager() {
             <Key className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No API Keys Yet</h3>
             <p className="text-muted-foreground mb-4">
-              Create your first API key to start accessing SiteIQ programmatically
+              Create your first API key to start accessing Atlasly programmatically
             </p>
           </CardContent>
         </Card>

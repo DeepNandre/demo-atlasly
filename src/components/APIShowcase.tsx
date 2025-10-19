@@ -24,7 +24,7 @@ const APIShowcase = () => {
     }
   ];
 
-  const codeExample = `curl -X POST https://api.siteiq.com/analyze \\
+  const codeExample = `curl -X POST https://api.atlasly.com/analyze \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{

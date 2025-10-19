@@ -273,7 +273,7 @@ const ConversationalAnalysis = ({
               <div className="mb-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
                 <p className="text-sm font-medium text-primary mb-2 flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
-                  SiteIQ AI - Your Intelligent Assistant
+                  Atlasly AI - Your Intelligent Assistant
                 </p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   I can analyze your site's buildings, roads, solar potential, climate data, and more. I'm aware of what you're viewing and can provide context-specific insights. Ask me anything!

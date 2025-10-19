@@ -19,7 +19,7 @@ import { SiteData } from '@/types/site';
 import { useToast } from '@/hooks/use-toast';
 import { exportMapToPNG, exportMapToPDF, downloadBlob } from '@/utils/mapExport';
 
-const SiteIQLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
+const AtlaslyLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
     <path
       d="M3 12L6 9L9 12L12 9L15 12L18 9L21 12"
@@ -169,9 +169,9 @@ const SiteAI = () => {
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                  <SiteIQLogo className="text-primary-foreground" size={20} />
+                  <AtlaslyLogo className="text-primary-foreground" size={20} />
                 </div>
-                <h1 className="text-lg font-semibold text-foreground">SiteIQ AI</h1>
+                <h1 className="text-lg font-semibold text-foreground">Atlasly AI</h1>
               </div>
               
               {selectedSite && (
@@ -282,7 +282,7 @@ const SiteAI = () => {
           <div className="text-center space-y-6 max-w-lg">
             <div className="relative mx-auto">
               <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6 shadow-medium">
-                <SiteIQLogo className="text-primary" size={48} />
+                <AtlaslyLogo className="text-primary" size={48} />
               </div>
               <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                 <span className="text-white text-xs font-bold">AI</span>
@@ -290,7 +290,7 @@ const SiteAI = () => {
             </div>
             
             <div className="space-y-3">
-              <h2 className="text-3xl font-bold text-foreground">Welcome to SiteIQ AI</h2>
+              <h2 className="text-3xl font-bold text-foreground">Welcome to Atlasly AI</h2>
               <p className="text-lg text-muted-foreground leading-relaxed">
                 Your intelligent site analysis assistant is ready to help. Select a project to get started with insights, recommendations, and visualizations.
               </p>

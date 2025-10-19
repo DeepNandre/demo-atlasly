@@ -159,7 +159,7 @@ export function ChatTemplates({ onSelectTemplate, isVisible, onClose }: ChatTemp
             <div>
               <h2 className="text-2xl font-semibold">Chat Templates</h2>
               <p className="text-muted-foreground mt-1">
-                Choose from expert-crafted prompts to get the most out of SiteIQ AI
+                Choose from expert-crafted prompts to get the most out of Atlasly AI
               </p>
             </div>
             <Button variant="ghost" onClick={onClose}>

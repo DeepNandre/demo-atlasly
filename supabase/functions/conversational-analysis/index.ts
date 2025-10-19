@@ -335,7 +335,7 @@ SITE FEATURES:
         ).join('\n')}\n`
       : '';
     
-    const systemPrompt = `You are SiteIQ AI - an expert site analysis assistant specializing in architecture, urban planning, and environmental design.
+    const systemPrompt = `You are Atlasly AI - an expert site analysis assistant specializing in architecture, urban planning, and environmental design.
 
 SITE INFORMATION:
 Location: ${siteData.location_name}

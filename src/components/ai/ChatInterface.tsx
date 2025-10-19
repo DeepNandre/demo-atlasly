@@ -8,7 +8,7 @@ import { ChatTemplates } from './ChatTemplates';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-const SiteIQLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
+const AtlaslyLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
     <path
       d="M3 12L6 9L9 12L12 9L15 12L18 9L21 12"
@@ -288,11 +288,11 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
             <div className="text-center py-16 space-y-8">
               <div className="relative mx-auto">
                 <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shadow-lg">
-                  <SiteIQLogo className="text-primary" size={48} />
+                  <AtlaslyLogo className="text-primary" size={48} />
                 </div>
               </div>
               <div className="space-y-3">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Chat with SiteIQ AI</h2>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Chat with Atlasly AI</h2>
                 <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">
                   Ask questions about <span className="font-semibold text-primary">{locationName}</span> or request visualizations and analysis
                 </p>
@@ -372,7 +372,7 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
             >
               {message.role === 'assistant' && (
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-primary/20">
-                  <SiteIQLogo className="text-primary" size={20} />
+                  <AtlaslyLogo className="text-primary" size={20} />
                 </div>
               )}
               
@@ -467,7 +467,7 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={`Ask SiteIQ about ${locationName} or request visualizations...`}
+                placeholder={`Ask Atlasly about ${locationName} or request visualizations...`}
                 className="min-h-[60px] max-h-[200px] resize-none bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 focus:bg-white dark:focus:bg-gray-800 transition-colors pr-12"
                 disabled={isLoading || isGeneratingImage}
               />
@@ -496,7 +496,7 @@ const ChatInterface = ({ siteRequestId, locationName, chatId, onChatIdChange }: 
             </p>
             <div className="flex items-center gap-1 text-xs text-gray-400">
               <Sparkles className="w-3 h-3" />
-              <span>Powered by SiteIQ AI</span>
+              <span>Powered by Atlasly AI</span>
             </div>
           </div>
         </div>

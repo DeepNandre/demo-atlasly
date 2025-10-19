@@ -13,7 +13,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-const SiteIQLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
+const AtlaslyLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
     <path
       d="M3 12L6 9L9 12L12 9L15 12L18 9L21 12"
@@ -330,10 +330,10 @@ const ChatSidebar = ({ activeChatId, onChatSelect, onNewChat, siteRequestId }: C
       <div className="p-4 border-t border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm">
-            <SiteIQLogo className="text-primary" size={16} />
+            <AtlaslyLogo className="text-primary" size={16} />
           </div>
           <div>
-            <div className="font-semibold text-sm text-gray-900 dark:text-white">SiteIQ AI</div>
+            <div className="font-semibold text-sm text-gray-900 dark:text-white">Atlasly AI</div>
             <div className="text-xs text-gray-500 dark:text-gray-400">Intelligent Analysis</div>
           </div>
           <div className="ml-auto">

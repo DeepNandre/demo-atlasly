@@ -20,7 +20,7 @@ const Header = () => {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-2">
             <Layers className="w-6 h-6 text-primary" />
-            <span className="text-xl font-serif font-bold">SiteIQ</span>
+            <span className="text-xl font-serif font-bold">Atlasly</span>
           </div>
           
           <nav className="hidden md:flex items-center gap-8">
@@ -43,7 +43,7 @@ const Header = () => {
               <>
                 <Button variant="outline" size="default" onClick={() => navigate('/ai')}>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  SiteIQ AI
+                  Atlasly AI
                 </Button>
                 <Button variant="outline" size="default" onClick={() => navigate('/dashboard')}>
                   Dashboard

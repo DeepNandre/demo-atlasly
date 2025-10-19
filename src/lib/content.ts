@@ -88,7 +88,7 @@ export const marketingContent = {
 
   socialProof: {
     title: "Chosen by forward-thinking teams.",
-    subtitle: "From boutique studios to global consultancies, SiteIQ powers design with context.",
+    subtitle: "From boutique studios to global consultancies, Atlasly powers design with context.",
     badges: [
       "AI-assisted climate",
       "Zero manual cleanup", 

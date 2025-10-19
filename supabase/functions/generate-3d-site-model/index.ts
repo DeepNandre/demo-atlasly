@@ -317,7 +317,7 @@ function generateDXFModel(
 
   // Add metadata
   dxf.setMetadata('SITE_NAME', siteName);
-  dxf.setMetadata('GENERATED_BY', 'SiteIQ_3D_Model_Generator');
+  dxf.setMetadata('GENERATED_BY', 'Atlasly_3D_Model_Generator');
   dxf.setMetadata('DATE', new Date().toISOString());
   dxf.setMetadata('BBOX', `${bbox.minLat},${bbox.minLng},${bbox.maxLat},${bbox.maxLng}`);
 

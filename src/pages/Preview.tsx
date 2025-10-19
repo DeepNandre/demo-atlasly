@@ -214,7 +214,7 @@ const Preview = () => {
                 <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
                   <Sparkles className="w-8 h-8 text-primary" />
                 </div>
-                <h2 className="text-3xl font-serif font-bold">Open in SiteIQ AI</h2>
+                <h2 className="text-3xl font-serif font-bold">Open in Atlasly AI</h2>
                 <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                   Access the full AI-powered workspace with interactive maps, solar analysis, 
                   climate data, elevation tools, and conversational AI assistance.

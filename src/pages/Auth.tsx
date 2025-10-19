@@ -14,7 +14,7 @@ import { z } from 'zod';
 const emailSchema = z.string().email('Invalid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 
-const SiteIQLogo = ({ className }: { className?: string }) => (
+const AtlaslyLogo = ({ className }: { className?: string }) => (
   <div className={`flex items-center space-x-2 ${className}`}>
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-current">
       <path
@@ -39,7 +39,7 @@ const SiteIQLogo = ({ className }: { className?: string }) => (
         strokeLinejoin="round"
       />
     </svg>
-    <span className="font-semibold text-lg">SiteIQ</span>
+    <span className="font-semibold text-lg">Atlasly</span>
   </div>
 );
 
@@ -121,7 +121,7 @@ const Auth = () => {
         <div className="w-full lg:w-1/2 flex flex-col">
           {/* Header */}
           <div className="p-8 flex items-center justify-between">
-            <SiteIQLogo className="text-primary" />
+            <AtlaslyLogo className="text-primary" />
             <div className="text-sm text-muted-foreground">
               {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
               <button
@@ -321,7 +321,7 @@ const Auth = () => {
 
           {/* Footer */}
           <div className="p-8 flex items-center justify-between text-xs text-muted-foreground">
-            <div>© 2025 SiteIQ</div>
+            <div>© 2025 Atlasly</div>
             <div>ENG</div>
           </div>
         </div>
@@ -344,7 +344,7 @@ const Auth = () => {
           {/* Content */}
           <div className="relative z-10 w-full p-12 flex flex-col">
             <div className="flex-1 flex flex-col justify-center space-y-6">
-              <h2 className="text-4xl font-bold text-white">SITEIQ</h2>
+              <h2 className="text-4xl font-bold text-white">ATLASLY</h2>
               <p className="text-xl text-white/90 leading-relaxed">
                 Site analysis has never been{' '}
                 <span className="font-semibold text-white">easier.</span>
@@ -386,15 +386,15 @@ const Auth = () => {
                 <p className="text-sm text-white/80">
                   Sign up at{' '}
                   <a href="/" className="underline hover:text-white">
-                    siteiq.app
+                    atlasly.app
                   </a>
                 </p>
               </div>
               <div className="space-y-2">
                 <h3 className="text-white font-semibold">Questions?</h3>
                 <p className="text-sm text-white/80">
-                  <a href="mailto:info@siteiq.app" className="underline hover:text-white">
-                    info@siteiq.app
+                  <a href="mailto:info@atlasly.app" className="underline hover:text-white">
+                    info@atlasly.app
                   </a>
                 </p>
               </div>

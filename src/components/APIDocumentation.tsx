@@ -22,7 +22,7 @@ export function APIDocumentation() {
       <div>
         <h2 className="text-2xl font-bold mb-2">API Documentation</h2>
         <p className="text-muted-foreground">
-          Learn how to integrate SiteIQ into your applications
+          Learn how to integrate Atlasly into your applications
         </p>
       </div>
 

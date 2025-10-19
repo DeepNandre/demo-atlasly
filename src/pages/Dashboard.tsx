@@ -418,7 +418,7 @@ const Dashboard = () => {
                                       onClick={() => navigate(`/site-ai?project=${request.id}`)}
                                     >
                                       <MessageSquare className="w-4 h-4 mr-1" />
-                                      Open in SiteIQ AI
+                                      Open in Atlasly AI
                                     </Button>
                                     <Button
                                       asChild
