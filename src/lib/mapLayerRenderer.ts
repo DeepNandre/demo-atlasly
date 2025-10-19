@@ -176,32 +176,30 @@ export const fetchRealMapData = async (
     };
 
     // CLIP ALL LAYERS to boundary polygon for precise filtering
-    if (boundaryPolygon && bbox) {
-      console.log('🔪 Clipping features to boundary polygon...');
+    if (boundaryPolygon) {
+      console.log('🔪 Clipping features to ACTUAL boundary polygon...');
       console.log('Before clipping:', {
         buildings: buildingsGeoJSON.features.length,
+        roads: roadsGeoJSON.features.length,
         landuse: landuseGeoJSON.features.length,
         transit: transitGeoJSON.features.length,
         amenities: amenitiesGeoJSON.features.length
       });
       
-      buildingsGeoJSON.features = clipFeaturesToBoundary(buildingsGeoJSON.features, bbox);
-      landuseGeoJSON.features = clipFeaturesToBoundary(landuseGeoJSON.features, bbox);
-      transitGeoJSON.features = clipFeaturesToBoundary(transitGeoJSON.features, bbox);
-      amenitiesGeoJSON.features = clipFeaturesToBoundary(amenitiesGeoJSON.features, bbox);
+      // Use actual boundary polygon for accurate clipping
+      buildingsGeoJSON.features = clipFeaturesToBoundary(buildingsGeoJSON.features, boundaryPolygon);
+      roadsGeoJSON.features = clipFeaturesToBoundary(roadsGeoJSON.features, boundaryPolygon);
+      landuseGeoJSON.features = clipFeaturesToBoundary(landuseGeoJSON.features, boundaryPolygon);
+      transitGeoJSON.features = clipFeaturesToBoundary(transitGeoJSON.features, boundaryPolygon);
+      amenitiesGeoJSON.features = clipFeaturesToBoundary(amenitiesGeoJSON.features, boundaryPolygon);
       
-      console.log('✅ After clipping (within boundary):', {
+      console.log('✅ After clipping (within actual boundary):', {
         buildings: buildingsGeoJSON.features.length,
+        roads: roadsGeoJSON.features.length,
         landuse: landuseGeoJSON.features.length,
         transit: transitGeoJSON.features.length,
         amenities: amenitiesGeoJSON.features.length
       });
-    }
-
-    // CLIP roads to boundary
-    if (boundaryPolygon && bbox) {
-      roadsGeoJSON.features = clipFeaturesToBoundary(roadsGeoJSON.features, bbox);
-      console.log('✅ Roads clipped:', roadsGeoJSON.features.length);
     }
 
     return {

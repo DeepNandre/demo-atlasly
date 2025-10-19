@@ -33,7 +33,6 @@ const defaultLayers: MapLayer[] = [
   { id: 'buildings', name: 'Buildings', visible: false, color: '#FFA500', type: 'buildings', dataSource: 'OpenStreetMap' },
   { id: 'green', name: 'Green Spaces', visible: false, color: '#32CD32', type: 'green', dataSource: 'OpenStreetMap' },
   { id: 'transit', name: 'Transit', visible: false, color: '#1E90FF', type: 'transit', dataSource: 'OpenStreetMap' },
-  { id: 'landuse', name: 'Land Use', visible: false, color: '#9370DB', type: 'landuse', dataSource: 'OpenStreetMap' },
   { id: 'roads', name: 'Roads', visible: false, color: '#666666', type: 'population', dataSource: 'OpenStreetMap' },
 ];
 
@@ -273,8 +272,13 @@ export default function SiteMapboxViewer({
       }
     }
 
-    // Add green spaces
-    const greenTypes = ['park', 'forest', 'grass', 'meadow', 'recreation_ground', 'garden'];
+    // Add green spaces (parks, gardens, forests) with comprehensive filtering
+    const greenTypes = [
+      'park', 'garden', 'forest', 'grass', 'meadow', 'nature_reserve', 
+      'wood', 'tree', 'grassland', 'recreation_ground', 'village_green', 
+      'cemetery', 'allotments', 'orchard', 'vineyard', 'plant_nursery',
+      'scrub', 'heath', 'wetland'
+    ];
     const greenSpaces = {
       type: 'FeatureCollection',
       features: osmData.landuse.features.filter((f: any) => greenTypes.includes(f.properties?.type))
@@ -292,10 +296,17 @@ export default function SiteMapboxViewer({
           type: 'fill-extrusion',
           source: 'green-spaces',
           paint: {
-            'fill-extrusion-color': '#32CD32',
-            'fill-extrusion-height': 1.5,
+            'fill-extrusion-color': [
+              'match',
+              ['get', 'type'],
+              ['forest', 'wood'], '#228B22',
+              ['park', 'garden', 'recreation_ground'], '#7CFC00',
+              ['grass', 'meadow', 'grassland'], '#90EE90',
+              '#32CD32'
+            ],
+            'fill-extrusion-height': 2,
             'fill-extrusion-base': 0,
-            'fill-extrusion-opacity': 0.7
+            'fill-extrusion-opacity': 0.75
           },
           layout: {
             visibility: layers.find(l => l.id === 'green')?.visible ? 'visible' : 'none'
@@ -309,7 +320,7 @@ export default function SiteMapboxViewer({
           paint: {
             'line-color': '#228B22',
             'line-width': 2,
-            'line-opacity': 0.6
+            'line-opacity': 0.8
           },
           layout: {
             visibility: layers.find(l => l.id === 'green')?.visible ? 'visible' : 'none'
@@ -318,42 +329,7 @@ export default function SiteMapboxViewer({
       }
     }
 
-    // Add urban landuse
-    const urbanLanduse = {
-      type: 'FeatureCollection',
-      features: osmData.landuse.features.filter((f: any) => !greenTypes.includes(f.properties?.type))
-    };
-
-    if (urbanLanduse.features.length > 0) {
-      if (!map.getSource('landuse')) {
-        map.addSource('landuse', {
-          type: 'geojson',
-          data: urbanLanduse as any
-        });
-
-        map.addLayer({
-          id: 'landuse-fill',
-          type: 'fill',
-          source: 'landuse',
-          paint: {
-            'fill-color': [
-              'match',
-              ['get', 'type'],
-              'residential', '#FF69B4',
-              'commercial', '#4169E1',
-              'industrial', '#A9A9A9',
-              '#CCCCCC'
-            ],
-            'fill-opacity': 0.5
-          },
-          layout: {
-            visibility: layers.find(l => l.id === 'landuse')?.visible ? 'visible' : 'none'
-          }
-        });
-      }
-    }
-
-    // Add transit stops with enhanced 3D markers
+    // Add transit stops with icon symbols
     if (osmData.transit.features.length > 0) {
       if (!map.getSource('transit')) {
         map.addSource('transit', {
@@ -361,35 +337,49 @@ export default function SiteMapboxViewer({
           data: osmData.transit
         });
 
-        // Outer glow
+        // Outer glow for better visibility
         map.addLayer({
           id: 'transit-glow',
           type: 'circle',
           source: 'transit',
           paint: {
-            'circle-radius': 16,
+            'circle-radius': 18,
             'circle-color': '#1E90FF',
-            'circle-opacity': 0.2,
-            'circle-blur': 0.8
+            'circle-opacity': 0.15,
+            'circle-blur': 1
           },
           layout: {
             visibility: layers.find(l => l.id === 'transit')?.visible ? 'visible' : 'none'
           }
         });
 
-        // Main marker
+        // Background circle
         map.addLayer({
-          id: 'transit-markers',
+          id: 'transit-background',
           type: 'circle',
           source: 'transit',
           paint: {
-            'circle-radius': 10,
+            'circle-radius': 12,
             'circle-color': '#1E90FF',
-            'circle-stroke-width': 3,
+            'circle-stroke-width': 2,
             'circle-stroke-color': '#FFFFFF',
-            'circle-opacity': 0.9
+            'circle-opacity': 0.95
           },
           layout: {
+            visibility: layers.find(l => l.id === 'transit')?.visible ? 'visible' : 'none'
+          }
+        });
+
+        // Icon symbol (bus/train icon)
+        map.addLayer({
+          id: 'transit-icons',
+          type: 'symbol',
+          source: 'transit',
+          layout: {
+            'icon-image': 'bus-15',
+            'icon-size': 1,
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true,
             visibility: layers.find(l => l.id === 'transit')?.visible ? 'visible' : 'none'
           }
         });
@@ -513,19 +503,14 @@ export default function SiteMapboxViewer({
         }
       }
       
-      // Landuse
-      if (layer.id === 'landuse' && map.getLayer('landuse-fill')) {
-        map.setLayoutProperty('landuse-fill', 'visibility', visibility);
-      }
-      
-      // Transit (including glow)
+      // Transit (including all layers)
       if (layer.id === 'transit') {
-        if (map.getLayer('transit-glow')) {
-          map.setLayoutProperty('transit-glow', 'visibility', visibility);
-        }
-        if (map.getLayer('transit-markers')) {
-          map.setLayoutProperty('transit-markers', 'visibility', visibility);
-        }
+        const transitLayers = ['transit-glow', 'transit-background', 'transit-icons'];
+        transitLayers.forEach(layerId => {
+          if (map.getLayer(layerId)) {
+            map.setLayoutProperty(layerId, 'visibility', visibility);
+          }
+        });
       }
 
       // Roads - control all road layers together
@@ -600,15 +585,16 @@ export default function SiteMapboxViewer({
       case 'buildings':
         return osmData.buildings?.features?.length || 0;
       case 'green': {
-        const greenTypes = ['park', 'forest', 'grass', 'meadow', 'recreation_ground', 'garden'];
+        const greenTypes = [
+          'park', 'garden', 'forest', 'grass', 'meadow', 'nature_reserve', 
+          'wood', 'tree', 'grassland', 'recreation_ground', 'village_green', 
+          'cemetery', 'allotments', 'orchard', 'vineyard', 'plant_nursery',
+          'scrub', 'heath', 'wetland'
+        ];
         return osmData.landuse?.features?.filter((f: any) => greenTypes.includes(f.properties?.type)).length || 0;
       }
       case 'transit':
         return osmData.transit?.features?.length || 0;
-      case 'landuse': {
-        const greenTypes = ['park', 'forest', 'grass', 'meadow', 'recreation_ground', 'garden'];
-        return osmData.landuse?.features?.filter((f: any) => !greenTypes.includes(f.properties?.type)).length || 0;
-      }
       case 'roads':
         return osmData.roads?.features?.length || 0;
       default:

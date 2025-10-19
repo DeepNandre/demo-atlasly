@@ -1,24 +1,34 @@
 import * as turf from '@turf/turf';
 
 /**
- * Clip GeoJSON features to a boundary polygon
+ * Clip GeoJSON features to a boundary (either polygon or bbox)
  * Returns only features that intersect with the boundary
  */
 export function clipFeaturesToBoundary(
   features: any[],
-  boundary: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+  boundary: { minLat: number; maxLat: number; minLng: number; maxLng: number } | any
 ): any[] {
   if (!features || features.length === 0) {
     return [];
   }
 
-  // Create boundary polygon from bounds
-  const boundaryPolygon = turf.bboxPolygon([
-    boundary.minLng,
-    boundary.minLat,
-    boundary.maxLng,
-    boundary.maxLat
-  ]);
+  // Create boundary polygon - support both bbox and polygon geometry
+  let boundaryPolygon;
+  if (boundary?.geometry?.type === 'Polygon') {
+    // Use actual polygon geometry if provided
+    boundaryPolygon = boundary;
+  } else if (boundary?.minLat && boundary?.maxLat) {
+    // Create from bounding box
+    boundaryPolygon = turf.bboxPolygon([
+      boundary.minLng,
+      boundary.minLat,
+      boundary.maxLng,
+      boundary.maxLat
+    ]);
+  } else {
+    console.warn('Invalid boundary provided for clipping');
+    return features;
+  }
 
   const clipped: any[] = [];
   
