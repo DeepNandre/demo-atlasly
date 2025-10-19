@@ -512,13 +512,31 @@ export default function SiteMapboxViewer({
   };
 
   const handleDownloadDxf = () => {
+    // CRITICAL DATA VALIDATION: Verify osmData exists and has features
     if (!osmData) {
+      console.error('[DXF Export] ABORTED: osmData is null or undefined');
       toast.error('No site data available to export');
       return;
     }
 
+    // Validate that osmData has the required structure
+    if (!osmData.buildings || !osmData.buildings.features) {
+      console.error('[DXF Export] ABORTED: osmData.buildings is missing or invalid', osmData);
+      toast.error('Site data is incomplete. Please wait for analysis to complete.');
+      return;
+    }
+
+    console.log('[DXF Export] ===== STARTING EXPORT =====');
+    console.log('[DXF Export] Full osmData structure:', {
+      buildings: osmData.buildings?.features?.length || 0,
+      landuse: osmData.landuse?.features?.length || 0,
+      transit: osmData.transit?.features?.length || 0,
+      roads: osmData.roads?.features?.length || 0,
+      stats: osmData.stats
+    });
+
     try {
-      // Get visibility state of each layer
+      // GATHER VISIBLE LAYERS: Create object representing current UI toggle state
       const visibleLayers = {
         buildings: layers.find(l => l.id === 'buildings')?.visible || false,
         green: layers.find(l => l.id === 'green')?.visible || false,
@@ -527,27 +545,48 @@ export default function SiteMapboxViewer({
         roads: layers.find(l => l.id === 'roads')?.visible || false,
       };
       
-      // Count visible layers
+      // Count visible layers and validate at least one is enabled
       const visibleCount = Object.values(visibleLayers).filter(Boolean).length;
       
       if (visibleCount === 0) {
+        console.warn('[DXF Export] ABORTED: No layers are visible');
         toast.error('Please enable at least one layer to export');
         return;
       }
       
-      console.log('[DXF Export] Starting export with layers:', visibleLayers);
+      console.log('[DXF Export] Exporting with layers:', visibleLayers);
+      console.log('[DXF Export] Visible layer count:', visibleCount);
       
-      // Generate DXF with only visible layers
+      // GENERATE DXF CONTENT: Call exporter with verified data
+      console.log('[DXF Export] Calling generate3dDxf with:', {
+        siteName,
+        dataKeys: Object.keys(osmData),
+        visibleLayers
+      });
+      
       const dxfContent = generate3dDxf(osmData, siteName, visibleLayers);
+      
+      if (!dxfContent || dxfContent.length < 100) {
+        console.error('[DXF Export] FAILED: Generated DXF content is too short or empty', {
+          length: dxfContent?.length || 0
+        });
+        toast.error('DXF generation failed - invalid output');
+        return;
+      }
+      
+      console.log('[DXF Export] DXF content generated successfully. Length:', dxfContent.length);
+      
+      // TRIGGER DOWNLOAD: Use the dedicated download utility
       downloadDxf(dxfContent, siteName);
       
+      console.log('[DXF Export] ===== EXPORT COMPLETE =====');
       toast.success(`DXF file exported with ${visibleCount} layer${visibleCount > 1 ? 's' : ''}`, {
         description: 'Compatible with SketchUp, AutoCAD, and Rhino'
       });
     } catch (error) {
-      console.error('DXF export error:', error);
+      console.error('[DXF Export] ERROR during generation:', error);
       toast.error('Failed to generate DXF file', {
-        description: 'Please try again or contact support'
+        description: error instanceof Error ? error.message : 'Please try again or contact support'
       });
     }
   };
