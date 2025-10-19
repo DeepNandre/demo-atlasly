@@ -47,6 +47,23 @@ const Hero = () => {
                 View API Docs →
               </Button>
             </div>
+
+            {/* Demo Video */}
+            <div className={`mt-16 max-w-5xl mx-auto transform transition-all duration-300 ease-out delay-200 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/50">
+                <video 
+                  autoPlay 
+                  muted 
+                  loop 
+                  playsInline
+                  className="w-full h-auto"
+                  poster="/placeholder.svg"
+                >
+                  <source src="/hero-demo.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+            </div>
           </div>
         </div>
       </div>
