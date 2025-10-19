@@ -824,40 +824,40 @@ export default function SiteMapboxViewer({
       {layersPanelOpen && (
         <Card className={cn(
           "absolute bottom-4 right-4 z-10 p-0",
-          "bg-background/98 backdrop-blur-xl shadow-2xl border-2 border-border/50",
-          "min-w-[300px] overflow-hidden",
+          "bg-background/98 backdrop-blur-xl shadow-lg border border-border/50",
+          "w-[280px] overflow-hidden",
           "animate-in slide-in-from-bottom-5 duration-300"
         )}>
-          {/* Header */}
-          <div className="bg-gradient-to-r from-background via-card to-background p-4 border-b border-border/50">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Layers className="h-5 w-5 text-primary" />
+          {/* Compact Header */}
+          <div className="bg-background/50 px-3 py-2 border-b border-border/30">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Layers className="h-3.5 w-3.5 text-primary" />
                 </div>
-                <h3 className="font-semibold text-lg">Site Analysis Layers</h3>
+                <h3 className="font-medium text-sm">Site Layers</h3>
               </div>
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => setLayersPanelOpen(false)}
-                className="h-8 w-8 p-0 hover:bg-muted"
+                className="h-6 w-6 p-0 hover:bg-muted"
               >
                 <span className="sr-only">Close</span>
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </Button>
             </div>
             
             {/* Quick actions */}
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <Button 
                 size="sm" 
                 variant="outline" 
                 onClick={showAllLayers}
                 disabled={loading}
-                className="flex-1 h-9 font-medium bg-card hover:bg-card/80"
+                className="flex-1 h-7 text-xs font-medium"
               >
                 All
               </Button>
@@ -866,7 +866,7 @@ export default function SiteMapboxViewer({
                 variant="outline" 
                 onClick={hideAllLayers}
                 disabled={loading}
-                className="flex-1 h-9 font-medium bg-card hover:bg-card/80"
+                className="flex-1 h-7 text-xs font-medium"
               >
                 None
               </Button>
@@ -874,52 +874,52 @@ export default function SiteMapboxViewer({
           </div>
           
           {/* Content */}
-          <div className="p-4 space-y-4">
+          <div className="p-3 space-y-2.5">
             {/* Download DXF Button */}
             <Button 
               onClick={handleDownloadDxf}
               disabled={!isDataReadyForExport}
-              className="w-full h-12 shadow-sm"
+              className="w-full h-9 shadow-sm text-xs"
               variant="default"
             >
               {!isDataReadyForExport ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Loading Site Data...
+                  <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                  Loading...
                 </>
               ) : (
                 <>
-                  <Download className="h-4 w-4 mr-2" />
+                  <Download className="h-3 w-3 mr-1.5" />
                   Download DXF
                 </>
               )}
             </Button>
             
             {/* Layer toggles */}
-            <div className="space-y-2.5">
+            <div className="space-y-1.5">
               {layers.map(layer => {
                 const count = getFeatureCount(layer.id);
                 return (
                   <div 
                     key={layer.id} 
-                    className="rounded-lg p-3 bg-card/50 border border-border/50 transition-all duration-200 hover:bg-card"
+                    className="rounded-md p-2 bg-card/50 border border-border/30 transition-all duration-200 hover:bg-card/80"
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-2">
                       <Label 
                         htmlFor={`${layer.id}-toggle`} 
-                        className="cursor-pointer flex items-center gap-3 flex-1"
+                        className="cursor-pointer flex items-center gap-2 flex-1"
                       >
                         <div 
-                          className="w-5 h-5 rounded-sm border-2 border-white/30 flex-shrink-0" 
+                          className="w-3.5 h-3.5 rounded-sm flex-shrink-0" 
                           style={{ backgroundColor: layer.color }} 
                         />
-                        <div className="flex-1">
-                          <div className="font-medium text-base">{layer.name}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-xs truncate">{layer.name}</div>
                           {layer.dataSource && (
-                            <div className="text-xs text-muted-foreground mt-0.5">{layer.dataSource}</div>
+                            <div className="text-[10px] text-muted-foreground truncate">{layer.dataSource}</div>
                           )}
                         </div>
-                        <span className="text-base font-semibold text-foreground min-w-[2rem] text-right">
+                        <span className="text-xs font-semibold text-foreground">
                           {count}
                         </span>
                       </Label>
@@ -928,6 +928,7 @@ export default function SiteMapboxViewer({
                         checked={layer.visible}
                         onCheckedChange={() => toggleLayer(layer.id)}
                         disabled={loading}
+                        className="scale-75"
                       />
                     </div>
                   </div>
