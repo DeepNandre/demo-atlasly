@@ -142,8 +142,10 @@ const MapSelector = ({ onBoundarySelected }: MapSelectorProps) => {
           .addTo(map.current!);
         setMarker(newMarker);
 
-        // Draw circle
-        drawCircle(longitude, latitude, radius);
+        // Only draw circle in circle mode
+        if (boundaryMode === 'circle') {
+          drawCircle(longitude, latitude, radius);
+        }
 
         toast.success(`Found: ${display_name}`);
       } else {
