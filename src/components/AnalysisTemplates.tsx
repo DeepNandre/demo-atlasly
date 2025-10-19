@@ -20,60 +20,60 @@ interface AnalysisTemplate {
 
 const templates: AnalysisTemplate[] = [
   {
+    id: 'complete-assessment',
+    name: 'Complete Assessment',
+    description: 'Holistic site analysis with recommendations',
+    icon: TrendingUp,
+    query: 'Provide a complete site assessment covering OSM data, solar potential, climate factors, and development recommendations',
+    color: '#6366F1'
+  },
+  {
     id: 'transport',
-    name: 'Transport Access',
-    description: 'Analyze public transit and accessibility',
+    name: 'Transport & Access',
+    description: 'Transit, walkability, connectivity',
     icon: Bus,
-    query: 'Analyze transport accessibility for this site',
-    color: '#1E90FF'
+    query: 'Analyze transport accessibility, transit stops, walkability score, and road connectivity',
+    color: '#3B82F6'
   },
   {
     id: 'green-space',
     name: 'Green Space',
-    description: 'Calculate parks and green areas',
+    description: 'Parks, gardens, open areas',
     icon: TreePine,
-    query: 'Calculate green space percentage and nearby parks',
-    color: '#00FF00'
+    query: 'Calculate green space percentage, identify parks and gardens, analyze accessibility to nature',
+    color: '#10B981'
   },
   {
-    id: 'amenities',
-    name: 'Amenities',
-    description: 'Find schools, hospitals, services',
-    icon: School,
-    query: 'Find nearby schools, hospitals, and essential amenities',
-    color: '#FF6347'
+    id: 'solar-climate',
+    name: 'Solar & Climate',
+    description: 'Sun exposure, orientation, passive design',
+    icon: Zap,
+    query: "Analyze solar potential, optimal building orientation, wind patterns, and passive design strategies",
+    color: '#F59E0B'
   },
   {
-    id: 'land-use',
-    name: 'Land Use',
-    description: 'Analyze zoning and composition',
+    id: 'building-placement',
+    name: 'Building Placement',
+    description: 'Optimal zones considering all factors',
     icon: MapPin,
-    query: 'Analyze land use composition and zoning',
-    color: '#FF69B4'
-  },
-  {
-    id: 'density',
-    name: 'Density Analysis',
-    description: 'Building and population metrics',
-    icon: Building2,
-    query: 'Analyze building density and population metrics',
-    color: '#FFD700'
+    query: 'Recommend optimal building placement considering solar exposure, wind, slope, views, and site access',
+    color: '#8B5CF6'
   },
   {
     id: 'sustainability',
-    name: 'Sustainability',
-    description: 'Solar, climate, green strategies',
+    name: 'Sustainability Score',
+    description: 'Transit, green space, solar, walkability',
     icon: Zap,
-    query: "Analyze the site's sustainability potential and solar orientation",
-    color: '#75C34D'
+    query: "Calculate sustainability score based on transit access, green space, solar potential, and walkability",
+    color: '#10B981'
   },
   {
-    id: 'feasibility',
-    name: 'Feasibility',
-    description: 'Development potential assessment',
-    icon: TrendingUp,
-    query: 'Assess development feasibility and constraints',
-    color: '#4169E1'
+    id: 'constraints',
+    name: 'Development Constraints',
+    description: 'Slopes, shadows, access issues',
+    icon: Building2,
+    query: 'Identify development constraints: steep slopes, shadow zones, access limitations, and challenging areas',
+    color: '#EF4444'
   }
 ];
 

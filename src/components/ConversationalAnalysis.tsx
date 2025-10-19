@@ -37,6 +37,8 @@ interface ConversationalAnalysisProps {
   templateQuery?: string | null;
   onQueryProcessed?: () => void;
   onLayerCreated?: (layer: any) => void;
+  activeTab?: string;
+  siteData?: any;
 }
 
 const ConversationalAnalysis = ({ 
@@ -44,7 +46,9 @@ const ConversationalAnalysis = ({
   locationName, 
   templateQuery,
   onQueryProcessed,
-  onLayerCreated
+  onLayerCreated,
+  activeTab,
+  siteData
 }: ConversationalAnalysisProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -66,13 +70,41 @@ const ConversationalAnalysis = ({
     }
   }, [templateQuery]);
 
-  const suggestedQuestions = [
-    "Analyze transport accessibility",
-    "Calculate green space percentage",
-    "Find nearby schools and hospitals",
-    "What's the optimal building orientation?",
-    "Analyze land use composition"
-  ];
+  // Context-aware suggested questions based on active tab
+  const getSuggestedQuestions = () => {
+    switch (activeTab) {
+      case 'model':
+        return [
+          "How many buildings are on this site?",
+          "Analyze walkability and pedestrian access",
+          "What's the road network connectivity?",
+          "Calculate building density"
+        ];
+      case 'solar':
+        return [
+          "What's the optimal building orientation for solar?",
+          "Analyze shadow patterns on the site",
+          "Calculate solar panel potential",
+          "Which areas get the most sun exposure?"
+        ];
+      case 'climate':
+        return [
+          "Recommend passive design strategies",
+          "How do prevailing winds affect the site?",
+          "What's the best orientation for natural ventilation?",
+          "Analyze thermal comfort zones"
+        ];
+      default:
+        return [
+          "Provide a complete site assessment",
+          "What are the main development opportunities?",
+          "Analyze sustainability score",
+          "Recommend optimal building placement"
+        ];
+    }
+  };
+
+  const suggestedQuestions = getSuggestedQuestions();
 
   const sendMessage = async (message: string) => {
     if (!message.trim() || isLoading) return;
@@ -98,7 +130,8 @@ const ConversationalAnalysis = ({
         body: {
           site_request_id: siteRequestId,
           query: message,
-          include_context: true
+          include_context: true,
+          active_tab: activeTab
         }
       });
 
@@ -235,10 +268,10 @@ const ConversationalAnalysis = ({
               <div className="mb-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
                 <p className="text-sm font-medium text-primary mb-2 flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
-                  AI-Powered Site Analysis
+                  SiteIQ AI - Your Intelligent Assistant
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  Ask me anything about this site. I can analyze transport, green spaces, amenities, solar potential, wind patterns, and more.
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  I can analyze your site's buildings, roads, solar potential, climate data, and more. I'm aware of what you're viewing and can provide context-specific insights. Ask me anything!
                 </p>
               </div>
             </div>

@@ -27,7 +27,7 @@ serve(async (req) => {
   }
 
   try {
-    const { site_request_id, query, include_context = true } = await req.json();
+    const { site_request_id, query, include_context = true, active_tab } = await req.json();
 
     if (!site_request_id || !query) {
       return new Response(
@@ -60,13 +60,34 @@ serve(async (req) => {
     // Build enhanced context with multi-source data and conversation history
     let contextData = '';
     
+    // Fetch real OSM data if available
+    let osmContext = '';
+    if (siteData.osm_data) {
+      const osm = typeof siteData.osm_data === 'string' 
+        ? JSON.parse(siteData.osm_data) 
+        : siteData.osm_data;
+      
+      const buildingCount = osm.buildings?.length || 0;
+      const roadCount = osm.roads?.length || 0;
+      const amenityCount = osm.amenities?.length || 0;
+      const transitCount = osm.transit?.length || 0;
+      
+      osmContext = `
+REAL OSM DATA:
+- Buildings: ${buildingCount} structures
+- Roads: ${roadCount} segments
+- Amenities: ${amenityCount} nearby (schools, shops, services)
+- Transit: ${transitCount} stops within radius
+`;
+    }
+    
     // Fetch conversation history from ai_logs for memory
     const { data: conversationHistory } = await supabase
       .from('ai_logs')
       .select('role, content, created_at')
       .eq('site_request_id', site_request_id)
       .order('created_at', { ascending: false })
-      .limit(10); // Last 10 messages for context
+      .limit(15); // Last 15 messages for context
     
     // Detect query type and extract metrics
     const queryLower = query.toLowerCase();
@@ -304,6 +325,9 @@ SITE FEATURES:
 `;
     }
 
+    // Tab-specific context
+    const tabContext = active_tab ? `\n\nUSER IS CURRENTLY VIEWING: ${active_tab.toUpperCase()} TAB` : '';
+    
     // Enhanced system prompt with conversation history and real data
     const conversationContext = conversationHistory && conversationHistory.length > 0
       ? `\n\nPREVIOUS CONVERSATION (most recent first):\n${conversationHistory.reverse().map(msg => 
@@ -311,36 +335,53 @@ SITE FEATURES:
         ).join('\n')}\n`
       : '';
     
-    const systemPrompt = `You are an expert site analysis AI specializing in architecture and urban planning.
+    const systemPrompt = `You are SiteIQ AI - an expert site analysis assistant specializing in architecture, urban planning, and environmental design.
 
 SITE INFORMATION:
 Location: ${siteData.location_name}
 Coordinates: ${siteData.center_lat}, ${siteData.center_lng}
 Area: ${siteData.area_sqm ? (siteData.area_sqm / 10000).toFixed(2) + ' hectares' : 'N/A'}
+${osmContext}
 
-DATA SOURCES:
-- OpenStreetMap (buildings, roads, landuse, transit, amenities)
-- Open-Meteo API (climate, wind, solar radiation)
-- Elevation data from terrain analysis
-${siteData.climate_summary ? `\nCLIMATE SUMMARY:\n${JSON.stringify(siteData.climate_summary, null, 2)}` : ''}
-${siteData.elevation_summary ? `\nELEVATION SUMMARY:\n${JSON.stringify(siteData.elevation_summary, null, 2)}` : ''}
+AVAILABLE DATA SOURCES:
+- OpenStreetMap: Real building, road, landuse, transit, amenity data
+- Open-Meteo API: Real-time climate, wind, solar radiation
+- Terrain Analysis: Elevation profiles, slope analysis
+- Solar Analysis: Sun path, irradiance, shadow studies
+- Climate Data: Temperature, precipitation, wind patterns
+${siteData.climate_summary ? `\n\nCLIMATE SUMMARY:\n${JSON.stringify(siteData.climate_summary, null, 2)}` : ''}
+${siteData.elevation_summary ? `\n\nELEVATION DATA:\n${JSON.stringify(siteData.elevation_summary, null, 2)}` : ''}
+${tabContext}
 ${conversationContext}
 
-RESPONSE RULES:
-1. MAX 3 paragraphs OR 5 bullet points - be extremely concise
-2. Lead with actionable insights and specific numbers
-3. Always cite data sources inline (e.g., "15 km/h SW winds (Open-Meteo)")
-4. Reference previous conversation when relevant
-5. Be specific to THIS site - no generic advice
-6. Include confidence levels when making recommendations
+CONTEXT-AWARE RESPONSE RULES:
+1. If user is on SITE MODEL tab: Focus on buildings, roads, urban context, walkability
+2. If user is on SOLAR tab: Discuss sun exposure, panel placement, orientation, shadows
+3. If user is on CLIMATE tab: Analyze wind, temperature, rainfall, passive design strategies
+4. Always reference what the user can SEE in their current view
+5. Suggest next steps based on current tab: "Want me to check X on the Y tab?"
 
-EXAMPLE GOOD RESPONSE:
-"Wind: Prevailing SW 15 km/h (Open-Meteo). Position windbreaks on west side.
-Solar: 4.8 kWh/m²/day avg (Open-Meteo). South-facing roofs optimize PV yield by 23%.
-Transit: 3 bus stops <500m (OpenStreetMap). Strong public transport connectivity.
-→ Recommendation: Orient buildings E-W for solar, add bike storage near transit."
+RESPONSE FORMAT (CRITICAL):
+- MAX 3 short paragraphs OR 5 bullet points
+- Lead with specific numbers and actionable insights
+- Always cite data sources inline: "(OSM)", "(Open-Meteo)", "(Terrain Analysis)"
+- Use markdown for emphasis: **bold key insights**
+- End with a question or suggestion for next analysis
 
-AVOID: Long explanations, methodology details, obvious information.`;
+EXAMPLE EXCELLENT RESPONSE (Site Model Tab):
+"**Urban Context:** 85 buildings within 500m (OSM) - medium-density residential area. Average building height ~12m suggests 3-4 story development is appropriate.
+
+**Accessibility:** 3 bus stops within 400m walk (OSM). Road network provides good connectivity via Main St (E-W) and Park Ave (N-S). Pedestrian-friendly area.
+
+**Green Space:** 18% site coverage - below optimal 25-30%. Opportunity: 3 underutilized corners (~4,200m²) could become pocket parks.
+
+→ *Want me to analyze solar potential for optimal building orientation?*"
+
+AVOID:
+❌ Generic advice ("consider sustainability...")
+❌ Long explanations of methodology
+❌ Repeating obvious visible information
+❌ Not referencing the current tab context`;
 
     // Call Lovable AI
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
