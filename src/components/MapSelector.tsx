@@ -7,7 +7,7 @@ import * as turf from '@turf/turf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, MapPin, Circle, Pentagon } from 'lucide-react';
+import { Search, MapPin, Circle, Pentagon, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface MapSelectorProps {
@@ -32,13 +32,36 @@ const MapSelector = ({ onBoundarySelected }: MapSelectorProps) => {
   const [circleLayer, setCircleLayer] = useState<any>(null);
   const [boundaryMode, setBoundaryMode] = useState<'circle' | 'custom'>('circle');
   const [customPolygon, setCustomPolygon] = useState<any>(null);
+  const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street');
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
+    // Use OpenStreetMap tiles for better detail
+    const streetStyle = {
+      version: 8,
+      sources: {
+        osm: {
+          type: 'raster',
+          tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          attribution: '© OpenStreetMap contributors',
+        },
+      },
+      layers: [
+        {
+          id: 'osm',
+          type: 'raster',
+          source: 'osm',
+          minzoom: 0,
+          maxzoom: 19,
+        },
+      ],
+    };
+
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://demotiles.maplibre.org/style.json',
+      style: streetStyle as any,
       center: [-0.118092, 51.509865], // London default
       zoom: 13,
     });
@@ -301,6 +324,103 @@ const MapSelector = ({ onBoundarySelected }: MapSelectorProps) => {
     }
   };
 
+  const toggleMapStyle = () => {
+    if (!map.current) return;
+    
+    const newStyle = mapStyle === 'street' ? 'satellite' : 'street';
+    setMapStyle(newStyle);
+
+    // Preserve current view
+    const center = map.current.getCenter();
+    const zoom = map.current.getZoom();
+    
+    if (newStyle === 'satellite') {
+      // Switch to satellite imagery
+      const satelliteStyle = {
+        version: 8,
+        sources: {
+          satellite: {
+            type: 'raster',
+            tiles: [
+              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            ],
+            tileSize: 256,
+            attribution: '© Esri, Maxar, Earthstar Geographics',
+          },
+        },
+        layers: [
+          {
+            id: 'satellite',
+            type: 'raster',
+            source: 'satellite',
+            minzoom: 0,
+            maxzoom: 19,
+          },
+        ],
+      };
+      map.current.setStyle(satelliteStyle as any);
+    } else {
+      // Switch to street map
+      const streetStyle = {
+        version: 8,
+        sources: {
+          osm: {
+            type: 'raster',
+            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            attribution: '© OpenStreetMap contributors',
+          },
+        },
+        layers: [
+          {
+            id: 'osm',
+            type: 'raster',
+            source: 'osm',
+            minzoom: 0,
+            maxzoom: 19,
+          },
+        ],
+      };
+      map.current.setStyle(streetStyle as any);
+    }
+
+    // Restore view after style change
+    map.current.once('styledata', () => {
+      map.current?.setCenter(center);
+      map.current?.setZoom(zoom);
+      
+      // Re-add circle if it exists
+      if (circleLayer && boundaryMode === 'circle') {
+        map.current?.addSource('circle', {
+          type: 'geojson',
+          data: circleLayer,
+        });
+
+        map.current?.addLayer({
+          id: 'circle-fill',
+          type: 'fill',
+          source: 'circle',
+          paint: {
+            'fill-color': '#5f7d3a',
+            'fill-opacity': 0.2,
+          },
+        });
+
+        map.current?.addLayer({
+          id: 'circle-outline',
+          type: 'line',
+          source: 'circle',
+          paint: {
+            'line-color': '#5f7d3a',
+            'line-width': 2,
+          },
+        });
+      }
+    });
+
+    toast.success(`Switched to ${newStyle === 'satellite' ? 'Satellite' : 'Street'} view`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="bg-card rounded-xl p-4 shadow-soft space-y-4">
@@ -400,10 +520,24 @@ const MapSelector = ({ onBoundarySelected }: MapSelectorProps) => {
         </Button>
       </div>
 
-      <div
-        ref={mapContainer}
-        className="w-full h-[500px] rounded-xl overflow-hidden shadow-medium"
-      />
+      <div className="relative">
+        <div
+          ref={mapContainer}
+          className="w-full h-[500px] rounded-xl overflow-hidden shadow-medium"
+        />
+        
+        {/* Map Style Toggle */}
+        <Button
+          onClick={toggleMapStyle}
+          variant="default"
+          size="sm"
+          className="absolute top-4 right-14 z-10 shadow-lg"
+          title={`Switch to ${mapStyle === 'street' ? 'Satellite' : 'Street'} view`}
+        >
+          <Layers className="w-4 h-4 mr-2" />
+          {mapStyle === 'street' ? 'Satellite' : 'Street'}
+        </Button>
+      </div>
 
       <div className="bg-muted/50 rounded-xl p-4 text-sm text-muted-foreground">
         <p className="font-medium mb-2">How to use:</p>
