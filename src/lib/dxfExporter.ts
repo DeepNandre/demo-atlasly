@@ -3,7 +3,15 @@ import DxfWriter from 'dxf-writer';
 /**
  * Professional DXF Exporter for Site Analysis
  * Exports actual site data in WYSIWYG format compatible with SketchUp, AutoCAD, Rhino, etc.
- * Uses CORRECT dxf-writer API: drawLine, drawCircle, drawPolyline3d, draw3dFace
+ * 
+ * CRITICAL: Input data MUST be in Cartesian coordinates (meters from origin), NOT lat/lng!
+ * The SiteMapboxViewer component handles coordinate reprojection before calling this function.
+ * 
+ * Uses dxf-writer library API (ognjen-petrovic/js-dxf):
+ * - drawCircle(x, y, radius)
+ * - drawPolyline(vertices, closed)
+ * - drawPolyline3d(vertices)
+ * - drawFace(x1,y1,z1, x2,y2,z2, x3,y3,z3, x4,y4,z4)
  */
 
 interface SiteData {
@@ -88,14 +96,29 @@ export function generate3dDxf(
   siteName: string,
   visibleLayers: LayerVisibility
 ): string {
-  console.log('[DXF Export] Starting professional export with CORRECT API...');
-  console.log('[DXF Export] Site Data:', {
+  console.log('[DXF Export] ===== STARTING PROFESSIONAL DXF EXPORT =====');
+  console.log('[DXF Export] Site Data (should be Cartesian coordinates, NOT lat/lng!):', {
     buildings: siteData.buildings?.features?.length || 0,
     landuse: siteData.landuse?.features?.length || 0,
     transit: siteData.transit?.features?.length || 0,
     roads: siteData.roads?.features?.length || 0,
-    visibleLayers
+    visibleLayers,
+    sampleBuildingCoord: siteData.buildings?.features?.[0]?.geometry?.coordinates?.[0]?.[0],
+    sampleBuildingHeight: siteData.buildings?.features?.[0]?.properties?.height,
+    sampleBuildingBaseHeight: siteData.buildings?.features?.[0]?.properties?.baseHeight
   });
+
+  // CRITICAL VALIDATION: Verify coordinates are in Cartesian format (meters), not lat/lng
+  const firstCoord = siteData.buildings?.features?.[0]?.geometry?.coordinates?.[0]?.[0];
+  if (firstCoord && (Math.abs(firstCoord[0]) < 10 || Math.abs(firstCoord[1]) < 10)) {
+    console.error('❌ CRITICAL ERROR: Coordinates appear to be in lat/lng format!', firstCoord);
+    console.error('❌ Expected: Large numbers (meters from origin), e.g., [-245.7, 128.3]');
+    console.error('❌ Got: Small numbers (degrees), e.g.', firstCoord);
+    console.error('❌ The coordinate reprojection step was NOT applied before calling this function!');
+    throw new Error('Invalid coordinate system: Expected Cartesian (meters), got geographic (lat/lng). DXF export aborted.');
+  }
+  
+  console.log('✓ Coordinate validation passed - data is in Cartesian system');
 
   const drawing = new DxfWriter();
   drawing.setUnits('Meters');
@@ -144,7 +167,13 @@ export function generate3dDxf(
         const height = props.height || (props.levels ? props.levels * 3.5 : 15);
         const baseHeight = props.baseHeight || 0;
         
-        console.log(`[DXF Export] Building ${index}: ${coords.length} vertices, height: ${height}m`);
+        console.log(`[DXF Export] Building ${index}/${buildingCount}:`, {
+          vertices: coords.length,
+          height: `${height}m`,
+          baseHeight: `${baseHeight}m`,
+          firstCoord: coords[0],
+          lastCoord: coords[coords.length - 1]
+        });
         
         // DRAW BUILDING FOOTPRINT (ground level) using CORRECT API
         drawing.setActiveLayer('BUILDING_FOOTPRINTS');

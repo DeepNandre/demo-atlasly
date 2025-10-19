@@ -536,8 +536,12 @@ export default function SiteMapboxViewer({
    * This is CRITICAL for CAD compatibility - DXF expects projected coordinates, not geographic
    */
   const reprojectToCartesian = (data: any, centerLat: number, centerLng: number) => {
-    console.log('[Coordinate Reprojection] Starting transformation to Cartesian system');
-    console.log('[Coordinate Reprojection] Site center:', [centerLng, centerLat]);
+    console.log('[Coordinate Reprojection] ===== STARTING COORDINATE TRANSFORMATION =====');
+    console.log('[Coordinate Reprojection] Site center (lng, lat):', [centerLng, centerLat]);
+    
+    // Log BEFORE reprojection
+    const sampleBeforeCoord = data.buildings?.features?.[0]?.geometry?.coordinates?.[0]?.[0];
+    console.log('[Coordinate Reprojection] BEFORE - Sample coordinate (should be lat/lng):', sampleBeforeCoord);
     
     // Create a deep clone to avoid mutating original data
     const projectedData = JSON.parse(JSON.stringify(data));
@@ -561,21 +565,36 @@ export default function SiteMapboxViewer({
     };
     
     // Transform all feature collections in the data
-    const featureTypes = ['buildings', 'landuse', 'transit', 'roads', 'green_spaces'];
+    const featureTypes = ['buildings', 'landuse', 'transit', 'roads', 'amenities'];
     
     featureTypes.forEach(type => {
       if (projectedData[type]?.type === 'FeatureCollection' && projectedData[type].features) {
         console.log(`[Coordinate Reprojection] Transforming ${type}: ${projectedData[type].features.length} features`);
         
-        projectedData[type].features.forEach((feature: any) => {
+        projectedData[type].features.forEach((feature: any, index: number) => {
           if (feature.geometry && feature.geometry.coordinates) {
+            const originalCoords = JSON.stringify(feature.geometry.coordinates).substring(0, 100);
             feature.geometry.coordinates = transformCoords(feature.geometry.coordinates);
+            
+            // Log first feature transformation for debugging
+            if (index === 0) {
+              const newCoords = JSON.stringify(feature.geometry.coordinates).substring(0, 100);
+              console.log(`[Coordinate Reprojection] ${type}[0] transformation:`, {
+                before: originalCoords,
+                after: newCoords
+              });
+            }
           }
         });
       }
     });
     
-    console.log('[Coordinate Reprojection] ✓ Transformation complete - all coordinates now in meters from origin');
+    // Log AFTER reprojection
+    const sampleAfterCoord = projectedData.buildings?.features?.[0]?.geometry?.coordinates?.[0]?.[0];
+    console.log('[Coordinate Reprojection] AFTER - Sample coordinate (should be meters from origin):', sampleAfterCoord);
+    console.log('[Coordinate Reprojection] ✓ Transformation complete');
+    console.log('[Coordinate Reprojection] ===== COORDINATE TRANSFORMATION COMPLETE =====');
+    
     return projectedData;
   };
 

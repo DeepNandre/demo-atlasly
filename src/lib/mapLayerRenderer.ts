@@ -94,8 +94,8 @@ export const fetchRealMapData = async (
         },
         properties: {
           name: building.name || 'Unnamed Building',
-          height: building.height || 10,
-          baseHeight: building.baseHeight || (building.height || 10),
+          height: building.height || (building.levels ? building.levels * 3.5 : 15), // Use levels * 3.5m or default 15m
+          baseHeight: 0, // CRITICAL FIX: Base should ALWAYS be 0 for ground-level buildings
           levels: building.levels || 3,
           roofShape: building.roofShape || 'flat',
           roofHeight: building.roofHeight || 0,
