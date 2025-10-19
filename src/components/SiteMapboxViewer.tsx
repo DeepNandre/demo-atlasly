@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
+import { Loader2, Download, Layers } from 'lucide-react';
 import { generate3dDxf, downloadDxf } from '@/lib/dxfExporter';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -48,7 +48,6 @@ export default function SiteMapboxViewer({
   const [layers, setLayers] = useState<MapLayer[]>(defaultLayers);
   const [osmData, setOsmData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [layersPanelOpen, setLayersPanelOpen] = useState(true);
 
   // Fetch OSM data
   useEffect(() => {
@@ -566,132 +565,94 @@ export default function SiteMapboxViewer({
         </div>
       </div>
 
-      {/* Floating toggle button for layers panel */}
-      {!layersPanelOpen && (
-        <Button
-          onClick={() => setLayersPanelOpen(true)}
-          className={cn(
-            "absolute top-4 right-4 z-20",
-            "bg-background/95 backdrop-blur-md",
-            "shadow-xl border-2 border-primary/20",
-            "hover:border-primary/40 hover:bg-background",
-            "transition-all duration-300"
-          )}
-          size="lg"
-        >
-          <Layers className="h-5 w-5 mr-2" />
-          <span className="font-semibold">Site Layers</span>
-        </Button>
-      )}
-
-      {/* Enhanced layer control panel with slide animation */}
-      <div className={cn(
-        "absolute top-4 right-4 z-10 transition-transform duration-300 ease-in-out",
-        layersPanelOpen ? "translate-x-0" : "translate-x-[120%]"
-      )}>
-        <Card className="p-0 bg-background/98 backdrop-blur-xl shadow-2xl border-2 border-primary/20 min-w-[300px] overflow-hidden">
-          {/* Header with gradient */}
-          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-background p-4 border-b border-border/50">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Layers className="h-4 w-4 text-primary" />
-                </div>
-                <h3 className="font-semibold text-base">Site Analysis Layers</h3>
-              </div>
-              <Button 
-                size="sm" 
-                variant="ghost"
-                onClick={() => setLayersPanelOpen(false)}
-                className="h-8 w-8 p-0 hover:bg-primary/10"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+      {/* Site Analysis Layers Panel - Always Visible */}
+      <Card className="absolute top-4 right-4 z-10 p-0 bg-background/98 backdrop-blur-xl shadow-2xl border-2 border-border/50 min-w-[300px] overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-background via-card to-background p-4 border-b border-border/50">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Layers className="h-5 w-5 text-primary" />
             </div>
-            
-            {/* Quick actions */}
-            <div className="flex gap-2">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={showAllLayers}
-                disabled={loading}
-                className="flex-1 h-8 text-xs font-medium"
-              >
-                All
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={hideAllLayers}
-                disabled={loading}
-                className="flex-1 h-8 text-xs font-medium"
-              >
-                None
-              </Button>
-            </div>
+            <h3 className="font-semibold text-lg">Site Analysis Layers</h3>
           </div>
           
-          {/* Content */}
-          <div className="p-4 space-y-4">
-            {/* Download DXF Button */}
+          {/* Quick actions */}
+          <div className="flex gap-2">
             <Button 
-              onClick={handleDownloadDxf}
-              disabled={loading || !osmData}
-              className="w-full shadow-sm"
-              variant="default"
-              size="lg"
+              size="sm" 
+              variant="outline" 
+              onClick={showAllLayers}
+              disabled={loading}
+              className="flex-1 h-9 font-medium bg-card hover:bg-card/80"
             >
-              <Download className="h-4 w-4 mr-2" />
-              Download DXF
+              All
             </Button>
-            
-            {/* Layer toggles */}
-            <div className="space-y-3">
-              {layers.map(layer => {
-                const count = getFeatureCount(layer.id);
-                return (
-                  <div 
-                    key={layer.id} 
-                    className={cn(
-                      "rounded-lg p-3 transition-all duration-200",
-                      "border border-border/50",
-                      layer.visible ? "bg-primary/5 border-primary/30" : "bg-card/50 hover:bg-card"
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <Label 
-                        htmlFor={`${layer.id}-toggle`} 
-                        className="text-sm cursor-pointer flex items-center gap-2 flex-1"
-                      >
-                        <div 
-                          className="w-4 h-4 rounded border-2 border-white/30 flex-shrink-0 shadow-sm" 
-                          style={{ backgroundColor: layer.color }} 
-                        />
-                        <div className="flex-1">
-                          <div className="font-medium">{layer.name}</div>
-                          {layer.dataSource && (
-                            <div className="text-xs text-muted-foreground">{layer.dataSource}</div>
-                          )}
-                        </div>
-                        <span className="text-sm font-semibold text-primary">
-                          {count}
-                        </span>
-                      </Label>
-                      <Switch
-                        id={`${layer.id}-toggle`}
-                        checked={layer.visible}
-                        onCheckedChange={() => toggleLayer(layer.id)}
-                        disabled={loading}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={hideAllLayers}
+              disabled={loading}
+              className="flex-1 h-9 font-medium bg-card hover:bg-card/80"
+            >
+              None
+            </Button>
           </div>
-        </Card>
-      </div>
+        </div>
+        
+        {/* Content */}
+        <div className="p-4 space-y-4">
+          {/* Download DXF Button */}
+          <Button 
+            onClick={handleDownloadDxf}
+            disabled={loading || !osmData}
+            className="w-full h-12 shadow-sm"
+            variant="default"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download DXF
+          </Button>
+          
+          {/* Layer toggles */}
+          <div className="space-y-2.5">
+            {layers.map(layer => {
+              const count = getFeatureCount(layer.id);
+              return (
+                <div 
+                  key={layer.id} 
+                  className="rounded-lg p-3 bg-card/50 border border-border/50 transition-all duration-200 hover:bg-card"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <Label 
+                      htmlFor={`${layer.id}-toggle`} 
+                      className="cursor-pointer flex items-center gap-3 flex-1"
+                    >
+                      <div 
+                        className="w-5 h-5 rounded-sm border-2 border-white/30 flex-shrink-0" 
+                        style={{ backgroundColor: layer.color }} 
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-base">{layer.name}</div>
+                        {layer.dataSource && (
+                          <div className="text-xs text-muted-foreground mt-0.5">{layer.dataSource}</div>
+                        )}
+                      </div>
+                      <span className="text-base font-semibold text-foreground min-w-[2rem] text-right">
+                        {count}
+                      </span>
+                    </Label>
+                    <Switch
+                      id={`${layer.id}-toggle`}
+                      checked={layer.visible}
+                      onCheckedChange={() => toggleLayer(layer.id)}
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }
