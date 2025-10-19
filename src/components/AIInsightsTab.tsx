@@ -30,10 +30,51 @@ const AIInsightsTab = ({ selectedSite }: AIInsightsTabProps) => {
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !selectedSite || mapInitialized) return;
+    if (!mapContainer.current || !selectedSite || mapInitialized) {
+      console.log('Map init check:', { 
+        hasContainer: !!mapContainer.current, 
+        hasSite: !!selectedSite, 
+        mapInitialized 
+      });
+      return;
+    }
 
-    const bbox = selectedSite.bounding_box;
-    if (!bbox) return;
+    console.log('Selected site data:', selectedSite);
+    
+    // Extract bounding box from different possible formats
+    let bbox = selectedSite.bounding_box;
+    
+    // If no bounding_box, try to compute from boundary coordinates
+    if (!bbox && selectedSite.location_data?.boundary_coordinates) {
+      const coords = selectedSite.location_data.boundary_coordinates;
+      const lats = coords.map((c: number[]) => c[1]);
+      const lons = coords.map((c: number[]) => c[0]);
+      bbox = {
+        south: Math.min(...lats),
+        north: Math.max(...lats),
+        west: Math.min(...lons),
+        east: Math.max(...lons)
+      };
+    }
+    
+    // If still no bbox, try center_lat/center_lng with default radius
+    if (!bbox && selectedSite.center_lat && selectedSite.center_lng) {
+      const offset = 0.01; // roughly 1km
+      bbox = {
+        south: selectedSite.center_lat - offset,
+        north: selectedSite.center_lat + offset,
+        west: selectedSite.center_lng - offset,
+        east: selectedSite.center_lng + offset
+      };
+    }
+    
+    if (!bbox) {
+      console.error('Could not determine bounding box from site data');
+      toast.error('Unable to load map: missing location data');
+      return;
+    }
+
+    console.log('Using bounding box:', bbox);
 
     mapboxgl.accessToken = "pk.eyJ1IjoiZGlnZ2Vuc2VzIiwiYSI6ImNtNWdiazM3cDAwdHoya3B6djd4dnAwazMifQ.d0Z_KX-xCElc0uW7g5EHSg";
 
@@ -51,8 +92,28 @@ const AIInsightsTab = ({ selectedSite }: AIInsightsTabProps) => {
     map.current.on("load", () => {
       if (!map.current) return;
 
-      // Add site boundary
-      const boundaryCoords = selectedSite.location_data?.boundary_coordinates || [];
+      console.log('Map loaded successfully');
+
+      // Add site boundary - try different data formats
+      let boundaryCoords = selectedSite.location_data?.boundary_coordinates || [];
+      
+      // If no boundary_coordinates in location_data, try boundary_geojson
+      if (boundaryCoords.length === 0 && selectedSite.boundary_geojson) {
+        try {
+          const geojson = typeof selectedSite.boundary_geojson === 'string' 
+            ? JSON.parse(selectedSite.boundary_geojson)
+            : selectedSite.boundary_geojson;
+          
+          if (geojson.geometry?.coordinates?.[0]) {
+            boundaryCoords = geojson.geometry.coordinates[0];
+          }
+        } catch (e) {
+          console.error('Error parsing boundary_geojson:', e);
+        }
+      }
+
+      console.log('Boundary coordinates:', boundaryCoords);
+
       if (boundaryCoords.length > 0) {
         map.current.addSource("site-boundary", {
           type: "geojson",
@@ -107,11 +168,28 @@ const AIInsightsTab = ({ selectedSite }: AIInsightsTabProps) => {
     console.log("Starting AI query:", query);
 
     try {
-      const boundaryCoords = selectedSite.location_data?.boundary_coordinates || [];
+      // Get boundary coordinates from different possible formats
+      let boundaryCoords = selectedSite.location_data?.boundary_coordinates || [];
+      
+      if (boundaryCoords.length === 0 && selectedSite.boundary_geojson) {
+        try {
+          const geojson = typeof selectedSite.boundary_geojson === 'string' 
+            ? JSON.parse(selectedSite.boundary_geojson)
+            : selectedSite.boundary_geojson;
+          
+          if (geojson.geometry?.coordinates?.[0]) {
+            boundaryCoords = geojson.geometry.coordinates[0];
+          }
+        } catch (e) {
+          console.error('Error parsing boundary for query:', e);
+        }
+      }
       
       if (boundaryCoords.length === 0) {
-        throw new Error("Site boundary coordinates not found");
+        throw new Error("No boundary coordinates available. Please ensure your site has location data.");
       }
+
+      console.log('Using boundary coordinates for query:', boundaryCoords.length, 'points');
 
       const siteBoundary = {
         type: "Feature",
@@ -293,7 +371,10 @@ const AIInsightsTab = ({ selectedSite }: AIInsightsTabProps) => {
   if (!selectedSite) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Please select a site first</p>
+        <div className="text-center space-y-2">
+          <MapPin className="h-12 w-12 mx-auto text-muted-foreground" />
+          <p className="text-muted-foreground">Please select a site first</p>
+        </div>
       </div>
     );
   }
