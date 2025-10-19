@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Progress } from '@/components/ui/progress';
-import { Plus, ChevronDown, Download, Loader2, Sun, CloudRain, Box } from 'lucide-react';
+import { Plus, ChevronDown, Download, Loader2, Sun, CloudRain, Box, MapIcon, Sparkles } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { SiteData } from '@/types/site';
 import { useToast } from '@/hooks/use-toast';
 import { exportMapToPNG, exportMapToPDF, downloadBlob } from '@/utils/mapExport';
+import AIInsightsTab from '@/components/AIInsightsTab';
 
 const SiteIQLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
@@ -237,7 +238,7 @@ const SiteAI = () => {
           <ResizablePanel defaultSize={75} minSize={60}>
             <Tabs defaultValue="model" className="h-full flex flex-col" onValueChange={(value) => setActiveTab(value)}>
               <div className="px-6 pt-4 pb-2 border-b border-border bg-gradient-to-r from-card/50 via-primary/5 to-card/50">
-                <TabsList className="grid w-full grid-cols-3 h-12">
+                <TabsList className="grid w-full grid-cols-4 h-12">
                   <TabsTrigger value="model" className="gap-2 data-[state=active]:bg-primary/10">
                     <div className="flex items-center gap-2">
                       <Box className="w-4 h-4" />
@@ -254,6 +255,12 @@ const SiteAI = () => {
                     <div className="flex items-center gap-2">
                       <CloudRain className="w-4 h-4" />
                       <span>Climate Data</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger value="ai-insights" className="gap-2 data-[state=active]:bg-primary/10">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      <span>AI Insights</span>
                     </div>
                   </TabsTrigger>
                 </TabsList>
@@ -289,6 +296,10 @@ const SiteAI = () => {
                   centerLat={siteData?.center_lat || 0}
                   centerLng={siteData?.center_lng || 0}
                 />
+              </TabsContent>
+
+              <TabsContent value="ai-insights" className="flex-1 m-0 h-full">
+                <AIInsightsTab selectedSite={siteData} />
               </TabsContent>
             </Tabs>
           </ResizablePanel>

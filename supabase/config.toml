@@ -39,6 +39,9 @@ verify_jwt = false
 [functions.get-elevation-grid]
 verify_jwt = false
 
+[functions.ai-geospatial-query]
+verify_jwt = false
+
 [functions.analyze-elevation]
 verify_jwt = false
 
