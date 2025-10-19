@@ -357,9 +357,27 @@ const MapSelector = ({ onBoundarySelected }: MapSelectorProps) => {
           </TabsContent>
 
           <TabsContent value="custom" className="space-y-4 mt-4">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search for a location to draw boundary..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && searchLocation()}
+                  className="pl-9"
+                />
+              </div>
+              <Button onClick={searchLocation} disabled={isSearching} variant="default">
+                {isSearching ? 'Searching...' : 'Search'}
+              </Button>
+            </div>
+
             <div className="bg-muted/50 rounded-lg p-4 space-y-2">
               <p className="text-sm font-medium">Draw Custom Boundary</p>
               <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                <li>Search for a location (optional) or navigate the map</li>
                 <li>Click on the map to start drawing your boundary</li>
                 <li>Click to add each corner point</li>
                 <li>Double-click or click the first point to complete</li>
