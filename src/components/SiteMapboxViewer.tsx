@@ -49,18 +49,36 @@ export default function SiteMapboxViewer({
   const [osmData, setOsmData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [layersPanelOpen, setLayersPanelOpen] = useState(false);
+  const [isDataReadyForExport, setIsDataReadyForExport] = useState(false);
 
   // Fetch OSM data
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setIsDataReadyForExport(false);
+      
       try {
         console.log('[SiteMapboxViewer] Fetching OSM data...');
         const data = await fetchRealMapData(latitude, longitude, radiusMeters, boundaryGeojson);
-        setOsmData(data);
-        console.log('[SiteMapboxViewer] OSM data loaded:', data);
+        
+        // CRITICAL: Validate data structure before setting as ready
+        if (data && data.buildings && data.buildings.features && data.buildings.features.length > 0) {
+          setOsmData(data);
+          setIsDataReadyForExport(true);
+          console.log('[SiteMapboxViewer] OSM data loaded and READY FOR EXPORT:', {
+            buildings: data.buildings.features.length,
+            landuse: data.landuse?.features?.length || 0,
+            transit: data.transit?.features?.length || 0,
+            roads: data.roads?.features?.length || 0
+          });
+        } else {
+          console.error('[SiteMapboxViewer] OSM data loaded but INVALID structure:', data);
+          setOsmData(data);
+          setIsDataReadyForExport(false);
+        }
       } catch (error) {
         console.error('[SiteMapboxViewer] Failed to fetch OSM data:', error);
+        setIsDataReadyForExport(false);
       } finally {
         setLoading(false);
       }
@@ -512,17 +530,15 @@ export default function SiteMapboxViewer({
   };
 
   const handleDownloadDxf = () => {
-    // CRITICAL DATA VALIDATION: Verify osmData exists and has features
-    if (!osmData) {
-      console.error('[DXF Export] ABORTED: osmData is null or undefined');
-      toast.error('No site data available to export');
-      return;
-    }
-
-    // Validate that osmData has the required structure
-    if (!osmData.buildings || !osmData.buildings.features) {
-      console.error('[DXF Export] ABORTED: osmData.buildings is missing or invalid', osmData);
-      toast.error('Site data is incomplete. Please wait for analysis to complete.');
+    // FINAL VERIFICATION: Redundant but crucial state-aware check
+    if (!isDataReadyForExport || !osmData || !osmData.buildings || !osmData.buildings.features) {
+      console.error('[DXF Export] ABORTED: Data not ready for export', {
+        isDataReadyForExport,
+        hasOsmData: !!osmData,
+        hasBuildings: !!osmData?.buildings,
+        hasFeatures: !!osmData?.buildings?.features
+      });
+      toast.error('Site data is not yet available for export. Please wait for analysis to complete.');
       return;
     }
 
@@ -712,12 +728,21 @@ export default function SiteMapboxViewer({
             {/* Download DXF Button */}
             <Button 
               onClick={handleDownloadDxf}
-              disabled={loading || !osmData}
+              disabled={!isDataReadyForExport}
               className="w-full h-12 shadow-sm"
               variant="default"
             >
-              <Download className="h-4 w-4 mr-2" />
-              Download DXF
+              {!isDataReadyForExport ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Loading Site Data...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download DXF
+                </>
+              )}
             </Button>
             
             {/* Layer toggles */}
