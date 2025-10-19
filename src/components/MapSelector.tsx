@@ -37,24 +37,28 @@ const MapSelector = ({ onBoundarySelected }: MapSelectorProps) => {
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
-    // Use OpenStreetMap tiles for better detail
+    // Use Carto Voyager for modern, clean styling
     const streetStyle = {
       version: 8,
       sources: {
-        osm: {
+        carto: {
           type: 'raster',
-          tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+          tiles: [
+            'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+            'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+            'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+          ],
           tileSize: 256,
-          attribution: '© OpenStreetMap contributors',
+          attribution: '© OpenStreetMap contributors © CARTO',
         },
       },
       layers: [
         {
-          id: 'osm',
+          id: 'carto',
           type: 'raster',
-          source: 'osm',
+          source: 'carto',
           minzoom: 0,
-          maxzoom: 19,
+          maxzoom: 20,
         },
       ],
     };
@@ -360,24 +364,28 @@ const MapSelector = ({ onBoundarySelected }: MapSelectorProps) => {
       };
       map.current.setStyle(satelliteStyle as any);
     } else {
-      // Switch to street map
+      // Switch to street map - using Carto Voyager
       const streetStyle = {
         version: 8,
         sources: {
-          osm: {
+          carto: {
             type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tiles: [
+              'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+              'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+              'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+            ],
             tileSize: 256,
-            attribution: '© OpenStreetMap contributors',
+            attribution: '© OpenStreetMap contributors © CARTO',
           },
         },
         layers: [
           {
-            id: 'osm',
+            id: 'carto',
             type: 'raster',
-            source: 'osm',
+            source: 'carto',
             minzoom: 0,
-            maxzoom: 19,
+            maxzoom: 20,
           },
         ],
       };
