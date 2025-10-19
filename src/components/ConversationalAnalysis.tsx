@@ -2,11 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Send, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AnalysisCard } from './AnalysisCard';
 import { EnvironmentalDataCard } from './EnvironmentalDataCard';
+import { AnalysisTemplates } from './AnalysisTemplates';
 
 interface AnalysisResult {
   title: string;
@@ -39,6 +41,7 @@ interface ConversationalAnalysisProps {
   onLayerCreated?: (layer: any) => void;
   activeTab?: string;
   siteData?: any;
+  onTemplateSelect?: (query: string) => void;
 }
 
 const ConversationalAnalysis = ({ 
@@ -48,11 +51,13 @@ const ConversationalAnalysis = ({
   onQueryProcessed,
   onLayerCreated,
   activeTab,
-  siteData
+  siteData,
+  onTemplateSelect
 }: ConversationalAnalysisProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisResult[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -358,6 +363,35 @@ const ConversationalAnalysis = ({
       {/* Input */}
       <div className="p-4 border-t border-border bg-card/50 backdrop-blur-sm">
         <div className="flex gap-2">
+          <Popover open={templatesOpen} onOpenChange={setTemplatesOpen}>
+            <PopoverTrigger asChild>
+              <Button 
+                type="button" 
+                size="icon" 
+                variant="outline"
+                className="flex-shrink-0"
+                disabled={isLoading}
+              >
+                <Sparkles className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="top" align="start" className="w-80 p-3">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Quick Analysis Templates</p>
+                <AnalysisTemplates
+                  onTemplateSelect={(query) => {
+                    if (onTemplateSelect) {
+                      onTemplateSelect(query);
+                    } else {
+                      sendMessage(query);
+                    }
+                    setTemplatesOpen(false);
+                  }}
+                  disabled={isLoading}
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}

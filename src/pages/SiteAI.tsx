@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProjectSelector from '@/components/ai/ProjectSelector';
 import ConversationalAnalysis from '@/components/ConversationalAnalysis';
 import { AnalysisProgressPanel } from '@/components/AnalysisProgressPanel';
-import { AnalysisTemplates } from '@/components/AnalysisTemplates';
 import SiteMapboxViewer from '@/components/SiteMapboxViewer';
 import { SolarAnalyzerTab } from '@/components/SolarAnalyzerTab';
 import { ClimateTab } from '@/components/ClimateTab';
@@ -12,10 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Progress } from '@/components/ui/progress';
-import { Plus, ChevronDown, Download, Loader2, Sun, CloudRain, Box, MapIcon } from 'lucide-react';
+import { Plus, Download, Loader2, Sun, CloudRain, Box, MapIcon } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { SiteData } from '@/types/site';
 import { useToast } from '@/hooks/use-toast';
@@ -204,32 +202,16 @@ const SiteAI = () => {
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Left Sidebar - Resizable Chat */}
           <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-            <div className="h-full border-r border-border/50 bg-card flex flex-col">
-              <div className="flex-1 overflow-hidden">
-                <ConversationalAnalysis
-                  siteRequestId={selectedSite.id}
-                  locationName={selectedSite.location_name}
-                  templateQuery={templateQuery}
-                  onQueryProcessed={() => setTemplateQuery(null)}
-                  activeTab={activeTab}
-                  siteData={siteData}
-                />
-              </div>
-              
-              {/* Templates - Collapsible */}
-              <div className="border-t border-border/50">
-                <Collapsible>
-                  <CollapsibleTrigger className="w-full px-4 py-2 flex items-center justify-between hover:bg-muted/50 transition-smooth">
-                    <span className="text-sm font-medium text-muted-foreground">Quick Analysis Templates</span>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="border-t border-border/50">
-                    <div className="p-3 max-h-64 overflow-y-auto">
-                      <AnalysisTemplates onTemplateSelect={handleTemplateSelect} />
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
+            <div className="h-full border-r border-border/50 bg-card">
+              <ConversationalAnalysis
+                siteRequestId={selectedSite.id}
+                locationName={selectedSite.location_name}
+                templateQuery={templateQuery}
+                onQueryProcessed={() => setTemplateQuery(null)}
+                activeTab={activeTab}
+                siteData={siteData}
+                onTemplateSelect={handleTemplateSelect}
+              />
             </div>
           </ResizablePanel>
 
