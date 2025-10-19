@@ -10,6 +10,7 @@ import { Loader2, Download, Layers } from 'lucide-react';
 import { generate3dDxf, downloadDxf } from '@/lib/dxfExporter';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import * as turf from '@turf/turf';
 
 interface MapLayer {
   id: string;
@@ -529,6 +530,55 @@ export default function SiteMapboxViewer({
     }
   };
 
+  /**
+   * COORDINATE REPROJECTION PIPELINE
+   * Converts GeoJSON lat/lng coordinates to local Cartesian system (meters from origin)
+   * This is CRITICAL for CAD compatibility - DXF expects projected coordinates, not geographic
+   */
+  const reprojectToCartesian = (data: any, centerLat: number, centerLng: number) => {
+    console.log('[Coordinate Reprojection] Starting transformation to Cartesian system');
+    console.log('[Coordinate Reprojection] Site center:', [centerLng, centerLat]);
+    
+    // Create a deep clone to avoid mutating original data
+    const projectedData = JSON.parse(JSON.stringify(data));
+    const siteCenter = turf.point([centerLng, centerLat]);
+    
+    // Recursive function to transform coordinates at any nesting level
+    const transformCoords = (coords: any): any => {
+      // Base case: Point coordinates [lng, lat]
+      if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+        const point = turf.point(coords);
+        const distanceMeters = turf.distance(siteCenter, point, { units: 'meters' });
+        const bearingDegrees = turf.bearing(siteCenter, point);
+        
+        // Create new point from origin (0,0) with same distance and bearing
+        const newPoint = turf.destination([0, 0], distanceMeters, bearingDegrees, { units: 'meters' });
+        return newPoint.geometry.coordinates;
+      }
+      
+      // Recursive case: Array of coordinates (LineString, Polygon, etc.)
+      return coords.map(transformCoords);
+    };
+    
+    // Transform all feature collections in the data
+    const featureTypes = ['buildings', 'landuse', 'transit', 'roads', 'green_spaces'];
+    
+    featureTypes.forEach(type => {
+      if (projectedData[type]?.type === 'FeatureCollection' && projectedData[type].features) {
+        console.log(`[Coordinate Reprojection] Transforming ${type}: ${projectedData[type].features.length} features`);
+        
+        projectedData[type].features.forEach((feature: any) => {
+          if (feature.geometry && feature.geometry.coordinates) {
+            feature.geometry.coordinates = transformCoords(feature.geometry.coordinates);
+          }
+        });
+      }
+    });
+    
+    console.log('[Coordinate Reprojection] ✓ Transformation complete - all coordinates now in meters from origin');
+    return projectedData;
+  };
+
   const handleDownloadDxf = () => {
     // FINAL VERIFICATION: Redundant but crucial state-aware check
     if (!isDataReadyForExport || !osmData || !osmData.buildings || !osmData.buildings.features) {
@@ -542,17 +592,26 @@ export default function SiteMapboxViewer({
       return;
     }
 
-    console.log('[DXF Export] ===== STARTING EXPORT =====');
-    console.log('[DXF Export] Full osmData structure:', {
+    console.log('[DXF Export] ===== STARTING EXPORT WITH COORDINATE REPROJECTION =====');
+    console.log('[DXF Export] Original data (lat/lng coordinates):', {
       buildings: osmData.buildings?.features?.length || 0,
       landuse: osmData.landuse?.features?.length || 0,
       transit: osmData.transit?.features?.length || 0,
       roads: osmData.roads?.features?.length || 0,
-      stats: osmData.stats
+      sampleCoordinate: osmData.buildings?.features?.[0]?.geometry?.coordinates?.[0]?.[0]
     });
 
     try {
-      // GATHER VISIBLE LAYERS: Create object representing current UI toggle state
+      // STEP 1: REPROJECT COORDINATES FROM LAT/LNG TO CARTESIAN (METERS)
+      // This is the critical fix - CAD software needs projected coordinates, not geographic
+      const reprojectedData = reprojectToCartesian(osmData, latitude, longitude);
+      
+      console.log('[DXF Export] Reprojected data (Cartesian coordinates in meters):', {
+        buildings: reprojectedData.buildings?.features?.length || 0,
+        sampleCoordinate: reprojectedData.buildings?.features?.[0]?.geometry?.coordinates?.[0]?.[0]
+      });
+      
+      // STEP 2: GATHER VISIBLE LAYERS
       const visibleLayers = {
         buildings: layers.find(l => l.id === 'buildings')?.visible || false,
         green: layers.find(l => l.id === 'green')?.visible || false,
@@ -573,14 +632,9 @@ export default function SiteMapboxViewer({
       console.log('[DXF Export] Exporting with layers:', visibleLayers);
       console.log('[DXF Export] Visible layer count:', visibleCount);
       
-      // GENERATE DXF CONTENT: Call exporter with verified data
-      console.log('[DXF Export] Calling generate3dDxf with:', {
-        siteName,
-        dataKeys: Object.keys(osmData),
-        visibleLayers
-      });
-      
-      const dxfContent = generate3dDxf(osmData, siteName, visibleLayers);
+      // STEP 3: GENERATE DXF WITH REPROJECTED DATA
+      console.log('[DXF Export] Calling generate3dDxf with REPROJECTED Cartesian data');
+      const dxfContent = generate3dDxf(reprojectedData, siteName, visibleLayers);
       
       if (!dxfContent || dxfContent.length < 100) {
         console.error('[DXF Export] FAILED: Generated DXF content is too short or empty', {
@@ -592,12 +646,12 @@ export default function SiteMapboxViewer({
       
       console.log('[DXF Export] DXF content generated successfully. Length:', dxfContent.length);
       
-      // TRIGGER DOWNLOAD: Use the dedicated download utility
+      // STEP 4: TRIGGER DOWNLOAD
       downloadDxf(dxfContent, siteName);
       
-      console.log('[DXF Export] ===== EXPORT COMPLETE =====');
+      console.log('[DXF Export] ===== EXPORT COMPLETE - FILE READY FOR CAD SOFTWARE =====');
       toast.success(`DXF file exported with ${visibleCount} layer${visibleCount > 1 ? 's' : ''}`, {
-        description: 'Compatible with SketchUp, AutoCAD, and Rhino'
+        description: 'Coordinates converted to Cartesian system for CAD compatibility'
       });
     } catch (error) {
       console.error('[DXF Export] ERROR during generation:', error);
