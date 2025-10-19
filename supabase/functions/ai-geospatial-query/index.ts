@@ -12,13 +12,23 @@ serve(async (req) => {
 
   try {
     const { userQuery, siteBoundary } = await req.json();
-    console.log('AI Geospatial Query:', userQuery);
+    console.log('AI Geospatial Query received:', userQuery);
+
+    if (!userQuery || !siteBoundary) {
+      throw new Error("Missing required parameters: userQuery or siteBoundary");
+    }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
 
     // Extract boundary coordinates for Overpass query
     const coords = siteBoundary.geometry.coordinates[0];
+    if (!coords || coords.length === 0) {
+      throw new Error("Invalid site boundary coordinates");
+    }
+
     const lats = coords.map((c: number[]) => c[1]);
     const lons = coords.map((c: number[]) => c[0]);
     const bbox = {
@@ -27,6 +37,8 @@ serve(async (req) => {
       west: Math.min(...lons),
       east: Math.max(...lons)
     };
+
+    console.log('Bounding box:', bbox);
 
     // Construct system prompt with geospatial context
     const systemPrompt = `You are a geospatial analysis assistant. Analyze the user's query and determine what type of POI (Point of Interest) they're looking for.
@@ -37,7 +49,7 @@ Common queries and their Overpass tags:
 - Schools: amenity=school
 - Cafes/Coffee shops: amenity=cafe
 - Restaurants: amenity=restaurant
-- Parks: leisure=park OR landuse=recreation_ground
+- Parks/Gardens/Green spaces: leisure=park OR leisure=garden OR landuse=grass OR landuse=recreation_ground
 - Bus stops: highway=bus_stop
 - Hospitals: amenity=hospital
 - Banks: amenity=bank
@@ -52,15 +64,19 @@ Common queries and their Overpass tags:
 - Fire stations: amenity=fire_station
 - Hotels: tourism=hotel
 - Gyms: leisure=fitness_centre
+- Bars/Pubs: amenity=bar OR amenity=pub
 
 Respond with ONLY a JSON object in this exact format:
 {
   "tags": ["amenity=school"],
-  "description": "schools within the site boundary",
+  "description": "schools",
   "needsGeometry": false
 }
 
-For parks/green spaces, set needsGeometry to true to get polygon data.`;
+For parks/green spaces/gardens, set needsGeometry to true to get polygon data.
+Keep description short (1-2 words).`;
+
+    console.log('Calling Lovable AI...');
 
     // Call Lovable AI to interpret the query
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -81,7 +97,7 @@ For parks/green spaces, set needsGeometry to true to get polygon data.`;
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error("AI API error:", aiResponse.status, errorText);
-      throw new Error(`AI API error: ${aiResponse.status}`);
+      throw new Error(`AI API error: ${aiResponse.status} - ${errorText}`);
     }
 
     const aiData = await aiResponse.json();
@@ -89,11 +105,21 @@ For parks/green spaces, set needsGeometry to true to get polygon data.`;
     console.log('AI interpreted query:', aiContent);
 
     // Parse AI response
-    const interpretation = JSON.parse(aiContent);
+    let interpretation;
+    try {
+      // Clean the response in case there's markdown formatting
+      const cleanedContent = aiContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      interpretation = JSON.parse(cleanedContent);
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', aiContent);
+      throw new Error('Failed to parse AI interpretation');
+    }
+
+    console.log('Parsed interpretation:', interpretation);
     
     // Build Overpass query
     const overpassQuery = `
-      [out:json][timeout:25];
+      [out:json][timeout:30];
       (
         ${interpretation.tags.map((tag: string) => {
           const geometryType = interpretation.needsGeometry ? 'way' : 'node';
@@ -113,6 +139,8 @@ For parks/green spaces, set needsGeometry to true to get polygon data.`;
     });
 
     if (!overpassResponse.ok) {
+      const errorText = await overpassResponse.text();
+      console.error('Overpass API error:', errorText);
       throw new Error(`Overpass API error: ${overpassResponse.status}`);
     }
 
@@ -167,8 +195,12 @@ For parks/green spaces, set needsGeometry to true to get polygon data.`;
 
   } catch (error) {
     console.error('Error in ai-geospatial-query:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ 
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : undefined
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

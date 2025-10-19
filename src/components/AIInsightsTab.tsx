@@ -98,13 +98,21 @@ const AIInsightsTab = ({ selectedSite }: AIInsightsTabProps) => {
   }, [selectedSite, mapInitialized]);
 
   const handleQuery = async () => {
-    if (!query.trim() || !selectedSite || !map.current) return;
+    if (!query.trim() || !selectedSite || !map.current || !mapInitialized) {
+      toast.error("Please wait for the map to load");
+      return;
+    }
 
     setIsLoading(true);
+    console.log("Starting AI query:", query);
 
     try {
       const boundaryCoords = selectedSite.location_data?.boundary_coordinates || [];
       
+      if (boundaryCoords.length === 0) {
+        throw new Error("Site boundary coordinates not found");
+      }
+
       const siteBoundary = {
         type: "Feature",
         geometry: {
@@ -114,6 +122,8 @@ const AIInsightsTab = ({ selectedSite }: AIInsightsTabProps) => {
         properties: {},
       };
 
+      console.log("Sending query to edge function...");
+
       const { data, error } = await supabase.functions.invoke("ai-geospatial-query", {
         body: {
           userQuery: query,
@@ -121,42 +131,69 @@ const AIInsightsTab = ({ selectedSite }: AIInsightsTabProps) => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Edge function error:", error);
+        throw error;
+      }
+
+      if (!data || !data.geojson || !data.geojson.features) {
+        throw new Error("Invalid response from AI query");
+      }
 
       console.log("AI Query Result:", data);
 
       // Remove previous AI layers
-      const existingLayers = map.current?.getStyle()?.layers || [];
-      existingLayers.forEach((layer) => {
-        if (layer.id.startsWith("ai-results-")) {
-          map.current?.removeLayer(layer.id);
-        }
-      });
+      if (map.current) {
+        const existingLayers = map.current.getStyle()?.layers || [];
+        existingLayers.forEach((layer) => {
+          if (layer.id.startsWith("ai-results-") || layer.id.startsWith("ai-layer-")) {
+            try {
+              map.current?.removeLayer(layer.id);
+            } catch (e) {
+              console.warn("Error removing layer:", e);
+            }
+          }
+        });
 
-      const existingSources = Object.keys(map.current?.getStyle()?.sources || {});
-      existingSources.forEach((sourceId) => {
-        if (sourceId.startsWith("ai-results-")) {
-          map.current?.removeSource(sourceId);
-        }
-      });
+        const existingSources = Object.keys(map.current.getStyle()?.sources || {});
+        existingSources.forEach((sourceId) => {
+          if (sourceId.startsWith("ai-results-")) {
+            try {
+              map.current?.removeSource(sourceId);
+            } catch (e) {
+              console.warn("Error removing source:", e);
+            }
+          }
+        });
+      }
 
       // Add new results to map
       const sourceId = `ai-results-${Date.now()}`;
-      const layerId = `ai-layer-${Date.now()}`;
+      
+      if (!map.current) return;
 
-      map.current?.addSource(sourceId, {
+      map.current.addSource(sourceId, {
         type: "geojson",
         data: data.geojson,
       });
 
       // Determine if we're dealing with points or polygons
       const firstFeature = data.geojson.features[0];
-      const isPolygon = firstFeature?.geometry.type === "Polygon";
+      if (!firstFeature) {
+        toast.info("No results found for your query");
+        setIsLoading(false);
+        return;
+      }
 
-      if (isPolygon) {
+      const geometryType = firstFeature.geometry.type;
+
+      if (geometryType === "Polygon" || geometryType === "MultiPolygon") {
         // Add polygon layer for areas like parks
-        map.current?.addLayer({
-          id: `${layerId}-fill`,
+        const fillLayerId = `ai-layer-fill-${Date.now()}`;
+        const lineLayerId = `ai-layer-line-${Date.now()}`;
+
+        map.current.addLayer({
+          id: fillLayerId,
           type: "fill",
           source: sourceId,
           paint: {
@@ -165,8 +202,8 @@ const AIInsightsTab = ({ selectedSite }: AIInsightsTabProps) => {
           },
         });
 
-        map.current?.addLayer({
-          id: `${layerId}-line`,
+        map.current.addLayer({
+          id: lineLayerId,
           type: "line",
           source: sourceId,
           paint: {
@@ -174,9 +211,27 @@ const AIInsightsTab = ({ selectedSite }: AIInsightsTabProps) => {
             "line-width": 2,
           },
         });
+
+        // Add popup on click
+        map.current.on("click", fillLayerId, (e: any) => {
+          if (e.features && e.features[0]) {
+            const properties = e.features[0].properties;
+            new mapboxgl.Popup()
+              .setLngLat(e.lngLat)
+              .setHTML(`
+                <div class="p-2">
+                  <h3 class="font-semibold">${properties.name || "Green Space"}</h3>
+                  ${properties.leisure ? `<p class="text-sm">Type: ${properties.leisure}</p>` : ""}
+                </div>
+              `)
+              .addTo(map.current!);
+          }
+        });
       } else {
         // Add point layer for POIs
-        map.current?.addLayer({
+        const layerId = `ai-layer-${Date.now()}`;
+
+        map.current.addLayer({
           id: layerId,
           type: "circle",
           source: sourceId,
@@ -186,6 +241,31 @@ const AIInsightsTab = ({ selectedSite }: AIInsightsTabProps) => {
             "circle-stroke-width": 2,
             "circle-stroke-color": "#ffffff",
           },
+        });
+
+        // Add popup on click
+        map.current.on("click", layerId, (e: any) => {
+          if (e.features && e.features[0]) {
+            const properties = e.features[0].properties;
+            new mapboxgl.Popup()
+              .setLngLat(e.lngLat)
+              .setHTML(`
+                <div class="p-2">
+                  <h3 class="font-semibold">${properties.name || "Point of Interest"}</h3>
+                  ${properties.amenity ? `<p class="text-sm">Type: ${properties.amenity}</p>` : ""}
+                  ${properties.shop ? `<p class="text-sm">Shop: ${properties.shop}</p>` : ""}
+                </div>
+              `)
+              .addTo(map.current!);
+          }
+        });
+
+        // Change cursor on hover
+        map.current.on("mouseenter", layerId, () => {
+          if (map.current) map.current.getCanvas().style.cursor = "pointer";
+        });
+        map.current.on("mouseleave", layerId, () => {
+          if (map.current) map.current.getCanvas().style.cursor = "";
         });
       }
 
@@ -204,7 +284,7 @@ const AIInsightsTab = ({ selectedSite }: AIInsightsTabProps) => {
       toast.success(`Found ${data.count} ${data.description}`);
     } catch (error) {
       console.error("AI query error:", error);
-      toast.error("Failed to process query");
+      toast.error(error instanceof Error ? error.message : "Failed to process query");
     } finally {
       setIsLoading(false);
     }
@@ -253,12 +333,16 @@ const AIInsightsTab = ({ selectedSite }: AIInsightsTabProps) => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && !isLoading && handleQuery()}
-              placeholder="Ask about places... e.g., 'Show me all cafes' or 'Find nearby schools'"
-              disabled={isLoading}
+              placeholder="e.g., 'Show me all cafes' or 'Find nearby schools'"
+              disabled={isLoading || !mapInitialized}
               className="pl-10"
             />
           </div>
-          <Button onClick={handleQuery} disabled={isLoading || !query.trim()}>
+          <Button 
+            onClick={handleQuery} 
+            disabled={isLoading || !query.trim() || !mapInitialized}
+            className="min-w-[44px]"
+          >
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
