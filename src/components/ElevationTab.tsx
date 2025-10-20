@@ -4,6 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Mountain, MousePointer, TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import * as turf from '@turf/turf';
+import MapboxDraw from '@mapbox/mapbox-gl-draw';
+import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 
 interface ElevationTabProps {
   mapInstance: any;
@@ -37,7 +39,6 @@ const ElevationTab = ({ mapInstance }: ElevationTabProps) => {
   useEffect(() => {
     if (!mapInstance) return;
 
-    const MapboxDraw = require('@mapbox/mapbox-gl-draw');
     drawRef.current = new MapboxDraw({
       displayControlsDefault: false,
       controls: {},
