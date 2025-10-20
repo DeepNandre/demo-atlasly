@@ -31,26 +31,25 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Main Brand Section - Big Text */}
-        <div className="relative">
+        {/* Bottom Section - Logo and Brand Name */}
+        <div className="relative border-t border-border/50 pt-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
+            {/* Logo and Brand Name Side by Side */}
+            <div className="flex items-center gap-4">
               <img 
                 src={atlasLogo} 
                 alt="Atlasly" 
-                className="h-24 md:h-32 w-auto opacity-90" 
+                className="h-12 md:h-16 w-auto opacity-90" 
               />
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
+                ATLASLY
+              </h2>
             </div>
+            
+            {/* Copyright */}
             <p className="text-xs text-muted-foreground">
               © {new Date().getFullYear()} Atlasly
             </p>
-          </div>
-          
-          {/* Giant Text */}
-          <div className="mt-8">
-            <h2 className="text-[12vw] md:text-[10vw] font-bold tracking-tight leading-none text-foreground/10 select-none">
-              ATLASLY
-            </h2>
           </div>
         </div>
       </div>
