@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
-import atlaslyLogo from "@/assets/atlasly-logo.png";
+import atlasLogo from "@/assets/atlas-logo.png";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -20,7 +20,8 @@ const Header = () => {
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-            <img src={atlaslyLogo} alt="Atlasly Logo" className="h-10 w-auto" />
+            <img src={atlasLogo} alt="Atlasly" className="h-8 w-auto" />
+            <span className="text-xl font-serif font-bold">Atlasly</span>
           </div>
           
           <nav className="hidden md:flex items-center gap-8">

@@ -18,32 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { SiteData } from '@/types/site';
 import { useToast } from '@/hooks/use-toast';
 import { exportMapToPNG, exportMapToPDF, downloadBlob } from '@/utils/mapExport';
-
-const AtlaslyLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-    <path
-      d="M3 12L6 9L9 12L12 9L15 12L18 9L21 12"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M3 16L6 13L9 16L12 13L15 16L18 13L21 16"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M3 8L6 5L9 8L12 5L15 8L18 5L21 8"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
+import atlasLogo from '@/assets/atlas-logo.png';
 
 export interface SiteRequest {
   id: string;
@@ -168,8 +143,8 @@ const SiteAI = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                  <AtlaslyLogo className="text-primary-foreground" size={20} />
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center p-1.5">
+                  <img src={atlasLogo} alt="Atlasly" className="w-full h-full object-contain brightness-0 invert" />
                 </div>
                 <h1 className="text-lg font-semibold text-foreground">Atlasly AI</h1>
               </div>
@@ -281,8 +256,8 @@ const SiteAI = () => {
         <div className="flex h-[calc(100vh-4rem)] items-center justify-center p-8">
           <div className="text-center space-y-6 max-w-lg">
             <div className="relative mx-auto">
-              <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6 shadow-medium">
-                <AtlaslyLogo className="text-primary" size={48} />
+              <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6 shadow-medium p-3">
+                <img src={atlasLogo} alt="Atlasly" className="w-full h-full object-contain" />
               </div>
               <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                 <span className="text-white text-xs font-bold">AI</span>

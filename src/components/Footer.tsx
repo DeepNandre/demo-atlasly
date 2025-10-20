@@ -1,4 +1,5 @@
 import { Layers } from "lucide-react";
+import atlasLogo from "@/assets/atlas-logo.png";
 
 const Footer = () => {
   return (
@@ -6,7 +7,7 @@ const Footer = () => {
       <div className="container mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <Layers className="w-5 h-5 text-primary" />
+            <img src={atlasLogo} alt="Atlasly" className="h-6 w-auto" />
             <span className="font-serif font-bold">Atlasly</span>
           </div>
           

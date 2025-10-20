@@ -10,38 +10,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import atlasLogo from '@/assets/atlas-logo.png';
 
 const emailSchema = z.string().email('Invalid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
-
-const AtlaslyLogo = ({ className }: { className?: string }) => (
-  <div className={`flex items-center space-x-2 ${className}`}>
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-current">
-      <path
-        d="M3 12L6 9L9 12L12 9L15 12L18 9L21 12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M3 16L6 13L9 16L12 13L15 16L18 13L21 16"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M3 8L6 5L9 8L12 5L15 8L18 5L21 8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-    <span className="font-semibold text-lg">Atlasly</span>
-  </div>
-);
 
 const tierInfo = {
   free: { name: 'Free', icon: Sparkles, description: 'Perfect for students' },
@@ -121,7 +93,10 @@ const Auth = () => {
         <div className="w-full lg:w-1/2 flex flex-col">
           {/* Header */}
           <div className="p-8 flex items-center justify-between">
-            <AtlaslyLogo className="text-primary" />
+            <div className="flex items-center gap-3">
+              <img src={atlasLogo} alt="Atlasly" className="h-8 w-auto" />
+              <span className="text-2xl font-serif font-bold text-primary">Atlasly</span>
+            </div>
             <div className="text-sm text-muted-foreground">
               {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
               <button

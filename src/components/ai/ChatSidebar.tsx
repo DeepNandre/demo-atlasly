@@ -12,32 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-const AtlaslyLogo = ({ className, size = 24 }: { className?: string; size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-    <path
-      d="M3 12L6 9L9 12L12 9L15 12L18 9L21 12"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M3 16L6 13L9 16L12 13L15 16L18 13L21 16"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M3 8L6 5L9 8L12 5L15 8L18 5L21 8"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
+import atlasLogo from '@/assets/atlas-logo.png';
 
 interface ChatHistory {
   id: string;
@@ -329,8 +304,8 @@ const ChatSidebar = ({ activeChatId, onChatSelect, onNewChat, siteRequestId }: C
       {/* Footer */}
       <div className="p-4 border-t border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm">
-            <AtlaslyLogo className="text-primary" size={16} />
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm p-1.5">
+            <img src={atlasLogo} alt="Atlasly" className="w-full h-full object-contain" />
           </div>
           <div>
             <div className="font-semibold text-sm text-gray-900 dark:text-white">Atlasly AI</div>
