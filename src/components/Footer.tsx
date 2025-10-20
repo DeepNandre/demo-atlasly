@@ -35,13 +35,13 @@ const Footer = () => {
         <div className="relative border-t border-border/50 pt-8">
           <div className="flex items-center justify-between">
             {/* Logo and Brand Name Side by Side */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6">
               <img 
                 src={atlasLogo} 
                 alt="Atlasly" 
-                className="h-12 md:h-16 w-auto opacity-90" 
+                className="h-20 md:h-28 w-auto opacity-90" 
               />
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
+              <h2 className="text-5xl md:text-6xl font-bold tracking-tight text-foreground">
                 ATLASLY
               </h2>
             </div>
