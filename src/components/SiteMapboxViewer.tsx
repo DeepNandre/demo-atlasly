@@ -27,6 +27,7 @@ interface SiteMapboxViewerProps {
   siteName: string;
   boundaryGeojson?: any;
   radiusMeters?: number;
+  onMapLoad?: (map: mapboxgl.Map) => void;
 }
 
 const defaultLayers: MapLayer[] = [
@@ -116,6 +117,10 @@ export default function SiteMapboxViewer({
 
     map.on('load', () => {
       console.log('[SiteMapboxViewer] Map loaded. Configuring 3D terrain...');
+      
+      if (onMapLoad) {
+        onMapLoad(map);
+      }
 
       // Add 3D terrain
       map.addSource('mapbox-dem', {
