@@ -259,8 +259,31 @@ const SiteAI = () => {
                 />
               </TabsContent>
 
-              <TabsContent value="elevation" className="flex-1 m-0 p-4 overflow-auto">
-                <ElevationTab mapInstance={mapInstance} />
+              <TabsContent value="elevation" className="flex-1 m-0 relative">
+                <div className="absolute inset-0 flex">
+                  {/* Map View - Left Side */}
+                  <div className="flex-1 relative">
+                    {siteData ? (
+                      <SiteMapboxViewer 
+                        latitude={siteData.center_lat}
+                        longitude={siteData.center_lng}
+                        siteName={selectedSite.location_name}
+                        boundaryGeojson={siteData.boundary_geojson}
+                        radiusMeters={siteData.radius_meters || 500}
+                        onMapLoad={setMapInstance}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        Loading site data...
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Elevation Controls - Right Side */}
+                  <div className="w-96 bg-background border-l border-border overflow-auto">
+                    <ElevationTab mapInstance={mapInstance} />
+                  </div>
+                </div>
               </TabsContent>
             </Tabs>
           </ResizablePanel>

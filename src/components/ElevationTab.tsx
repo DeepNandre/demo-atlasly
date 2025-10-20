@@ -48,7 +48,7 @@ const ElevationTab = ({ mapInstance }: ElevationTabProps) => {
           'type': 'line',
           'filter': ['all', ['==', '$type', 'LineString'], ['!=', 'mode', 'static']],
           'layout': { 'line-cap': 'round', 'line-join': 'round' },
-          'paint': { 'line-color': '#3b82f6', 'line-width': 3 }
+          'paint': { 'line-color': 'hsl(var(--primary))', 'line-width': 3 }
         },
         {
           'id': 'gl-draw-polygon-and-line-vertex-halo-active',
@@ -60,7 +60,7 @@ const ElevationTab = ({ mapInstance }: ElevationTabProps) => {
           'id': 'gl-draw-polygon-and-line-vertex-active',
           'type': 'circle',
           'filter': ['all', ['==', 'meta', 'vertex'], ['==', '$type', 'Point']],
-          'paint': { 'circle-radius': 5, 'circle-color': '#3b82f6' }
+          'paint': { 'circle-radius': 5, 'circle-color': 'hsl(var(--primary))' }
         }
       ]
     });
@@ -69,11 +69,20 @@ const ElevationTab = ({ mapInstance }: ElevationTabProps) => {
     mapInstance.on('draw.create', handleDrawCreate);
 
     return () => {
-      if (mapInstance.hasControl(drawRef.current)) {
-        mapInstance.removeControl(drawRef.current);
+      try {
+        if (mapInstance.hasControl(drawRef.current)) {
+          mapInstance.removeControl(drawRef.current);
+        }
+        mapInstance.off('draw.create', handleDrawCreate);
+        mapInstance.off('click', handleMapClick);
+        if (markerRef.current) markerRef.current.remove();
+        if (hoverMarkerRef.current) hoverMarkerRef.current.remove();
+        if (mapInstance.getCanvas()) {
+          mapInstance.getCanvas().style.cursor = '';
+        }
+      } catch (error) {
+        console.warn('Error cleaning up elevation tab:', error);
       }
-      if (markerRef.current) markerRef.current.remove();
-      if (hoverMarkerRef.current) hoverMarkerRef.current.remove();
     };
   }, [mapInstance]);
 
@@ -119,29 +128,40 @@ const ElevationTab = ({ mapInstance }: ElevationTabProps) => {
     setStats(null);
     if (drawRef.current) drawRef.current.deleteAll();
 
-    const handleMapClick = (e: any) => {
-      const { lng, lat } = e.lngLat;
-      const elevation = mapInstance.queryTerrainElevation([lng, lat], { exaggerated: false });
-      setPointElevation(elevation || 0);
-      setPointCoords({ lng, lat });
-
-      if (markerRef.current) {
-        markerRef.current.setLngLat([lng, lat]);
-      } else {
-        markerRef.current = new (window as any).mapboxgl.Marker({ color: '#3b82f6' })
-          .setLngLat([lng, lat])
-          .addTo(mapInstance);
-      }
-    };
-
     mapInstance.on('click', handleMapClick);
-    mapInstance.getCanvas().style.cursor = 'crosshair';
+    if (mapInstance.getCanvas()) {
+      mapInstance.getCanvas().style.cursor = 'crosshair';
+    }
+  };
+
+  const handleMapClick = (e: any) => {
+    if (!mapInstance || mode !== 'point') return;
+    const { lng, lat } = e.lngLat;
+    const elevation = mapInstance.queryTerrainElevation([lng, lat], { exaggerated: false });
+    setPointElevation(elevation || 0);
+    setPointCoords({ lng, lat });
+
+    if (markerRef.current) {
+      markerRef.current.setLngLat([lng, lat]);
+    } else {
+      markerRef.current = new (window as any).mapboxgl.Marker({ color: 'hsl(var(--primary))' })
+        .setLngLat([lng, lat])
+        .addTo(mapInstance);
+    }
   };
 
   const handlePathMode = () => {
     if (!mapInstance) return;
     setMode('path');
     setPointElevation(null);
+    setPointCoords(null);
+    
+    // Clean up point mode
+    mapInstance.off('click', handleMapClick);
+    if (mapInstance.getCanvas()) {
+      mapInstance.getCanvas().style.cursor = '';
+    }
+    
     if (markerRef.current) {
       markerRef.current.remove();
       markerRef.current = null;
@@ -155,51 +175,113 @@ const ElevationTab = ({ mapInstance }: ElevationTabProps) => {
   };
 
   return (
-    <div className="h-full flex flex-col gap-4">
-      <Card className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            <Button variant={mode === 'point' ? 'default' : 'outline'} size="sm" onClick={handlePointMode} className="gap-2">
-              <MousePointer className="w-4 h-4" />Measure Point
-            </Button>
-            <Button variant={mode === 'path' ? 'default' : 'outline'} size="sm" onClick={handlePathMode} className="gap-2">
-              <Activity className="w-4 h-4" />Draw Path
-            </Button>
-          </div>
+    <div className="h-full flex flex-col">
+      <Card className="m-4 p-4">
+        <h3 className="font-semibold mb-3 text-lg">Elevation Analysis</h3>
+        <div className="flex flex-col gap-2">
+          <Button 
+            variant={mode === 'point' ? 'default' : 'outline'} 
+            size="sm" 
+            onClick={handlePointMode} 
+            className="w-full justify-start gap-2"
+          >
+            <MousePointer className="w-4 h-4" />
+            Measure Point
+          </Button>
+          <Button 
+            variant={mode === 'path' ? 'default' : 'outline'} 
+            size="sm" 
+            onClick={handlePathMode} 
+            className="w-full justify-start gap-2"
+          >
+            <Activity className="w-4 h-4" />
+            Draw Path Profile
+          </Button>
         </div>
-        {!mode && <p className="text-sm text-muted-foreground mt-3">Select a mode: Click a point on the map to get its elevation, or draw a path to generate a profile.</p>}
+        {!mode && (
+          <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+            Select a mode: Click a point on the map to get its elevation, or draw a path to generate an elevation profile.
+          </p>
+        )}
       </Card>
 
       {mode === 'point' && pointElevation !== null && (
-        <Card className="p-4">
+        <Card className="mx-4 mb-4 p-4">
           <div className="flex items-center gap-2 mb-2">
             <Mountain className="w-5 h-5 text-primary" />
             <h3 className="font-semibold">Point Elevation</h3>
           </div>
           <p className="text-2xl font-bold text-primary">{formatElevation(pointElevation)}</p>
+          {pointCoords && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Lat: {pointCoords.lat.toFixed(6)}, Lng: {pointCoords.lng.toFixed(6)}
+            </p>
+          )}
         </Card>
       )}
 
       {mode === 'path' && pathData.length > 0 && stats && (
-        <>
-          <div className="grid grid-cols-4 gap-3">
-            <Card className="p-3"><p className="text-xs text-muted-foreground">Max</p><p className="text-lg font-bold">{stats.max.toFixed(1)}m</p></Card>
-            <Card className="p-3"><p className="text-xs text-muted-foreground">Min</p><p className="text-lg font-bold">{stats.min.toFixed(1)}m</p></Card>
-            <Card className="p-3"><p className="text-xs text-muted-foreground">Gain</p><p className="text-lg font-bold">{stats.gain.toFixed(1)}m</p></Card>
-            <Card className="p-3"><p className="text-xs text-muted-foreground">Loss</p><p className="text-lg font-bold">{stats.loss.toFixed(1)}m</p></Card>
+        <div className="flex-1 overflow-auto px-4 pb-4">
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <Card className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="w-3 h-3 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Max</p>
+              </div>
+              <p className="text-lg font-bold">{stats.max.toFixed(1)}m</p>
+            </Card>
+            <Card className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingDown className="w-3 h-3 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Min</p>
+              </div>
+              <p className="text-lg font-bold">{stats.min.toFixed(1)}m</p>
+            </Card>
+            <Card className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="w-3 h-3 text-green-500" />
+                <p className="text-xs text-muted-foreground">Gain</p>
+              </div>
+              <p className="text-lg font-bold text-green-600">{stats.gain.toFixed(1)}m</p>
+            </Card>
+            <Card className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingDown className="w-3 h-3 text-orange-500" />
+                <p className="text-xs text-muted-foreground">Loss</p>
+              </div>
+              <p className="text-lg font-bold text-orange-600">{stats.loss.toFixed(1)}m</p>
+            </Card>
           </div>
-          <Card className="p-4 flex-1">
-            <ResponsiveContainer width="100%" height={300}>
+          
+          <Card className="p-4">
+            <h4 className="font-semibold mb-3 text-sm">Elevation Profile</h4>
+            <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={pathData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="distance" label={{ value: 'Distance (m)', position: 'insideBottom', offset: -5 }} />
-                <YAxis label={{ value: 'Elevation (m)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip />
-                <Area type="monotone" dataKey="elevation" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="distance" 
+                  label={{ value: 'Distance (m)', position: 'insideBottom', offset: -5, className: 'text-xs' }}
+                  tick={{ fontSize: 10 }}
+                />
+                <YAxis 
+                  label={{ value: 'Elevation (m)', angle: -90, position: 'insideLeft', className: 'text-xs' }}
+                  tick={{ fontSize: 10 }}
+                />
+                <Tooltip 
+                  contentStyle={{ fontSize: '12px' }}
+                  formatter={(value: number) => [`${value.toFixed(1)}m`, 'Elevation']}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="elevation" 
+                  stroke="hsl(var(--primary))" 
+                  fill="hsl(var(--primary))" 
+                  fillOpacity={0.3} 
+                />
               </AreaChart>
             </ResponsiveContainer>
           </Card>
-        </>
+        </div>
       )}
     </div>
   );
