@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Layers, LogOut, Sparkles } from "lucide-react";
+import { LogOut, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
+import atlaslyLogo from "@/assets/atlasly-logo.png";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -18,9 +19,8 @@ const Header = () => {
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-2">
-            <Layers className="w-6 h-6 text-primary" />
-            <span className="text-xl font-serif font-bold">Atlasly</span>
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+            <img src={atlaslyLogo} alt="Atlasly Logo" className="h-10 w-auto" />
           </div>
           
           <nav className="hidden md:flex items-center gap-8">
