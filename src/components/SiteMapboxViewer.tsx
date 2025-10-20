@@ -42,7 +42,8 @@ export default function SiteMapboxViewer({
   longitude, 
   siteName, 
   boundaryGeojson,
-  radiusMeters = 500 
+  radiusMeters = 500,
+  onMapLoad
 }: SiteMapboxViewerProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
