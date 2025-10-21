@@ -8,6 +8,7 @@ import SiteMapboxViewer from '@/components/SiteMapboxViewer';
 import { SolarAnalyzerTab } from '@/components/SolarAnalyzerTab';
 import { ClimateTab } from '@/components/ClimateTab';
 import ElevationTab from '@/components/ElevationTab';
+import EnhancedElevationTab from '@/components/EnhancedElevationTab';
 import { ThreeDViewTab } from '@/components/ThreeDViewTab';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -288,7 +289,7 @@ const SiteAI = () => {
                   
                   {/* Elevation Controls - Right Side */}
                   <div className="w-96 bg-background border-l border-border overflow-auto">
-                    <ElevationTab mapInstance={mapInstance} />
+                    <EnhancedElevationTab mapInstance={mapInstance} />
                   </div>
                 </div>
               </TabsContent>
