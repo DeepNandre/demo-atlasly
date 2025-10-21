@@ -179,18 +179,30 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
   }, [mapInstance]);
 
   const handleDrawCreate = useCallback(async (e: any) => {
-    if (!mapInstance || mode !== 'path') return;
+    if (!mapInstance || mode !== 'path') {
+      console.log('❌ handleDrawCreate skipped - mapInstance:', !!mapInstance, 'mode:', mode);
+      return;
+    }
 
     const feature = e.features[0];
-    if (feature.geometry.type !== 'LineString') return;
+    if (feature.geometry.type !== 'LineString') {
+      console.log('❌ Not a LineString, got:', feature.geometry.type);
+      return;
+    }
 
+    console.log('✅ Starting elevation profile generation...');
     setIsLoading(true);
     currentPathRef.current = feature;
 
     try {
       // Generate elevation profile using our API service
       const coordinates = feature.geometry.coordinates;
+      console.log('📍 Drawing path with', coordinates.length, 'points');
+      console.log('📏 Sampling distance:', samplingDistance[0], 'm');
+      
       const profile = await elevationService.generateProfile(coordinates, samplingDistance[0], mapInstance);
+      console.log('✅ Got elevation profile:', profile.points.length, 'points');
+      console.log('📊 Stats:', profile.stats);
       
       // Convert to chart format and calculate grades
       const chartData: ProfileData[] = profile.points.map((point, index) => {
@@ -211,6 +223,7 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
         };
       });
 
+      console.log('📈 Chart data prepared:', chartData.length, 'points');
       setPathData(chartData);
       setStats({
         max: profile.stats.maxElevation,
@@ -220,10 +233,12 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
         distance: profile.stats.totalDistance,
         avgGrade: profile.stats.averageGrade
       });
+      console.log('✅ State updated, chart should now render');
 
       toast.success(`Elevation profile generated with ${profile.points.length} points`);
     } catch (error) {
-      console.error('Error generating elevation profile:', error);
+      console.error('❌ Error generating elevation profile:', error);
+      console.error('❌ Error details:', error instanceof Error ? error.message : 'Unknown error');
       toast.error('Failed to generate elevation profile. Please try again.');
     } finally {
       setIsLoading(false);
