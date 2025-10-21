@@ -44,6 +44,34 @@ interface ConversationalAnalysisProps {
   onTemplateSelect?: (query: string) => void;
 }
 
+// Simple markdown formatter to convert markdown to clean HTML
+const formatMarkdown = (text: string): string => {
+  let html = text;
+  
+  // Convert **bold** to <strong>
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  
+  // Convert *italic* to <em>
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  
+  // Convert bullet lists (lines starting with * or -)
+  html = html.replace(/^[\*\-]\s+(.+)$/gm, '<li>$1</li>');
+  
+  // Wrap consecutive <li> items in <ul>
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+  
+  // Convert line breaks to <br> but preserve paragraphs
+  html = html.replace(/\n\n/g, '</p><p>');
+  html = html.replace(/\n/g, '<br>');
+  
+  // Wrap in paragraph if not already wrapped
+  if (!html.startsWith('<')) {
+    html = '<p>' + html + '</p>';
+  }
+  
+  return html;
+}
+
 const ConversationalAnalysis = ({ 
   siteRequestId, 
   locationName, 
@@ -316,7 +344,16 @@ const ConversationalAnalysis = ({
                         : 'bg-card text-card-foreground border border-border shadow-sm'
                     }`}
                   >
-                    <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                    {msg.role === 'user' ? (
+                      <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                    ) : (
+                      <div 
+                        className="whitespace-pre-wrap leading-relaxed prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-li:my-1 prose-headings:mt-3 prose-headings:mb-2 prose-strong:font-semibold prose-strong:text-foreground"
+                        dangerouslySetInnerHTML={{ 
+                          __html: formatMarkdown(msg.content) 
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
                 
