@@ -52,6 +52,11 @@ interface ProfileData {
 const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
   const [mode, setMode] = useState<MeasurementMode>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Debug mode changes
+  useEffect(() => {
+    console.log('🔄 Mode changed to:', mode);
+  }, [mode]);
   const [pointElevation, setPointElevation] = useState<number | null>(null);
   const [pointCoords, setPointCoords] = useState<{ lng: number; lat: number } | null>(null);
   const [pathData, setPathData] = useState<ProfileData[]>([]);
@@ -297,8 +302,15 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
   };
 
   const handlePathMode = () => {
-    if (!mapInstance) return;
+    if (!mapInstance) {
+      console.error('❌ No map instance in handlePathMode');
+      return;
+    }
+    
+    console.log('🎨 handlePathMode clicked - Setting mode to path');
     setMode('path');
+    console.log('✅ Mode state set to: path');
+    
     setPointElevation(null);
     setPointCoords(null);
     setHoveredPoint(null);
@@ -317,7 +329,13 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
 
     // Enable path drawing
     if (drawRef.current) {
+      console.log('🖊️ Activating MapboxDraw line drawing mode...');
       drawRef.current.changeMode('draw_line_string');
+      console.log('✅ MapboxDraw in line drawing mode - you can now draw!');
+      toast.info('Draw a line on the map to generate elevation profile');
+    } else {
+      console.error('❌ drawRef is not initialized!');
+      toast.error('Drawing tool not ready. Please try again.');
     }
 
     // Set up mouse tracking for chart hover
