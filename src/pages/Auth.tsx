@@ -24,7 +24,7 @@ const tierInfo = {
 const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, signIn, signUp } = useAuth();
+  const { user, signIn, signUp, signInWithGoogle } = useAuth();
   const [isLogin, setIsLogin] = useState(searchParams.get('mode') !== 'signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -175,7 +175,12 @@ const Auth = () => {
                 variant="outline"
                 className="w-full border-gray-200 hover:bg-gray-50"
                 type="button"
-                onClick={() => toast.info('Google sign-in not configured yet')}
+                onClick={async () => {
+                  const { error } = await signInWithGoogle();
+                  if (error) {
+                    toast.error('Failed to sign in with Google');
+                  }
+                }}
               >
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                   <path
