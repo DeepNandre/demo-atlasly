@@ -1,4 +1,5 @@
 import atlasLogo from "@/assets/atlas-logo.png";
+import { Linkedin, Twitter } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -15,11 +16,34 @@ const Footer = () => {
           
           <div className="space-y-4">
             <h4 className="text-sm font-medium text-muted-foreground">Connect</h4>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <a href="mailto:hello@atlasly.com" className="block text-sm hover:text-primary transition-smooth">
                 hello@atlasly.com
               </a>
-              <nav className="flex flex-col gap-2">
+              
+              {/* Social Media Links */}
+              <div className="flex items-center gap-3 pt-1">
+                <a 
+                  href="https://x.com/ParallelLabs825" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 rounded-lg bg-muted hover:bg-primary hover:text-primary-foreground transition-all flex items-center justify-center group"
+                  aria-label="Follow us on Twitter"
+                >
+                  <Twitter className="w-4 h-4" />
+                </a>
+                <a 
+                  href="https://www.linkedin.com/company/parallellabss" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 rounded-lg bg-muted hover:bg-primary hover:text-primary-foreground transition-all flex items-center justify-center group"
+                  aria-label="Follow us on LinkedIn"
+                >
+                  <Linkedin className="w-4 h-4" />
+                </a>
+              </div>
+              
+              <nav className="flex flex-col gap-2 pt-1">
                 <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-smooth">
                   Privacy Policy
                 </a>
