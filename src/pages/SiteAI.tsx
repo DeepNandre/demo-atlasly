@@ -267,8 +267,8 @@ const SiteAI = () => {
                 />
               </TabsContent>
 
-              <TabsContent value="elevation" className="flex-1 m-0 relative">
-                <div className="absolute inset-0 flex">
+              <TabsContent value="elevation" className="flex-1 m-0 relative" forceMount={true}>
+                <div className={`absolute inset-0 flex ${activeTab === 'elevation' ? '' : 'hidden'}`}>
                   {/* Map View - Left Side */}
                   <div className="flex-1 relative">
                     {siteData ? (
