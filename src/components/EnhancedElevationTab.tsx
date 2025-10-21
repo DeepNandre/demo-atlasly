@@ -184,16 +184,19 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
   }, [mapInstance]);
 
   const handleDrawCreate = useCallback(async (e: any) => {
-    if (!mapInstance || mode !== 'path') {
-      console.log('❌ handleDrawCreate skipped - mapInstance:', !!mapInstance, 'mode:', mode);
+    if (!mapInstance) {
+      console.log('❌ handleDrawCreate skipped - no mapInstance');
       return;
     }
 
     const feature = e.features[0];
-    if (feature.geometry.type !== 'LineString') {
-      console.log('❌ Not a LineString, got:', feature.geometry.type);
+    if (!feature || feature.geometry.type !== 'LineString') {
+      console.log('❌ Not a LineString, got:', feature?.geometry?.type);
       return;
     }
+    
+    // Auto-set mode to 'path' when drawing occurs
+    setMode('path');
 
     console.log('✅ Starting elevation profile generation...');
     setIsLoading(true);
@@ -248,7 +251,7 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
     } finally {
       setIsLoading(false);
     }
-  }, [mapInstance, mode, samplingDistance]);
+  }, [mapInstance, samplingDistance]);
 
   const handlePointMode = () => {
     if (!mapInstance) return;

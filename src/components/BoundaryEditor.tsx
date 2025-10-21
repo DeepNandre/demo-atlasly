@@ -241,7 +241,7 @@ export const BoundaryEditor: React.FC<BoundaryEditorProps> = ({
     try {
       // Calculate metrics
       area = turf.area(boundary);
-      perimeter = turf.length(turf.polygonToLineString(boundary), { units: 'meters' });
+      perimeter = turf.length(turf.polygonToLine(boundary), { units: 'meters' });
       vertexCount = boundary.geometry.coordinates[0].length - 1; // Exclude closing vertex
 
       // Validation checks

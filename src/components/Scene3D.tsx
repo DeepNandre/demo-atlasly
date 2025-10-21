@@ -106,13 +106,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         shadows={shadows.enabled}
         camera={{ position: [0, 100, 100], fov: 60 }}
         gl={{ 
-          antialias: true,
-          shadowMap: shadows.enabled ? {
-            enabled: true,
-            type: shadows.type === 'pcfSoft' ? THREE.PCFSoftShadowMap :
-                  shadows.type === 'pcf' ? THREE.PCFShadowMap :
-                  THREE.BasicShadowMap
-          } : undefined
+          antialias: true
         }}
       >
         {showStats && <Stats />}
@@ -125,7 +119,6 @@ export const Scene3D: React.FC<Scene3DProps> = ({
             enableRotate={true}
             minDistance={10}
             maxDistance={1000}
-            onChange={onCameraChange}
           />
         )}
 
@@ -180,15 +173,15 @@ const SceneLighting: React.FC<{
     if (directionalLightRef.current && sunPosition) {
       // Position light based on sun position
       const distance = 500;
-      const x = distance * Math.cos(sunPosition.azimuth) * Math.cos(sunPosition.elevation);
-      const y = distance * Math.sin(sunPosition.elevation);
-      const z = distance * Math.sin(sunPosition.azimuth) * Math.cos(sunPosition.elevation);
+      const x = distance * Math.cos(sunPosition.azimuth) * Math.cos(sunPosition.altitude);
+      const y = distance * Math.sin(sunPosition.altitude);
+      const z = distance * Math.sin(sunPosition.azimuth) * Math.cos(sunPosition.altitude);
       
       directionalLightRef.current.position.set(x, y, z);
       directionalLightRef.current.lookAt(0, 0, 0);
       
-      // Adjust intensity based on sun elevation
-      const intensity = Math.max(0.1, Math.sin(sunPosition.elevation));
+      // Adjust intensity based on sun altitude
+      const intensity = Math.max(0.1, Math.sin(sunPosition.altitude));
       directionalLightRef.current.intensity = intensity;
     }
   }, [sunPosition]);
@@ -346,9 +339,9 @@ const SiteBoundary: React.FC<{
   if (!boundaryGeometry) return null;
 
   return (
-    <line geometry={boundaryGeometry}>
+    <lineSegments geometry={boundaryGeometry}>
       <lineBasicMaterial color="#ff6b6b" linewidth={3} />
-    </line>
+    </lineSegments>
   );
 };
 

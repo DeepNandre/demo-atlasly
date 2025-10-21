@@ -89,7 +89,10 @@ export const TerrainMesh: React.FC<TerrainMeshProps> = ({
     if (animate && meshRef.current) {
       // Subtle animation - could be used for water simulation or gentle movement
       const time = state.clock.getElapsedTime();
-      meshRef.current.material.opacity = opacity * (0.9 + 0.1 * Math.sin(time));
+      const material = meshRef.current.material;
+      if (!Array.isArray(material) && 'opacity' in material) {
+        material.opacity = opacity * (0.9 + 0.1 * Math.sin(time));
+      }
     }
   });
 

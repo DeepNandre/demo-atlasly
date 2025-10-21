@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import DeckGL from '@deck.gl/react';
 import { GeoJsonLayer, PolygonLayer, ScatterplotLayer, PathLayer } from '@deck.gl/layers';
-import { TerrainLayer, ColumnLayer } from '@deck.gl/geo-layers';
+import { TerrainLayer } from '@deck.gl/geo-layers';
 import { MapViewState } from '@deck.gl/core';
 import { WebMercatorViewport } from '@deck.gl/core';
 import { CoordinateProjection } from '@/lib/coordinateUtils';
@@ -294,7 +294,7 @@ export const DeckGLScene: React.FC<DeckGLSceneProps> = ({
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <DeckGL
         viewState={viewState}
-        onViewStateChange={handleViewStateChange}
+        onViewStateChange={(params: any) => handleViewStateChange(params)}
         controller={true}
         layers={deckLayers}
         onHover={handleHover}
