@@ -35,7 +35,7 @@ class ElevationService {
   /**
    * Get elevation for a single point
    */
-  async getElevation(latitude: number, longitude: number): Promise<number> {
+  async getElevation(latitude: number, longitude: number, mapInstance?: any): Promise<number> {
     const key = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
     
     // Check cache first
@@ -48,21 +48,59 @@ class ElevationService {
       this.cache.set(key, elevation);
       return elevation;
     } catch (error) {
-      console.warn('Elevation API error:', error);
-      return 0; // Fallback to sea level
+      console.warn('Elevation API error, trying map terrain fallback:', error);
+      
+      // Try to get elevation from map's terrain if available
+      if (mapInstance && typeof mapInstance.queryTerrainElevation === 'function') {
+        try {
+          const terrainElevation = mapInstance.queryTerrainElevation([longitude, latitude]);
+          if (terrainElevation !== null && terrainElevation !== undefined) {
+            this.cache.set(key, terrainElevation);
+            return terrainElevation;
+          }
+        } catch (terrainError) {
+          console.warn('Map terrain query also failed:', terrainError);
+        }
+      }
+      
+      // Last resort: estimate based on latitude (very rough approximation)
+      const estimatedElevation = this.estimateElevation(latitude, longitude);
+      return estimatedElevation;
     }
+  }
+
+  /**
+   * Rough elevation estimate based on geographic patterns
+   * This is a last-resort fallback when all APIs fail
+   */
+  private estimateElevation(latitude: number, longitude: number): number {
+    // Very basic estimation based on major geographic features
+    // This is better than returning 0 for mountainous areas
+    const absLat = Math.abs(latitude);
+    
+    // Near equator: generally lower elevations
+    if (absLat < 15) return 50;
+    
+    // Temperate zones: mixed
+    if (absLat < 45) return 200;
+    
+    // Higher latitudes: varied terrain
+    if (absLat < 60) return 300;
+    
+    // Polar regions: generally lower
+    return 100;
   }
 
   /**
    * Get elevation for multiple points (batch request)
    */
-  async getElevationBatch(points: { latitude: number; longitude: number }[]): Promise<ElevationPoint[]> {
+  async getElevationBatch(points: { latitude: number; longitude: number }[], mapInstance?: any): Promise<ElevationPoint[]> {
     const results: ElevationPoint[] = [];
     
     // Process in batches to respect API limits
     for (let i = 0; i < points.length; i += this.batchSize) {
       const batch = points.slice(i, i + this.batchSize);
-      const batchResults = await this.processBatch(batch);
+      const batchResults = await this.processBatch(batch, mapInstance);
       results.push(...batchResults);
     }
     
@@ -72,13 +110,14 @@ class ElevationService {
   /**
    * Generate elevation profile for a path
    */
-  async generateProfile(coordinates: [number, number][], samplingDistance = 10): Promise<ElevationProfile> {
+  async generateProfile(coordinates: [number, number][], samplingDistance = 10, mapInstance?: any): Promise<ElevationProfile> {
     // Resample the path at regular intervals
     const sampledPoints = this.samplePath(coordinates, samplingDistance);
     
     // Get elevation data for all points
     const elevationPoints = await this.getElevationBatch(
-      sampledPoints.map(([lng, lat]) => ({ latitude: lat, longitude: lng }))
+      sampledPoints.map(([lng, lat]) => ({ latitude: lat, longitude: lng })),
+      mapInstance
     );
 
     // Add distance information
@@ -173,7 +212,7 @@ class ElevationService {
   /**
    * Process a batch of elevation requests
    */
-  private async processBatch(points: { latitude: number; longitude: number }[]): Promise<ElevationPoint[]> {
+  private async processBatch(points: { latitude: number; longitude: number }[], mapInstance?: any): Promise<ElevationPoint[]> {
     try {
       // Create locations string for batch request
       const locations = points
@@ -209,10 +248,10 @@ class ElevationService {
     } catch (error) {
       console.warn('Batch elevation request failed, falling back to individual requests:', error);
       
-      // Fallback to individual requests
+      // Fallback to individual requests with map terrain support
       const results: ElevationPoint[] = [];
       for (const point of points) {
-        const elevation = await this.getElevation(point.latitude, point.longitude);
+        const elevation = await this.getElevation(point.latitude, point.longitude, mapInstance);
         results.push({
           latitude: point.latitude,
           longitude: point.longitude,

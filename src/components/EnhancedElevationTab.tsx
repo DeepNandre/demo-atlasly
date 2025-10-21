@@ -29,6 +29,7 @@ import {
   ReferenceLine
 } from 'recharts';
 import * as turf from '@turf/turf';
+import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 import { elevationService, ElevationPoint, ElevationProfile } from '@/lib/elevationApi';
@@ -155,7 +156,7 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
     try {
       // Generate elevation profile using our API service
       const coordinates = feature.geometry.coordinates;
-      const profile = await elevationService.generateProfile(coordinates, samplingDistance[0]);
+      const profile = await elevationService.generateProfile(coordinates, samplingDistance[0], mapInstance);
       
       // Convert to chart format and calculate grades
       const chartData: ProfileData[] = profile.points.map((point, index) => {
@@ -221,7 +222,7 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
     setIsLoading(true);
 
     try {
-      const elevation = await elevationService.getElevation(lat, lng);
+      const elevation = await elevationService.getElevation(lat, lng, mapInstance);
       setPointElevation(elevation);
       setPointCoords({ lng, lat });
 
@@ -229,7 +230,7 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
       if (markerRef.current) {
         markerRef.current.setLngLat([lng, lat]);
       } else {
-        markerRef.current = new (window as any).mapboxgl.Marker({ 
+        markerRef.current = new mapboxgl.Marker({ 
           color: '#3b82f6',
           scale: 1.2 
         })
@@ -299,7 +300,7 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
       if (hoverMarkerRef.current) {
         hoverMarkerRef.current.setLngLat([closestPoint.lng, closestPoint.lat]);
       } else {
-        hoverMarkerRef.current = new (window as any).mapboxgl.Marker({ 
+        hoverMarkerRef.current = new mapboxgl.Marker({ 
           color: '#ef4444',
           scale: 0.8 
         })
