@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import MapSelector from '@/components/MapSelector';
+import { BoundaryEditor } from '@/components/BoundaryEditor';
 import { supabase } from '@/integrations/supabase/client';
 import { getClientId } from '@/lib/clientId';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -229,7 +230,37 @@ const Generate = () => {
           {/* Step Content */}
           {step === 'location' && (
             <Card className="p-6 space-y-6">
-              <MapSelector onBoundarySelected={handleBoundarySelected} />
+              <div className="space-y-4">
+                <h2 className="text-2xl font-serif font-semibold">Define Site Boundary</h2>
+                <p className="text-muted-foreground">
+                  Choose how you want to define your site boundary
+                </p>
+                
+                <Tabs value={boundaryMode} onValueChange={(value) => setBoundaryMode(value as 'simple' | 'advanced')}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="simple">Simple Mode</TabsTrigger>
+                    <TabsTrigger value="advanced">Advanced Mode</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="simple" className="mt-6">
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Search for a location and select a circular boundary
+                      </p>
+                      <MapSelector onBoundarySelected={handleBoundarySelected} />
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="advanced" className="mt-6">
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Draw custom boundaries or upload GeoJSON, KML, or Shapefile
+                      </p>
+                      <BoundaryEditor onBoundarySelected={handleBoundarySelected} />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
             </Card>
           )}
 

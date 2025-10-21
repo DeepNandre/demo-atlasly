@@ -8,11 +8,12 @@ import SiteMapboxViewer from '@/components/SiteMapboxViewer';
 import { SolarAnalyzerTab } from '@/components/SolarAnalyzerTab';
 import { ClimateTab } from '@/components/ClimateTab';
 import ElevationTab from '@/components/ElevationTab';
+import { ThreeDViewTab } from '@/components/ThreeDViewTab';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Progress } from '@/components/ui/progress';
-import { Plus, Download, Loader2, Sun, CloudRain, Box, MapIcon, Mountain } from 'lucide-react';
+import { Plus, Download, Loader2, Sun, CloudRain, Box, MapIcon, Mountain, Layers3 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -198,7 +199,7 @@ const SiteAI = () => {
           <ResizablePanel defaultSize={75} minSize={60}>
             <Tabs defaultValue="model" className="h-full flex flex-col" onValueChange={(value) => setActiveTab(value)}>
               <div className="px-6 pt-4 pb-2 border-b border-border bg-gradient-to-r from-card/50 via-primary/5 to-card/50">
-                <TabsList className="grid w-full grid-cols-4 h-12">
+                <TabsList className="grid w-full grid-cols-5 h-12">
                   <TabsTrigger value="model" className="gap-2 data-[state=active]:bg-primary/10">
                     <div className="flex items-center gap-2">
                       <Box className="w-4 h-4" />
@@ -221,6 +222,12 @@ const SiteAI = () => {
                     <div className="flex items-center gap-2">
                       <Mountain className="w-4 h-4" />
                       <span>Elevation Analysis</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger value="3d" className="gap-2 data-[state=active]:bg-primary/10">
+                    <div className="flex items-center gap-2">
+                      <Layers3 className="w-4 h-4" />
+                      <span>3D View</span>
                     </div>
                   </TabsTrigger>
                 </TabsList>
@@ -283,6 +290,22 @@ const SiteAI = () => {
                   <div className="w-96 bg-background border-l border-border overflow-auto">
                     <ElevationTab mapInstance={mapInstance} />
                   </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="3d" className="flex-1 m-0 relative">
+                <div className="absolute inset-0">
+                  {siteData ? (
+                    <ThreeDViewTab
+                      siteRequestId={selectedSite.id}
+                      centerLat={siteData.center_lat}
+                      centerLng={siteData.center_lng}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      Loading site data...
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
