@@ -122,21 +122,55 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
 
     return () => {
       try {
-        if (mapInstance.hasControl(drawRef.current)) {
-          mapInstance.removeControl(drawRef.current);
+        // Check if map is still valid before cleanup
+        if (!mapInstance || !mapInstance.getStyle()) {
+          console.log('Map already removed, skipping cleanup');
+          return;
         }
-        mapInstance.off('draw.create', handleDrawCreate);
-        mapInstance.off('draw.update', handleDrawCreate);
-        mapInstance.off('click', handleMapClick);
-        mapInstance.off('mousemove', handleMouseMove);
+
+        // Remove draw control safely
+        if (drawRef.current) {
+          try {
+            if (mapInstance.hasControl && mapInstance.hasControl(drawRef.current)) {
+              mapInstance.removeControl(drawRef.current);
+            }
+          } catch (drawError) {
+            console.warn('Error removing draw control:', drawError);
+          }
+        }
+
+        // Remove event listeners safely
+        try {
+          mapInstance.off('draw.create', handleDrawCreate);
+          mapInstance.off('draw.update', handleDrawCreate);
+          mapInstance.off('click', handleMapClick);
+          mapInstance.off('mousemove', handleMouseMove);
+        } catch (eventError) {
+          console.warn('Error removing event listeners:', eventError);
+        }
         
         // Clean up markers
-        if (markerRef.current) markerRef.current.remove();
-        if (hoverMarkerRef.current) hoverMarkerRef.current.remove();
+        try {
+          if (markerRef.current) {
+            markerRef.current.remove();
+            markerRef.current = null;
+          }
+          if (hoverMarkerRef.current) {
+            hoverMarkerRef.current.remove();
+            hoverMarkerRef.current = null;
+          }
+        } catch (markerError) {
+          console.warn('Error removing markers:', markerError);
+        }
         
         // Reset cursor
-        if (mapInstance.getCanvas()) {
-          mapInstance.getCanvas().style.cursor = '';
+        try {
+          const canvas = mapInstance.getCanvas && mapInstance.getCanvas();
+          if (canvas) {
+            canvas.style.cursor = '';
+          }
+        } catch (cursorError) {
+          console.warn('Error resetting cursor:', cursorError);
         }
       } catch (error) {
         console.warn('Error cleaning up elevation tab:', error);
