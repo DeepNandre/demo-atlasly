@@ -203,14 +203,27 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
     currentPathRef.current = feature;
 
     try {
-      // Generate elevation profile using our API service
+      // Generate elevation profile using real elevation data
       const coordinates = feature.geometry.coordinates;
       console.log('📍 Drawing path with', coordinates.length, 'points');
       console.log('📏 Sampling distance:', samplingDistance[0], 'm');
+      console.log('🗺️ Using Mapbox terrain + API data for maximum accuracy');
       
       const profile = await elevationService.generateProfile(coordinates, samplingDistance[0], mapInstance);
-      console.log('✅ Got elevation profile:', profile.points.length, 'points');
-      console.log('📊 Stats:', profile.stats);
+      
+      if (!profile || !profile.points || profile.points.length === 0) {
+        throw new Error('No elevation data received');
+      }
+      
+      console.log('✅ Got real elevation profile:', profile.points.length, 'points');
+      console.log('📊 Elevation range:', profile.stats.minElevation.toFixed(2), 'm to', profile.stats.maxElevation.toFixed(2), 'm');
+      console.log('📈 Total gain:', profile.stats.totalGain.toFixed(2), 'm, Total loss:', profile.stats.totalLoss.toFixed(2), 'm');
+      
+      // Validate elevation data (ensure we have real values, not all zeros)
+      const hasValidData = profile.points.some(p => p.elevation !== 0);
+      if (!hasValidData) {
+        throw new Error('Received invalid elevation data (all zeros). Please try a different area.');
+      }
       
       // Convert to chart format and calculate grades
       const chartData: ProfileData[] = profile.points.map((point, index) => {
@@ -231,7 +244,7 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
         };
       });
 
-      console.log('📈 Chart data prepared:', chartData.length, 'points');
+      console.log('📈 Chart data prepared with real elevation values');
       setPathData(chartData);
       setStats({
         max: profile.stats.maxElevation,
@@ -241,13 +254,18 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
         distance: profile.stats.totalDistance,
         avgGrade: profile.stats.averageGrade
       });
-      console.log('✅ State updated, chart should now render');
+      console.log('✅ Real elevation data loaded and ready for display');
 
-      toast.success(`Elevation profile generated with ${profile.points.length} points`);
+      toast.success(`Real elevation profile: ${profile.stats.minElevation.toFixed(0)}m to ${profile.stats.maxElevation.toFixed(0)}m`, {
+        description: `${profile.points.length} data points over ${(profile.stats.totalDistance / 1000).toFixed(2)}km`
+      });
     } catch (error) {
       console.error('❌ Error generating elevation profile:', error);
-      console.error('❌ Error details:', error instanceof Error ? error.message : 'Unknown error');
-      toast.error('Failed to generate elevation profile. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('❌ Error details:', errorMessage);
+      toast.error('Failed to get real elevation data', {
+        description: errorMessage
+      });
     } finally {
       setIsLoading(false);
     }
@@ -279,7 +297,14 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
     setIsLoading(true);
 
     try {
+      console.log('📍 Getting elevation for point:', lat.toFixed(6), lng.toFixed(6));
       const elevation = await elevationService.getElevation(lat, lng, mapInstance);
+      
+      if (elevation === null || elevation === undefined || isNaN(elevation)) {
+        throw new Error('Invalid elevation data received');
+      }
+      
+      console.log('✅ Point elevation:', elevation.toFixed(2), 'm');
       setPointElevation(elevation);
       setPointCoords({ lng, lat });
 
@@ -295,10 +320,15 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
           .addTo(mapInstance);
       }
 
-      toast.success(`Elevation: ${formatElevation(elevation)}`);
+      toast.success(`Real elevation: ${formatElevation(elevation)}`, {
+        description: `Coordinates: ${lat.toFixed(5)}°, ${lng.toFixed(5)}°`
+      });
     } catch (error) {
-      console.error('Error getting point elevation:', error);
-      toast.error('Failed to get elevation data');
+      console.error('❌ Error getting point elevation:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error('Failed to get elevation data', {
+        description: errorMessage
+      });
     } finally {
       setIsLoading(false);
     }

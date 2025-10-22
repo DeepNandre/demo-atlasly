@@ -33,63 +33,43 @@ class ElevationService {
   private readonly batchSize = 100; // API limit for batch requests
   
   /**
-   * Get elevation for a single point
+   * Get elevation for a single point with priority on accurate sources
    */
   async getElevation(latitude: number, longitude: number, mapInstance?: any): Promise<number> {
     const key = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
     
     // Check cache first
     if (this.cache.has(key)) {
+      console.log('📦 Using cached elevation data');
       return this.cache.get(key)!;
     }
 
+    // Priority 1: Try Mapbox terrain (most accurate when available)
+    if (mapInstance && typeof mapInstance.queryTerrainElevation === 'function') {
+      try {
+        const terrainElevation = mapInstance.queryTerrainElevation([longitude, latitude]);
+        if (terrainElevation !== null && terrainElevation !== undefined && !isNaN(terrainElevation)) {
+          console.log('🗺️ Using Mapbox terrain elevation:', terrainElevation.toFixed(2), 'm');
+          this.cache.set(key, terrainElevation);
+          return terrainElevation;
+        }
+      } catch (terrainError) {
+        console.warn('Mapbox terrain query failed:', terrainError);
+      }
+    }
+
+    // Priority 2: Try real elevation APIs
     try {
       const elevation = await this.fetchElevationFromAPI(latitude, longitude);
+      console.log('🌍 Using API elevation data:', elevation.toFixed(2), 'm');
       this.cache.set(key, elevation);
       return elevation;
     } catch (error) {
-      console.warn('Elevation API error, trying map terrain fallback:', error);
-      
-      // Try to get elevation from map's terrain if available
-      if (mapInstance && typeof mapInstance.queryTerrainElevation === 'function') {
-        try {
-          const terrainElevation = mapInstance.queryTerrainElevation([longitude, latitude]);
-          if (terrainElevation !== null && terrainElevation !== undefined) {
-            this.cache.set(key, terrainElevation);
-            return terrainElevation;
-          }
-        } catch (terrainError) {
-          console.warn('Map terrain query also failed:', terrainError);
-        }
-      }
-      
-      // Last resort: estimate based on latitude (very rough approximation)
-      const estimatedElevation = this.estimateElevation(latitude, longitude);
-      return estimatedElevation;
+      console.error('❌ All elevation data sources failed:', error);
+      throw new Error('Unable to fetch elevation data. Please try again or check your internet connection.');
     }
   }
 
-  /**
-   * Rough elevation estimate based on geographic patterns
-   * This is a last-resort fallback when all APIs fail
-   */
-  private estimateElevation(latitude: number, longitude: number): number {
-    // Very basic estimation based on major geographic features
-    // This is better than returning 0 for mountainous areas
-    const absLat = Math.abs(latitude);
-    
-    // Near equator: generally lower elevations
-    if (absLat < 15) return 50;
-    
-    // Temperate zones: mixed
-    if (absLat < 45) return 200;
-    
-    // Higher latitudes: varied terrain
-    if (absLat < 60) return 300;
-    
-    // Polar regions: generally lower
-    return 100;
-  }
 
   /**
    * Get elevation for multiple points (batch request)
@@ -149,11 +129,32 @@ class ElevationService {
   }
 
   /**
-   * Fetch elevation from Open-Elevation API
+   * Fetch elevation from multiple API sources with proper error handling
    */
   private async fetchElevationFromAPI(latitude: number, longitude: number): Promise<number> {
+    // Try Open-Meteo first (more reliable and faster)
     try {
-      // Primary: Open-Elevation (free, no key required)
+      const response = await fetch(
+        `https://api.open-meteo.com/v1/elevation?latitude=${latitude}&longitude=${longitude}`,
+        {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(5000) // 5 second timeout
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.elevation && Array.isArray(data.elevation) && data.elevation[0] !== null) {
+          return data.elevation[0];
+        }
+      }
+    } catch (error) {
+      console.warn('Open-Meteo API failed:', error);
+    }
+
+    // Fallback to Open-Elevation
+    try {
       const response = await fetch(
         `${this.openElevationUrl}?locations=${latitude},${longitude}`,
         {
@@ -161,60 +162,54 @@ class ElevationService {
           headers: {
             'Accept': 'application/json',
             'User-Agent': 'SitePackStudio/1.0'
-          }
+          },
+          signal: AbortSignal.timeout(5000)
         }
       );
 
-      if (!response.ok) {
-        throw new Error(`Open-Elevation API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.results && data.results.length > 0) {
-        return data.results[0].elevation;
-      }
-      
-      throw new Error('No elevation data returned');
-    } catch (error) {
-      console.warn('Primary elevation API failed, trying fallback:', error);
-      return this.fetchElevationFromFallback(latitude, longitude);
-    }
-  }
-
-  /**
-   * Fallback elevation service using Open-Meteo
-   */
-  private async fetchElevationFromFallback(latitude: number, longitude: number): Promise<number> {
-    try {
-      const response = await fetch(
-        `https://api.open-meteo.com/v1/elevation?latitude=${latitude}&longitude=${longitude}`,
-        {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json'
-          }
+      if (response.ok) {
+        const data = await response.json();
+        if (data.results && data.results.length > 0 && data.results[0].elevation !== null) {
+          return data.results[0].elevation;
         }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Open-Meteo API error: ${response.status}`);
       }
-
-      const data = await response.json();
-      return data.elevation?.[0] || 0;
     } catch (error) {
-      console.warn('Fallback elevation API also failed:', error);
-      return 0; // Return sea level as last resort
+      console.warn('Open-Elevation API failed:', error);
     }
+
+    throw new Error('All elevation APIs failed');
   }
 
+
   /**
-   * Process a batch of elevation requests
+   * Process a batch of elevation requests efficiently
    */
   private async processBatch(points: { latitude: number; longitude: number }[], mapInstance?: any): Promise<ElevationPoint[]> {
+    console.log(`📊 Processing batch of ${points.length} elevation points...`);
+    
+    // For small batches, use individual requests with terrain fallback
+    if (points.length <= 10) {
+      const results: ElevationPoint[] = [];
+      for (const point of points) {
+        try {
+          const elevation = await this.getElevation(point.latitude, point.longitude, mapInstance);
+          results.push({
+            latitude: point.latitude,
+            longitude: point.longitude,
+            elevation
+          });
+        } catch (error) {
+          console.error(`Failed to get elevation for point (${point.latitude}, ${point.longitude}):`, error);
+          throw error;
+        }
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      return results;
+    }
+
+    // For larger batches, try batch API request first
     try {
-      // Create locations string for batch request
       const locations = points
         .map(p => `${p.latitude},${p.longitude}`)
         .join('|');
@@ -226,44 +221,46 @@ class ElevationService {
           headers: {
             'Accept': 'application/json',
             'User-Agent': 'SitePackStudio/1.0'
-          }
+          },
+          signal: AbortSignal.timeout(15000) // 15 second timeout for batch
         }
       );
 
-      if (!response.ok) {
-        throw new Error(`Batch elevation API error: ${response.status}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.results && Array.isArray(data.results)) {
+          console.log('✅ Batch API request successful');
+          return data.results.map((result: any, index: number) => ({
+            latitude: points[index].latitude,
+            longitude: points[index].longitude,
+            elevation: result.elevation || 0
+          }));
+        }
       }
-
-      const data = await response.json();
-      
-      if (data.results && Array.isArray(data.results)) {
-        return data.results.map((result: any, index: number) => ({
-          latitude: points[index].latitude,
-          longitude: points[index].longitude,
-          elevation: result.elevation || 0
-        }));
-      }
-      
-      throw new Error('Invalid batch response format');
     } catch (error) {
-      console.warn('Batch elevation request failed, falling back to individual requests:', error);
-      
-      // Fallback to individual requests with map terrain support
-      const results: ElevationPoint[] = [];
-      for (const point of points) {
+      console.warn('Batch API request failed, using individual requests:', error);
+    }
+    
+    // Fallback to individual requests
+    console.log('⚠️ Using individual elevation requests...');
+    const results: ElevationPoint[] = [];
+    for (const point of points) {
+      try {
         const elevation = await this.getElevation(point.latitude, point.longitude, mapInstance);
         results.push({
           latitude: point.latitude,
           longitude: point.longitude,
           elevation
         });
-        
-        // Add small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (error) {
+        console.error(`Failed to get elevation for point:`, error);
+        throw error;
       }
-      
-      return results;
+      // Add delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
+    
+    return results;
   }
 
   /**
