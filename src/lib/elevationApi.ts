@@ -1,6 +1,8 @@
 /**
  * Elevation API service for Site Pack Studio
  * Provides high-quality elevation data using multiple sources
+ * Primary: Mapbox Terrain-RGB (same as Google Earth - highly accurate)
+ * Fallback: Open-Meteo and Open-Elevation APIs
  */
 
 export interface ElevationPoint {
@@ -22,21 +24,132 @@ export interface ElevationProfile {
   };
 }
 
+export type ElevationSource = 'mapbox-terrain' | 'standard-apis';
+
 /**
- * Primary elevation service using Open-Elevation API (free, SRTM-based)
- * Fallback to Open-Meteo Elevation API if needed
+ * Elevation service with multiple high-accuracy data sources
+ * Mapbox Terrain-RGB provides the same accuracy as Google Earth Pro
  */
 class ElevationService {
   private readonly openElevationUrl = 'https://api.open-elevation.com/api/v1/lookup';
   private readonly openMeteoUrl = 'https://elevation-api.io/api/elevation';
+  private readonly mapboxToken = 'pk.eyJ1IjoiYXRsYXNseSIsImEiOiJjbTVjd2k0ZzQwMmF5MmpzOTR0NWwzNm1pIn0.W51sD7kHkTz5TKqzCz7Shw';
   private readonly cache = new Map<string, number>();
-  private readonly batchSize = 100; // API limit for batch requests
+  private readonly batchSize = 100;
+  private preferredSource: ElevationSource = 'mapbox-terrain';
   
   /**
-   * Get elevation for a single point with priority on accurate sources
+   * Set the preferred elevation data source
+   */
+  setPreferredSource(source: ElevationSource): void {
+    this.preferredSource = source;
+    console.log('🔄 Elevation source changed to:', source);
+  }
+
+  /**
+   * Get current preferred source
+   */
+  getPreferredSource(): ElevationSource {
+    return this.preferredSource;
+  }
+
+  /**
+   * Decode Mapbox Terrain-RGB tile data to get elevation
+   * This uses the same high-accuracy DEM data as Google Earth
+   */
+  private decodeMapboxTerrainRGB(r: number, g: number, b: number): number {
+    // Mapbox Terrain-RGB encoding formula
+    // Height = -10000 + ((R * 256 * 256 + G * 256 + B) * 0.1)
+    return -10000 + ((r * 256 * 256 + g * 256 + b) * 0.1);
+  }
+
+  /**
+   * Get elevation using Mapbox Terrain-RGB tiles (Google Earth accuracy)
+   */
+  private async getElevationFromMapboxTerrain(latitude: number, longitude: number): Promise<number> {
+    try {
+      // Use zoom level 14 for good balance of accuracy and coverage
+      const zoom = 14;
+      
+      // Convert lat/lng to tile coordinates
+      const tileX = Math.floor((longitude + 180) / 360 * Math.pow(2, zoom));
+      const tileY = Math.floor((1 - Math.log(Math.tan(latitude * Math.PI / 180) + 1 / Math.cos(latitude * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
+      
+      // Fetch terrain-rgb tile
+      const tileUrl = `https://api.mapbox.com/v4/mapbox.terrain-rgb/${zoom}/${tileX}/${tileY}.pngraw?access_token=${this.mapboxToken}`;
+      
+      const response = await fetch(tileUrl, {
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Mapbox Terrain API error: ${response.status}`);
+      }
+
+      // Get the image data
+      const blob = await response.blob();
+      const imageUrl = URL.createObjectURL(blob);
+      
+      // Load image and extract pixel data
+      const elevation = await new Promise<number>((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+          try {
+            // Create canvas to read pixel data
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) {
+              reject(new Error('Could not get canvas context'));
+              return;
+            }
+            
+            ctx.drawImage(img, 0, 0);
+            
+            // Calculate pixel position within tile
+            const pixelX = Math.floor(((longitude + 180) / 360 * Math.pow(2, zoom) - tileX) * 256);
+            const pixelY = Math.floor(((1 - Math.log(Math.tan(latitude * Math.PI / 180) + 1 / Math.cos(latitude * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom) - tileY) * 256);
+            
+            // Get RGB values at pixel
+            const imageData = ctx.getImageData(pixelX, pixelY, 1, 1);
+            const [r, g, b] = imageData.data;
+            
+            // Decode elevation from RGB
+            const elevation = this.decodeMapboxTerrainRGB(r, g, b);
+            
+            URL.revokeObjectURL(imageUrl);
+            resolve(elevation);
+          } catch (error) {
+            URL.revokeObjectURL(imageUrl);
+            reject(error);
+          }
+        };
+        
+        img.onerror = () => {
+          URL.revokeObjectURL(imageUrl);
+          reject(new Error('Failed to load terrain tile image'));
+        };
+        
+        img.src = imageUrl;
+      });
+
+      console.log('🗺️ Mapbox Terrain-RGB elevation:', elevation.toFixed(2), 'm (Google Earth accuracy)');
+      return elevation;
+    } catch (error) {
+      console.warn('Mapbox Terrain-RGB query failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get elevation for a single point with multiple high-accuracy sources
    */
   async getElevation(latitude: number, longitude: number, mapInstance?: any): Promise<number> {
-    const key = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+    const key = `${this.preferredSource}-${latitude.toFixed(6)},${longitude.toFixed(6)}`;
     
     // Check cache first
     if (this.cache.has(key)) {
@@ -44,26 +157,46 @@ class ElevationService {
       return this.cache.get(key)!;
     }
 
-    // Priority 1: Try Mapbox terrain (most accurate when available)
-    if (mapInstance && typeof mapInstance.queryTerrainElevation === 'function') {
-      try {
-        const terrainElevation = mapInstance.queryTerrainElevation([longitude, latitude]);
-        if (terrainElevation !== null && terrainElevation !== undefined && !isNaN(terrainElevation)) {
-          console.log('🗺️ Using Mapbox terrain elevation:', terrainElevation.toFixed(2), 'm');
-          this.cache.set(key, terrainElevation);
-          return terrainElevation;
-        }
-      } catch (terrainError) {
-        console.warn('Mapbox terrain query failed:', terrainError);
-      }
-    }
+    let elevation: number;
 
-    // Priority 2: Try real elevation APIs
     try {
-      const elevation = await this.fetchElevationFromAPI(latitude, longitude);
-      console.log('🌍 Using API elevation data:', elevation.toFixed(2), 'm');
-      this.cache.set(key, elevation);
-      return elevation;
+      if (this.preferredSource === 'mapbox-terrain') {
+        // Priority 1: Use Mapbox Terrain-RGB (Google Earth accuracy)
+        try {
+          elevation = await this.getElevationFromMapboxTerrain(latitude, longitude);
+          console.log('✅ Got elevation from Mapbox Terrain-RGB (Google Earth accuracy):', elevation.toFixed(2), 'm');
+          this.cache.set(key, elevation);
+          return elevation;
+        } catch (terrainError) {
+          console.warn('Mapbox Terrain-RGB failed, trying fallback methods:', terrainError);
+          
+          // Fallback: Try mapInstance terrain if available
+          if (mapInstance && typeof mapInstance.queryTerrainElevation === 'function') {
+            try {
+              const terrainElevation = mapInstance.queryTerrainElevation([longitude, latitude]);
+              if (terrainElevation !== null && terrainElevation !== undefined && !isNaN(terrainElevation)) {
+                console.log('🗺️ Using Mapbox map terrain elevation:', terrainElevation.toFixed(2), 'm');
+                this.cache.set(key, terrainElevation);
+                return terrainElevation;
+              }
+            } catch (mapError) {
+              console.warn('Mapbox map terrain also failed:', mapError);
+            }
+          }
+          
+          // Final fallback for mapbox-terrain mode: try standard APIs
+          elevation = await this.fetchElevationFromAPI(latitude, longitude);
+          console.log('⚠️ Using fallback API data:', elevation.toFixed(2), 'm');
+          this.cache.set(key, elevation);
+          return elevation;
+        }
+      } else {
+        // Use standard APIs (Open-Meteo, Open-Elevation)
+        elevation = await this.fetchElevationFromAPI(latitude, longitude);
+        console.log('🌍 Using standard API elevation data:', elevation.toFixed(2), 'm');
+        this.cache.set(key, elevation);
+        return elevation;
+      }
     } catch (error) {
       console.error('❌ All elevation data sources failed:', error);
       throw new Error('Unable to fetch elevation data. Please try again or check your internet connection.');

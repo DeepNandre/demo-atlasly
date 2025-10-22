@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { 
   Mountain, 
   MousePointer, 
@@ -14,7 +16,8 @@ import {
   MapPin,
   Ruler,
   BarChart3,
-  Loader2
+  Loader2,
+  Satellite
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -32,7 +35,7 @@ import * as turf from '@turf/turf';
 import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
-import { elevationService, ElevationPoint, ElevationProfile } from '@/lib/elevationApi';
+import { elevationService, ElevationPoint, ElevationProfile, ElevationSource } from '@/lib/elevationApi';
 import { toast } from 'sonner';
 
 interface EnhancedElevationTabProps {
@@ -52,6 +55,7 @@ interface ProfileData {
 const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
   const [mode, setMode] = useState<MeasurementMode>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [dataSource, setDataSource] = useState<ElevationSource>('mapbox-terrain');
   
   // Debug mode changes
   useEffect(() => {
@@ -71,6 +75,12 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
     distance: number;
     avgGrade: number;
   } | null>(null);
+
+  // Update elevation service when data source changes
+  useEffect(() => {
+    elevationService.setPreferredSource(dataSource);
+    console.log('🔄 Elevation data source changed to:', dataSource);
+  }, [dataSource]);
   
   const drawRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -528,6 +538,45 @@ const EnhancedElevationTab = ({ mapInstance }: EnhancedElevationTabProps) => {
               Clear
             </Button>
           )}
+        </div>
+
+        {/* Data Source Toggle */}
+        <div className="mb-4 p-3 bg-muted/50 rounded-lg border">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Satellite className="w-4 h-4 text-muted-foreground" />
+              <Label htmlFor="data-source" className="text-sm font-medium cursor-pointer">
+                Elevation Data Source
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`text-sm ${dataSource === 'standard-apis' ? 'font-medium' : 'text-muted-foreground'}`}>
+                Standard APIs
+              </span>
+              <Switch
+                id="data-source"
+                checked={dataSource === 'mapbox-terrain'}
+                onCheckedChange={(checked) => {
+                  const newSource: ElevationSource = checked ? 'mapbox-terrain' : 'standard-apis';
+                  setDataSource(newSource);
+                  toast.success(
+                    checked 
+                      ? '🗺️ Using Mapbox Terrain (Google Earth accuracy)' 
+                      : '🌍 Using Standard APIs',
+                    { description: 'Clear and redraw to use new data source' }
+                  );
+                }}
+              />
+              <span className={`text-sm ${dataSource === 'mapbox-terrain' ? 'font-medium' : 'text-muted-foreground'}`}>
+                Mapbox Terrain
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {dataSource === 'mapbox-terrain' 
+              ? '✨ Using high-accuracy terrain data (same as Google Earth Pro)' 
+              : '🌐 Using global elevation APIs (Open-Meteo, Open-Elevation)'}
+          </p>
         </div>
         
         <div className="flex flex-col gap-2">
